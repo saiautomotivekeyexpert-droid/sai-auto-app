@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SAI AUTO KEY WORKS - E-KYC & Job Registry
 
-## Getting Started
+A premium, high-fidelity web application and mobile app wrapper for car key programming and locksmithing business management. Built for security, efficiency, and professional documentation.
 
-First, run the development server:
+![App Icon](/Users/user/.gemini/antigravity/brain/1f51f642-6831-4c06-b2ee-20ff59376492/app_icon_design_1773510583382.png)
 
+## 🏗 Architecture
+This project is a **hybrid mobile application**:
+- **Frontend**: Next.js (TypeScript) with Tailwind-inspired styling.
+- **Mobile Wrapper**: [Capacitor](https://capacitorjs.com/) is used to wrap the static web export into a native Android project.
+- **Backend/Storage**: Client-side state management with persistent `localStorage` for offline-first capability.
+
+## 📱 Mobile APK Generation
+This app is designed for **Direct APK distribution** (bypassing App Stores).
+
+### Prerequisites
+- Node.js & npm
+- Android Studio (for APK building)
+
+### Build Instructions
+1.  **Build the Web Assets**:
+    ```bash
+    npm run build
+    ```
+    This generates a static `out` directory.
+
+2.  **Sync with Android**:
+    ```bash
+    npx cap copy android
+    ```
+    This moves the web assets into the `android/` project.
+
+3.  **Generate APK**:
+    - Open the `android/` folder in **Android Studio**.
+    - Go to `Build > Build Bundle(s) / APK(s) > Build APK(s)`.
+    - Once finished, click "Locate" to find your `.apk` file.
+
+## 🛠 Features
+- **Smart Job Management**: Tiered pricing, particulars tracking, and live status updates.
+- **E-KYC Documentation**: Professional Estimate and Invoice PDF generation.
+- **Configurable Settings**: Admins can edit Service Types, Shop Profiles, and Legal Declarations directly.
+- **Business Ledger**: Real-time gross earning and net margin calculation.
+
+## 🚀 Development
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+*Created and maintained by Sai Auto Key Works.*
