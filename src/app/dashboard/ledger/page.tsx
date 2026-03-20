@@ -38,7 +38,11 @@ export default function LedgerPage() {
 
   const stats = filteredJobs.reduce((acc, job) => {
     const d = job.details || {};
-    const revenue = Number(d.totalCharge) || 0;
+    const isQS = job.serviceType === "Quick Service";
+    const serviceCharge = Number(d.serviceCharge) || 0;
+    const itemsTotal = (d.particulars || []).reduce((sum: number, p: any) => sum + (Number(p.cost || 0) * (Number(p.quantity) || 1)), 0);
+    
+    const revenue = Number(d.totalCharge) || (serviceCharge + (isQS ? itemsTotal : 0));
     const baseExpense = (d.particulars || []).reduce((sum: number, p: any) => sum + Number(p.expense || 0), 0);
     const commissionExpense = Number(d.commission) || 0;
     const totalJobExpense = baseExpense + commissionExpense;

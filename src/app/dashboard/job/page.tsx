@@ -15,7 +15,10 @@ function JobDetailPageContent() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
   const { jobs, isLoaded, updateJobStatus, updateJobDetails, addTimelineEvent } = useJobs();
-  const { serviceTypes, subCategories: subCategoryOptions, particulars: particularsOptions } = useSettings();
+  const { 
+    serviceTypes, subCategories: subCategoryOptions, particulars: catalogItems, 
+    inventorySeries, consumeInventoryItem, releaseInventoryItem
+  } = useSettings();
 
   const [isReadOnly, setIsReadOnly] = useState(true);
   const [showPinModal, setShowPinModal] = useState(false);
@@ -31,6 +34,7 @@ function JobDetailPageContent() {
   const [commission, setCommission] = useState<number>(0);
   const [particularsStep, setParticularsStep] = useState(1); // 1: Sub-category, 2: Particulars
   const [tempSubCategories, setTempSubCategories] = useState<string[]>([]);
+  const [selectedStockItem, setSelectedStockItem] = useState<{seriesId: string, itemId: string, mark: string, rawId?: string, rate: number} | null>(null);
 
   // File Upload State for late uploads
   const [files, setFiles] = useState<{ documents: any[] }>({
@@ -40,7 +44,12 @@ function JobDetailPageContent() {
   // Helper: convert a data: URL to a blob: URL for reliable PDF embedding
   const dataurlToBlob = (dataUrl: string): string => {
     try {
-      const [header, b64] = dataUrl.split(',');
+      if (!dataUrl || !dataUrl.startsWith('data:')) return dataUrl;
+      const parts = dataUrl.split(',');
+      if (parts.length < 2) return dataUrl;
+      
+      const header = parts[0];
+      const b64 = parts[1];
       const mime = header.match(/:(.*?);/)?.[1] || 'application/pdf';
       const binary = atob(b64);
       const len = binary.length;
@@ -48,7 +57,8 @@ function JobDetailPageContent() {
       for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
       const blob = new Blob([bytes], { type: mime });
       return URL.createObjectURL(blob);
-    } catch {
+    } catch (e) {
+      console.error("dataurlToBlob conversion failed:", e);
       return dataUrl; // fallback
     }
   };
@@ -57,12 +67,26 @@ function JobDetailPageContent() {
   const openDocumentViewer = (doc: { preview?: string; url?: string; type?: string; name: string }) => {
     const raw = doc.preview || doc.url || '';
     if (!raw) return;
+    
     const isPdf = doc.type === 'application/pdf' || raw.startsWith('data:application/pdf');
     let viewUrl = raw;
+    
+    // Only attempt conversion if it's a data URL and a PDF
     if (isPdf && raw.startsWith('data:')) {
-      viewUrl = dataurlToBlob(raw);
+      try {
+        const converted = dataurlToBlob(raw);
+        if (converted) viewUrl = converted;
+      } catch (err) {
+        console.error("Failed to convert PDF data URL to blob", err);
+        // Fallback to raw data URL (iframe might still handle it if not too large)
+      }
     }
-    setPreviewDoc({ url: viewUrl, type: isPdf ? 'application/pdf' : (doc.type || 'image/jpeg'), name: doc.name });
+    
+    setPreviewDoc({ 
+      url: viewUrl, 
+      type: isPdf ? 'application/pdf' : (doc.type || 'image/jpeg'), 
+      name: doc.name 
+    });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, key: "documents") => {
@@ -106,12 +130,13 @@ function JobDetailPageContent() {
       });
       setEditData(details);
     }
-  }, [job?.id]);
+  }, [job?.id, job?.details]);
 
   const handleDeleteDocument = (idx: number) => {
     if (isReadOnly) return;
-    const updatedDocs = (d.documents || []).filter((_: any, i: number) => i !== idx);
-    setEditData({ ...d, documents: updatedDocs });
+    const currentDocs = (editData?.documents || job?.details?.documents || []);
+    const updatedDocs = currentDocs.filter((_: any, i: number) => i !== idx);
+    setEditData({ ...(editData || job?.details || {}), documents: updatedDocs });
   };
 
   if (!id || !isLoaded) {
@@ -167,28 +192,39 @@ function JobDetailPageContent() {
     </div>
   );
 
-  const handleParticularToggle = (item: any) => {
+  const handleParticularToggle = (item: any, stockInfo?: typeof selectedStockItem) => {
     if (isReadOnly && !showEndWorkModal) return;
     const isSelected = d.particulars?.some((p: any) => p.name === item.name);
-    const updated = isSelected
-      ? (d.particulars || []).filter((p: any) => p.name !== item.name)
-      : [...(d.particulars || []), item];
+    
+    let updated;
+    if (isSelected) {
+      updated = (d.particulars || []).filter((p: any) => p.name !== item.name);
+    } else {
+      const newItem = { ...item };
+      if (stockInfo) {
+        newItem.inventoryInfo = stockInfo;
+        newItem.expense = stockInfo.rate; // Override with actual purchase rate
+      }
+      updated = [...(d.particulars || []), newItem];
+    }
+
     const newItemsCharge = updated.reduce((s: number, p: any) => s + Number(p.cost || 0), 0);
-    setEditData({ ...d, particulars: updated, particularsCharge: newItemsCharge, totalCharge: (Number(d.approvedGrade?.rate || d.serviceCharge) || 0) + newItemsCharge });
+    const baseRate = Number(d.approvedGrade?.rate || d.serviceCharge) || 0;
+    setEditData({ ...d, particulars: updated, particularsCharge: 0, totalCharge: baseRate });
   };
 
   const handleServiceChargeChange = (val: number) => {
-    setEditData({ ...d, serviceCharge: val, totalCharge: val + itemsCharge });
+    setEditData({ ...d, serviceCharge: val, totalCharge: val });
   };
 
   const handleSaveChanges = () => {
     // Merge newly uploaded file previews into editData
     const finalData = { ...editData };
     if (files.documents.length > 0) {
-      // If there are new uploads, merge them with existing docs
-      const existing = Array.isArray(job.details.documents) ? job.details.documents : [];
+      // Use existing edited documents as base, then append new uploads
+      const baseDocs = Array.isArray(finalData.documents) ? finalData.documents : [];
       finalData.documents = [
-        ...existing,
+        ...baseDocs,
         ...files.documents.map(f => ({
           preview: f.preview,
           name: f.name,
@@ -316,7 +352,7 @@ function JobDetailPageContent() {
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: job.status === "Waiting Approval" || job.status === "Approved" || job.status === "In Progress" ? '0.5rem' : '0' }}>
             {/* Estimate Button - Always available once job exists */}
             <button className="primary-btn" style={{ flex: 1, background: '#3b82f6' }} onClick={() => { 
-              router.push(`/dashboard/job/${job.id}/invoice?type=estimate`);
+              router.push(`/dashboard/job/invoice?id=${job.id}&type=estimate`);
             }}>
               {d.hideEstimateTotal ? "View Estimate (Multi-tier)" : "View Estimate"}
             </button>
@@ -326,7 +362,7 @@ function JobDetailPageContent() {
             {(job.status === "Completed" || job.status === "Approved" || job.status === "In Progress") && (
               <button className="primary-btn green-btn" style={{ flex: 1 }} onClick={() => { 
                 if (!job.timeline?.invoiceGeneratedAt) addTimelineEvent(job.id, 'invoiceGeneratedAt'); 
-                router.push(`/dashboard/job/${job.id}/invoice`);
+                router.push(`/dashboard/job/invoice?id=${job.id}`);
               }}>
                 {job.status === "Approved" || job.status === "In Progress" ? "Generate Invoice" : "View Invoice"}
               </button>
@@ -369,6 +405,7 @@ function JobDetailPageContent() {
         {refField("Vehicle No.", vehicleReg, "regNumber")}
         {refField("Vehicle Brand", vehicleBrand, "brand")}
         {refField("Vehicle Model", vehicleModel, "model")}
+        {refField("Manufacture Year", d.year || d.manufactureYear || "—", "year")}
         {refField("Vehicle Type", vehicleCategory, "category", "select", ["4-Wheeler", "2-Wheeler", "3-Wheeler", "HCV"])}
       </div>
 
@@ -416,9 +453,45 @@ function JobDetailPageContent() {
         <div className="ref-info-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.4rem', marginTop: '0.5rem' }}>
           <span className="ref-label">Sub-categories</span>
           <span className="ref-value" style={{ width: '100%', textAlign: 'left' }}>
-            {Array.isArray(d.subCategories) ? d.subCategories.join(", ") : d.subCategory || "None"}
+            {(Array.isArray(d.subCategories) && d.subCategories.length > 0) ? d.subCategories.join(", ") : d.subCategory || "None"}
           </span>
         </div>
+        
+        {particulars.length > 0 && (
+          <div className="ref-info-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.4rem', marginTop: '0.5rem', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '0.5rem' }}>
+            <span className="ref-label">Job Particulars</span>
+            <div className="ref-value" style={{ width: '100%', textAlign: 'left', display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+              {particulars.map((p: any, idx: number) => (
+                <span key={idx} style={{ 
+                  background: 'rgba(59,130,246,0.1)', 
+                  color: 'var(--accent-primary)', 
+                  padding: '0.15rem 0.6rem', 
+                  borderRadius: '12px', 
+                  fontSize: '0.75rem', 
+                  fontWeight: 700,
+                  border: '1px solid rgba(59,130,246,0.2)'
+                }}>
+                  {p.name.toUpperCase()}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* INVENTORY / RAW ID DISPLAY */}
+        {(d.particulars || []).some((p: any) => p.inventoryInfo) && (
+          <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: 'rgba(16,185,129,0.05)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.2)' }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--success)', textTransform: 'uppercase', display: 'block', marginBottom: '0.4rem' }}>Transponder Usage</span>
+            {(d.particulars || []).filter((p: any) => p.inventoryInfo).map((p: any, idx: number) => (
+              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                <span style={{ fontWeight: 600 }}>{p.inventoryInfo.mark}</span>
+                <code style={{ background: 'rgba(0,0,0,0.2)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.8rem', color: 'var(--accent-primary)' }}>
+                  {p.inventoryInfo.rawId || "NO RAW ID"}
+                </code>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 4. DOCUMENT DETAIL */}
@@ -771,58 +844,118 @@ function JobDetailPageContent() {
                 <div style={{ marginBottom: '1.5rem' }}>
                   <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.05em', display: 'block', marginBottom: '0.5rem' }}>JOB PARTICULARS:</label>
                   <div className="checkbox-list" style={{ maxHeight: "200px", overflowY: "auto", display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {particularsOptions.map((p: any) => {
+                    {catalogItems
+                      .filter((p: any) => p.category?.toUpperCase() !== "SERVICES")
+                      .map((p: any) => {
                       const sel = d.particulars?.some((x: any) => x.name === p.name);
+                      const hasInventory = inventorySeries.some(s => s.name === p.name && !s.isExhausted);
+                      
+                      // Get all available inventory items across all series
+                      const availableStock = inventorySeries.flatMap(s => 
+                        s.items.filter(i => i.status === 'Available').map(i => ({
+                          seriesId: s.id,
+                          itemId: i.id,
+                          mark: i.mark,
+                          rawId: i.rawId,
+                          rate: s.purchaseRate,
+                          seriesName: s.name
+                        }))
+                      );
+
                       return (
-                        <label key={p.id} className={`checkbox-item glass-panel ${sel ? "active" : ""}`} 
-                          onClick={() => handleParticularToggle(p)} 
-                          style={{ cursor: "pointer", padding: '0.75rem', borderRadius: '8px', border: sel ? '1px solid var(--accent-primary)' : '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', gap: '0.75rem', background: sel ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.03)' }}>
-                          <div style={{ width: '20px', height: '20px', borderRadius: '4px', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: sel ? 'var(--accent-primary)' : 'transparent' }}>
-                            {sel && <Check size={14} color="white" />}
-                          </div>
-                          <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{p.name}</span>
-                            <span style={{ fontSize: '0.9rem', color: 'var(--success)', fontWeight: 700 }}>₹{p.cost}</span>
-                          </div>
-                        </label>
+                        <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                          <label className={`checkbox-item glass-panel ${sel ? "active" : ""}`} 
+                            onClick={() => {
+                              if (hasInventory && !sel) {
+                                // Don't toggle yet, wait for stock selection
+                              } else {
+                                handleParticularToggle(p);
+                              }
+                            }} 
+                            style={{ cursor: "pointer", padding: '0.75rem', borderRadius: '8px', border: sel ? '1px solid var(--accent-primary)' : '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', gap: '0.75rem', background: sel ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.03)' }}>
+                            <div style={{ width: '20px', height: '20px', borderRadius: '4px', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: sel ? 'var(--accent-primary)' : 'transparent' }}>
+                              {sel && <Check size={14} color="white" />}
+                            </div>
+                            <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{p.name}</span>
+                            </div>
+                          </label>
+
+                          {hasInventory && sel && d.particulars?.find((x: any) => x.name === p.name)?.inventoryInfo && (
+                            <div style={{ marginLeft: '2.5rem', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--success)', fontWeight: 600 }}>
+                              Selected: {d.particulars.find((x: any) => x.name === p.name).inventoryInfo.mark} ({d.particulars.find((x: any) => x.name === p.name).inventoryInfo.rawId || 'No ID'})
+                            </div>
+                          )}
+                  
+                          {hasInventory && !sel && (
+                            <div style={{ marginLeft: '2.5rem', marginBottom: '0.5rem' }}>
+                              <select 
+                                className="display-input" 
+                                style={{ fontSize: '0.8rem', padding: '0.4rem', borderColor: 'var(--accent-primary)' }}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (!val) return;
+                                  const stock = availableStock.find(s => s.itemId === val);
+                                  if (stock) handleParticularToggle(p, stock);
+                                }}
+                              >
+                                <option value="">— Select from Stock —</option>
+                                {availableStock
+                                  .filter(s => s.seriesName === p.name)
+                                  .map(s => (
+                                    <option key={s.itemId} value={s.itemId}>
+                                      {s.mark} (Rate: ₹{s.rate}) - {s.rawId || 'No Raw ID'}
+                                    </option>
+                                  ))}
+                              </select>
+                              {availableStock.filter(s => s.seriesName === p.name).length === 0 && (
+                                <p style={{ color: 'var(--danger)', fontSize: '0.7rem', marginTop: '0.2rem' }}>⚠️ Out of stock! Add units in Manage Stock.</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
                 </div>
                 
-                <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(59,130,246,0.05)', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
-                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.05em', display: 'block', marginBottom: '0.5rem' }}>COMMISSION / EXTRA EXPENSE:</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                      <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>₹</span>
-                      <input 
-                        type="number" 
-                        className="transparent-input" 
-                        style={{ background: 'transparent', border: 'none', color: 'white', width: '100%', fontSize: '1rem', fontWeight: 600, outline: 'none' }}
-                        placeholder="Enter amount..."
-                        value={commission || ""}
-                        onChange={e => setCommission(Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
-                </div>
 
                 <div className="modal-actions">
                   <button className="secondary-btn" onClick={() => setParticularsStep(1)}><ChevronLeft size={16} /> Back</button>
-                  <button className="primary-btn" style={{ background: 'var(--warning)', color: '#000' }} onClick={() => {
-                    updateJobDetails(job.id, { 
-                      subCategories: tempSubCategories,
-                      particulars: d.particulars || [],
-                      commission: commission || 0
-                    });
-                    if (job.status === "In Progress") {
-                      updateJobStatus(job.id, 'Completed');
-                      addTimelineEvent(job.id, 'workEndedAt');
-                    }
-                    setShowEndWorkModal(false);
-                  }}>
-                    Confirm & Finish Work
-                  </button>
+                   <button 
+                     className="primary-btn" 
+                     style={{ 
+                       background: 'var(--warning)', 
+                       color: '#000',
+                       opacity: (d.particulars || []).some((p: any) => 
+                         inventorySeries.some(s => s.name === p.name && !s.isExhausted) && !p.inventoryInfo
+                       ) ? 0.5 : 1
+                     }} 
+                     disabled={ (d.particulars || []).some((p: any) => 
+                        inventorySeries.some(s => s.name === p.name && !s.isExhausted) && !p.inventoryInfo
+                      )}
+                     onClick={() => {
+                       updateJobDetails(job.id, { 
+                         subCategories: tempSubCategories,
+                         particulars: d.particulars || [],
+                         commission: commission || 0
+                       });
+                       if (job.status === "In Progress") {
+                         updateJobStatus(job.id, 'Completed');
+                         addTimelineEvent(job.id, 'workEndedAt');
+                         
+                         // Consume physical stock
+                         (d.particulars || []).forEach((p: any) => {
+                           if (p.inventoryInfo) {
+                             consumeInventoryItem(p.inventoryInfo.itemId, job.id);
+                           }
+                         });
+                       }
+                       setShowEndWorkModal(false);
+                     }}
+                   >
+                     Confirm & Finish Work
+                   </button>
                 </div>
               </div>
             )}
@@ -840,6 +973,7 @@ function JobDetailPageContent() {
             <div className="modal-actions">
               <button className="secondary-btn" onClick={() => setShowRejectModal(false)}>Cancel</button>
               <button className="primary-btn" style={{ background: 'var(--danger)' }} onClick={() => {
+                releaseInventoryItem(job.id);
                 updateJobStatus(job.id, 'Rejected');
                 setShowRejectModal(false);
               }}>
@@ -898,13 +1032,27 @@ function JobDetailPageContent() {
             {/* Viewer body */}
             <div style={{ flex: 1, overflow: 'hidden', background: '#222' }}>
               {previewDoc.type === 'application/pdf' || previewDoc.url.startsWith('blob:') ? (
-                <iframe
-                  key={previewDoc.url}
-                  src={previewDoc.url}
-                  title={previewDoc.name}
-                  style={{ width: '100%', height: '100%', border: 'none' }}
-                  allow="fullscreen"
-                />
+                // Defensive check: If it's not a data/blob/http URL, it's likely a broken path
+                (!previewDoc.url.startsWith('data:') && !previewDoc.url.startsWith('blob:') && !previewDoc.url.startsWith('http')) ? (
+                  <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                    <div style={{ backgroundColor: '#f1f5f9', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem' }}>
+                      <X size={40} color="#94a3b8" />
+                    </div>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#334155', marginBottom: '0.5rem' }}>Preview Unvailable</h3>
+                    <p style={{ fontSize: '0.9rem', marginBottom: '1.5rem', maxWidth: '300px' }}>This document's preview data is missing or corrupted. You can try downloading it directly.</p>
+                    <a href={previewDoc.url} download={previewDoc.name} className="primary-btn" style={{ background: '#3b82f6', color: 'white', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Download size={18} /> Download Original File
+                    </a>
+                  </div>
+                ) : (
+                  <iframe
+                    key={previewDoc.url}
+                    src={previewDoc.url}
+                    title={previewDoc.name}
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                    allow="fullscreen"
+                  />
+                )
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <img src={previewDoc.url} alt={previewDoc.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
@@ -929,7 +1077,8 @@ function JobDetailPageContent() {
         .section-head h3 { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; color: var(--text-secondary); margin: 0; }
         .flex-between { justify-content: space-between; }
         .section-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; }
-        .section-body.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+        .section-body.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        @media (max-width: 480px) { .section-body.grid { grid-template-columns: 1fr; } }
         .info-row { display: flex; flex-direction: column; gap: 0.3rem; }
         .label { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
         .text-val { font-size: 0.95rem; color: var(--text-primary); font-weight: 500; }
@@ -950,6 +1099,8 @@ function JobDetailPageContent() {
         .mt-4 { margin-top: 1rem; }
         .pending-docs-notice { display: flex; align-items: center; gap: 0.5rem; color: var(--warning); background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.875rem; font-weight: 500; }
         .doc-upload-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 0.75rem; }
+        @media (max-width: 600px) { .doc-upload-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 400px) { .doc-upload-grid { grid-template-columns: 1fr; } }
         .doc-item { aspect-ratio: 1; background: rgba(0,0,0,0.2); border: 2px dashed var(--glass-border); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer; transition: var(--transition); color: var(--text-muted); font-size: 0.8rem; }
         .doc-item:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
         .doc-upload-group { margin-bottom: 1rem; }

@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, PlusCircle, History, Settings, LogOut, Key, Calculator } from "lucide-react";
+import { LayoutDashboard, PlusCircle, History, Settings, LogOut, Key, Calculator, Zap, X } from "lucide-react";
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
 
   const navItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "New E-KYC", href: "/new-job", icon: PlusCircle },
+    { name: "Quick Service", href: "/dashboard/quick-service", icon: Zap },
+    { name: "Manage Stock", href: "/dashboard/inventory", icon: Key },
     { name: "Ledger", href: "/dashboard/ledger", icon: Calculator },
     { name: "Settings", href: "/dashboard/settings", icon: Settings },
   ];
@@ -21,6 +23,9 @@ export default function Sidebar() {
           <Key size={24} color="var(--accent-primary)" />
           <span>Sai Auto</span>
         </div>
+        <button className="mobile-close-btn" onClick={onClose}>
+          <X size={24} />
+        </button>
       </div>
 
       <nav className="sidebar-nav">
@@ -32,6 +37,7 @@ export default function Sidebar() {
               key={item.name} 
               href={item.href}
               className={`nav-item ${isActive ? 'active' : ''}`}
+              onClick={onClose}
             >
               <Icon size={20} />
               <span>{item.name}</span>
@@ -60,6 +66,26 @@ export default function Sidebar() {
         }
         .sidebar-header {
           margin-bottom: 2.5rem;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .mobile-close-btn {
+          display: none;
+          background: transparent;
+          border: none;
+          color: var(--text-muted);
+        }
+        @media (max-width: 1024px) {
+          .mobile-close-btn {
+            display: block;
+          }
+           .sidebar {
+             margin: 0;
+             border-radius: 0;
+             border: none;
+             height: 100vh;
+           }
         }
         .logo {
           display: flex;

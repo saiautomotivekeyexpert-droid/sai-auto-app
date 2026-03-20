@@ -7,43 +7,29 @@ import { Plus, Trash2, Settings as SettingsIcon, Save, ChevronRight } from "luci
 export default function SettingsPage() {
   const { 
     serviceTypes, consentTypes, particulars, subCategories, partners,
-    addServiceType, removeServiceType,
     addConsentType, removeConsentType,
-    addParticular, removeParticular,
-    addSubCategory, removeSubCategory,
     addPartner, removePartner,
     estimateTerms, invoiceTerms, shopProfile,
+    inventorySeries, partnerPin, updatePartnerPin,
     updateEstimateTerms, updateInvoiceTerms, updateShopProfile,
+    addInventorySeries, updateInventoryItem, removeInventorySeries
   } = useSettings();
 
-  const [newService, setNewService] = useState("");
+  const [expandedSeries, setExpandedSeries] = useState<string | null>(null);
+
   const [newConsent, setNewConsent] = useState("");
-  const [newParticular, setNewParticular] = useState("");
-  const [newCost, setNewCost] = useState<number>(0);
-  const [newExpense, setNewExpense] = useState<number>(0);
-  const [newSubCategory, setNewSubCategory] = useState("");
   const [newPartner, setNewPartner] = useState("");
 
-  const handleAddService = () => {
-    if (newService.trim()) { addServiceType(newService.trim()); setNewService(""); }
-  };
   const handleAddConsent = () => {
     if (newConsent.trim()) { addConsentType(newConsent.trim()); setNewConsent(""); }
   };
-  const handleAddParticular = () => {
-    if (newParticular.trim()) { 
-      addParticular(newParticular.trim(), newCost, newExpense); 
-      setNewParticular(""); 
-      setNewCost(0); 
-      setNewExpense(0);
+  const handleAddPartner = () => {
+    if (newPartner.trim()) { 
+      addPartner(newPartner.trim()); 
+      setNewPartner(""); 
     }
   };
-  const handleAddSubCategory = () => {
-    if (newSubCategory.trim()) { addSubCategory(newSubCategory.trim()); setNewSubCategory(""); }
-  };
-  const handleAddPartner = () => {
-    if (newPartner.trim()) { addPartner(newPartner.trim()); setNewPartner(""); }
-  };
+
 
   return (
     <div className="settings-container">
@@ -53,30 +39,6 @@ export default function SettingsPage() {
       </div>
 
       <div className="settings-grid">
-        {/* SERVICE TYPES */}
-        <div className="settings-card glass-panel animate-fade-in" style={{ animationDelay: "0.1s" }}>
-          <div className="card-header">
-            <h3>Service Types</h3>
-          </div>
-          <div className="options-list">
-            {serviceTypes.map(type => (
-              <div key={type} className="option-item">
-                <span>{type}</span>
-                <button className="delete-btn" onClick={() => removeServiceType(type)}>
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="add-option">
-            <input 
-              type="text" placeholder="Add service type..." 
-              value={newService} onChange={e => setNewService(e.target.value)}
-              onKeyPress={e => e.key === 'Enter' && handleAddService()}
-            />
-            <button onClick={handleAddService}><Plus size={18} /></button>
-          </div>
-        </div>
 
         {/* CONSENT TYPES */}
         <div className="settings-card glass-panel animate-fade-in" style={{ animationDelay: "0.2s" }}>
@@ -103,79 +65,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* JOB PARTICULARS */}
-        <div className="settings-card glass-panel animate-fade-in" style={{ animationDelay: "0.3s" }}>
-          <div className="card-header">
-            <h3>Job Particulars</h3>
-          </div>
-          <div className="options-list">
-            {particulars.map(item => (
-              <div key={item.id} className="option-item">
-                <div className="item-details">
-                  <span className="name">{item.name}</span>
-                  <div className="row" style={{ gap: '0.5rem', display: 'flex' }}>
-                    <span className="cost" title="Price to Customer">P: ₹{item.cost}</span>
-                    <span className="expense" style={{ fontSize: '0.8rem', color: 'var(--danger)', fontWeight: 600 }} title="Internal Expense">E: ₹{item.expense}</span>
-                  </div>
-                </div>
-                <button className="delete-btn" onClick={() => removeParticular(item.id)}>
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="add-option vertical">
-            <input 
-              type="text" placeholder="Item name (e.g. Remote Board)..." 
-              value={newParticular} onChange={e => setNewParticular(e.target.value)}
-            />
-            <div className="row">
-              <div className="input-group" style={{ flex: 1 }}>
-                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem', display: 'block' }}>Price (₹)</label>
-                <input 
-                  type="number" placeholder="Price..." 
-                  value={newCost || ""} onChange={e => setNewCost(Number(e.target.value))}
-                  style={{ width: '100%' }}
-                />
-              </div>
-              <div className="input-group" style={{ flex: 1 }}>
-                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem', display: 'block' }}>Expense (₹)</label>
-                <input 
-                  type="number" placeholder="Cost..." 
-                  value={newExpense || ""} onChange={e => setNewExpense(Number(e.target.value))}
-                  style={{ width: '100%' }}
-                />
-              </div>
-            </div>
-            <button className="add-btn-wide" onClick={handleAddParticular} style={{ marginTop: '0.5rem' }}><Plus size={18} /> Add Item</button>
-          </div>
-        </div>
 
-        {/* SERVICE SUB-CATEGORIES */}
-        <div className="settings-card glass-panel animate-fade-in" style={{ animationDelay: "0.4s" }}>
-          <div className="card-header">
-            <h3>Service Sub-categories</h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>Shown in E-KYC form alongside Particulars</p>
-          </div>
-          <div className="options-list">
-            {subCategories.map(item => (
-              <div key={item.id} className="option-item">
-                <span>{item.name}</span>
-                <button className="delete-btn" onClick={() => removeSubCategory(item.id)}>
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="add-option">
-            <input 
-              type="text" placeholder="Add sub-category..." 
-              value={newSubCategory} onChange={e => setNewSubCategory(e.target.value)}
-              onKeyPress={e => e.key === 'Enter' && handleAddSubCategory()}
-            />
-            <button onClick={handleAddSubCategory}><Plus size={18} /></button>
-          </div>
-        </div>
 
         {/* PARTNER REGISTRY */}
         <div className="settings-card glass-panel animate-fade-in" style={{ animationDelay: "0.5s" }}>
@@ -185,21 +75,36 @@ export default function SettingsPage() {
           </div>
           <div className="options-list">
             {partners.map(p => (
-              <div key={p} className="option-item">
-                <span style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>{p}</span>
-                <button className="delete-btn" onClick={() => removePartner(p)}>
+              <div key={p.id} className="option-item">
+                <span style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>{p.name}</span>
+                <button className="delete-btn" onClick={() => removePartner(p.id)}>
                   <Trash2 size={16} />
                 </button>
               </div>
             ))}
           </div>
-          <div className="add-option">
+          <div className="add-option" style={{ marginBottom: '1.5rem' }}>
             <input 
               type="text" placeholder="Add business name..." 
               value={newPartner} onChange={e => setNewPartner(e.target.value)}
               onKeyPress={e => e.key === 'Enter' && handleAddPartner()}
             />
             <button onClick={handleAddPartner}><Plus size={18} /></button>
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
+            <label className="terms-label" style={{ marginBottom: '0.5rem' }}>GLOBAL PARTNER LOGIN PIN</label>
+            <div className="add-option">
+              <input 
+                type="text" 
+                placeholder="4-digit PIN"
+                maxLength={4}
+                value={partnerPin}
+                onChange={e => updatePartnerPin(e.target.value.replace(/\D/g, ''))}
+                style={{ textAlign: 'center', letterSpacing: '0.5rem', fontWeight: 800, fontSize: '1.1rem' }}
+              />
+            </div>
+            <p className="terms-help">This PIN will be used by ALL partners to login to the Quick Service POS.</p>
           </div>
         </div>
 
@@ -277,6 +182,7 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+        
       </div>
 
       <style jsx>{`
@@ -411,6 +317,155 @@ export default function SettingsPage() {
           font-size: 0.7rem;
           color: var(--text-muted);
           margin-top: 0.5rem;
+        }
+
+        /* INVENTORY STYLES */
+        .inventory-layout {
+          display: grid;
+          grid-template-columns: 340px 1fr;
+          gap: 2.5rem;
+          margin-top: 1rem;
+        }
+        .inventory-sidebar h4, .inventory-content h4 {
+          font-size: 0.85rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--accent-primary);
+          margin-bottom: 1.25rem;
+        }
+        .inventory-form {
+          display: flex;
+          flex-direction: column;
+          gap: 1.25rem;
+        }
+        .series-generator {
+          padding: 1rem;
+          background: rgba(255,255,255,0.03);
+          border: 1px dashed var(--glass-border);
+          border-radius: 8px;
+        }
+        .series-generator h5 {
+          font-size: 0.75rem;
+          margin-bottom: 0.75rem;
+          color: var(--text-secondary);
+        }
+        .small-textarea {
+          height: 80px;
+          font-size: 0.8rem;
+          line-height: 1.4;
+        }
+        .series-list {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+        .series-item {
+          border-color: rgba(255,255,255,0.08);
+        }
+        .series-item.exhausted {
+          opacity: 0.6;
+          border-color: var(--danger);
+        }
+        .series-main {
+          padding: 1.25rem;
+          display: flex;
+          align-items: center;
+          gap: 1.5rem;
+          cursor: pointer;
+        }
+        .series-info {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+        .series-name {
+          font-weight: 700;
+          font-size: 1.05rem;
+        }
+        .series-vendor {
+          font-size: 0.8rem;
+          color: var(--text-muted);
+        }
+        .series-stats {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+        .stock {
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: var(--accent-primary);
+        }
+        .exhausted .stock { color: var(--danger); }
+        .del-series {
+          background: transparent;
+          border: none;
+          color: var(--danger);
+          padding: 0.5rem;
+          opacity: 0.4;
+        }
+        .del-series:hover { opacity: 1; }
+        .series-detail {
+          padding: 0 1.25rem 1.25rem;
+          border-top: 1px solid var(--glass-border);
+        }
+        .items-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+          gap: 0.75rem;
+          margin-top: 1.25rem;
+        }
+        .stock-unit {
+          padding: 0.75rem;
+          background: rgba(0,0,0,0.2);
+          border-radius: 8px;
+          border: 1px solid rgba(255,255,255,0.05);
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+        .unit-mark {
+          font-size: 0.75rem;
+          font-weight: 800;
+          color: var(--accent-primary);
+        }
+        .raw-id-input {
+          background: rgba(255,255,255,0.05) !important;
+          padding: 0.4rem 0.6rem !important;
+          font-size: 0.75rem !important;
+          border-radius: 4px !important;
+        }
+        .used {
+          background: rgba(16, 185, 129, 0.05);
+          border-color: rgba(16, 185, 129, 0.2);
+        }
+        .unit-used {
+          font-size: 0.65rem;
+        }
+        .job-id {
+          color: var(--success);
+          font-weight: 700;
+          margin-bottom: 0.2rem;
+        }
+        .raw-id-view {
+          opacity: 0.7;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .empty-inventory {
+          padding: 3rem;
+          text-align: center;
+          color: var(--text-muted);
+          background: rgba(0,0,0,0.1);
+          border-radius: 12px;
+          border: 1px dashed var(--glass-border);
+        }
+
+        @media (max-width: 900px) {
+          .inventory-layout {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </div>

@@ -100,13 +100,14 @@ export default function NewJobPage() {
     document.getElementById(id)?.click();
   };
 
-  // Auto-calculate total
   useEffect(() => {
+    const particularsTotal = formData.particulars.reduce((sum, p) => sum + (Number(p.cost) || 0), 0);
     setFormData(prev => ({
       ...prev,
-      totalCharge: (Number(prev.serviceCharge) || 0) + (Number(prev.particularsCharge) || 0)
+      particularsCharge: particularsTotal,
+      totalCharge: (Number(prev.serviceCharge) || 0) + particularsTotal
     }));
-  }, [formData.serviceCharge, formData.particularsCharge]);
+  }, [formData.serviceCharge, formData.particulars]);
 
   const handleRegNumberChange = (val: string) => {
     setFormData({ ...formData, regNumber: val.toUpperCase() });
@@ -265,17 +266,17 @@ export default function NewJobPage() {
                       <div className="chips-container" style={{ marginTop: '0.5rem' }}>
                         {partnerOptions.map(p => (
                           <button 
-                            key={p} type="button" 
-                            className={`chip ${formData.referenceName === p ? 'active' : ''}`}
+                            key={p.id} type="button" 
+                            className={`chip ${formData.referenceName === p.name ? 'active' : ''}`}
                             onClick={() => {
                               setFormData({
                                 ...formData, 
-                                referenceName: p,
-                                fullName: p // USE PARTNER NAME AS CUSTOMER NAME
+                                referenceName: p.name,
+                                fullName: p.name // USE PARTNER NAME AS CUSTOMER NAME
                               });
                               setOtpVerified(true);
                             }}
-                          >{p}</button>
+                          >{p.name}</button>
                         ))}
                       </div>
                       <p style={{ marginTop: '0.75rem', fontSize: '0.7rem', color: 'var(--success)', fontWeight: 700 }}>
@@ -1096,6 +1097,17 @@ export default function NewJobPage() {
         }
         .estimate-btn.share:hover {
           background: #25D36611;
+        }
+        @media (max-width: 768px) {
+          .form-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+          .form-card { padding: 1.5rem 1rem; }
+          .grid { grid-template-columns: 1fr; gap: 1rem; }
+          .stepper { gap: 0.4rem; }
+          .step-dot { width: 24px; height: 24px; font-size: 0.7rem; }
+          .upload-choice-buttons { flex-direction: column; }
+          .estimate-actions { flex-direction: column; }
+          .total-panel { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+          .total-value { font-size: 1.5rem; }
         }
         .mb-4 { margin-bottom: 1rem; }
       `}</style>

@@ -1,14 +1,20 @@
 "use client";
 
 import { FileText, Clock, CheckCircle, Package, Download, Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useJobs } from "@/context/JobsContext";
+import { useSettings } from "@/context/SettingsContext";
 
 export default function Dashboard() {
   const { jobs } = useJobs();
+  const { inventorySeries } = useSettings();
   const recentJobs = [...jobs].sort((a, b) => b.createdAt - a.createdAt);
   const [visibleAmounts, setVisibleAmounts] = useState<Record<string, boolean>>({});
+
+  const inventoryAlertCount = useMemo(() => {
+    return inventorySeries.filter(s => s.isExhausted || s.items.filter(i => i.status === "Available").length <= 2).length;
+  }, [inventorySeries]);
 
   const toggleAmount = (id: string) => {
     setVisibleAmounts(prev => ({ ...prev, [id]: !prev[id] }));
@@ -18,7 +24,7 @@ export default function Dashboard() {
     { name: "Active Jobs", count: recentJobs.filter(j => j.status === "Active").length, icon: Clock, color: "var(--accent-primary)" },
     { name: "New E-KYC Today", count: recentJobs.filter(j => new Date(j.createdAt).toDateString() === new Date().toDateString()).length, icon: FileText, color: "var(--warning)" },
     { name: "Completed", count: recentJobs.filter(j => j.status === "Completed").length, icon: CheckCircle, color: "var(--success)" },
-    { name: "Inventory Alert", count: 3, icon: Package, color: "var(--danger)" },
+    { name: "Inventory Alert", count: inventoryAlertCount, icon: Package, color: "var(--danger)" },
   ];
 
   const exportToCSV = () => {
@@ -224,6 +230,15 @@ export default function Dashboard() {
         }
         .action-link:hover {
           background: var(--bg-tertiary);
+        }
+        
+        @media (max-width: 768px) {
+          .welcome-section h1 {
+            font-size: 1.5rem;
+          }
+          .stats-grid {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </div>

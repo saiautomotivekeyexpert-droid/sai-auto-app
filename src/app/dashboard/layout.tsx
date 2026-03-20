@@ -1,28 +1,43 @@
 "use client";
 
+import { useState } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Search, Bell, User as UserIcon } from "lucide-react";
+import { Search, Bell, User as UserIcon, Menu, X } from "lucide-react";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   return (
     <div className="dashboard-layout">
-      <Sidebar />
+      {/* Mobile Overlay */}
+      {isSidebarOpen && (
+        <div className="mobile-overlay" onClick={() => setIsSidebarOpen(false)} />
+      )}
+      
+      <div className={`sidebar-wrapper ${isSidebarOpen ? 'open' : ''}`}>
+        <Sidebar onClose={() => setIsSidebarOpen(false)} />
+      </div>
+
       <div className="main-content">
         <header className="top-bar">
+          <button className="mobile-menu-btn" onClick={() => setIsSidebarOpen(true)}>
+            <Menu size={24} />
+          </button>
+          
           <div className="search-box">
             <Search size={18} color="var(--text-muted)" />
-            <input type="text" placeholder="Search jobs, plates, or customers..." className="search-input" />
+            <input type="text" placeholder="Search..." className="search-input" />
           </div>
+          
           <div className="top-bar-right">
-            <button className="icon-btn">
+            <button className="icon-btn hide-mobile">
               <Bell size={20} />
             </button>
             <div className="user-profile">
-              <span className="user-name">Admin John</span>
+              <span className="user-name hide-mobile">Admin John</span>
               <div className="avatar">
                 <UserIcon size={16} />
               </div>
@@ -49,8 +64,67 @@ export default function DashboardLayout({
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 1.5rem 2rem;
+          padding: 1rem 2rem;
+          gap: 1rem;
         }
+        .mobile-menu-btn {
+          display: none;
+          background: transparent;
+          border: none;
+          color: var(--text-primary);
+          padding: 0.5rem;
+        }
+        .sidebar-wrapper {
+          display: block;
+        }
+        .mobile-overlay {
+          display: none;
+        }
+        
+        @media (max-width: 1024px) {
+          .sidebar-wrapper {
+            position: fixed;
+            top: 0;
+            left: -280px;
+            bottom: 0;
+            width: 280px;
+            z-index: 1000;
+            transition: left 0.3s ease;
+            background: var(--bg-primary);
+          }
+          .sidebar-wrapper.open {
+            left: 0;
+          }
+          .mobile-menu-btn {
+            display: block;
+          }
+          .mobile-overlay {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 999;
+          }
+          .top-bar {
+            padding: 1rem;
+          }
+          .search-box {
+            max-width: none;
+            flex: 1;
+          }
+          .hide-mobile {
+            display: none;
+          }
+          .user-profile {
+            padding-left: 0;
+            border-left: none;
+          }
+        }
+
         .search-box {
           display: flex;
           align-items: center;
@@ -75,7 +149,7 @@ export default function DashboardLayout({
         .top-bar-right {
           display: flex;
           align-items: center;
-          gap: 1.5rem;
+          gap: 1rem;
         }
         .icon-btn {
           background: transparent;
@@ -106,6 +180,11 @@ export default function DashboardLayout({
         .content-inner {
           padding: 0 2rem 2rem;
           flex: 1;
+        }
+        @media (max-width: 768px) {
+          .content-inner {
+            padding: 0 1rem 1rem;
+          }
         }
       `}</style>
     </div>

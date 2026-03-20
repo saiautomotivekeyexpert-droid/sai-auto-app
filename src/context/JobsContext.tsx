@@ -76,7 +76,7 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
               },
             }));
             try {
-              localStorage.setItem("kyc_jobs", JSON.stringify(stripped));
+              localStorage.setItem("kyc_jobs_v3", JSON.stringify(stripped));
               console.warn('Storage quota exceeded — document previews stripped to save space. Re-upload files to view them.');
             } catch {
               console.error('Storage critically full. Cannot save job data.');
