@@ -88,6 +88,18 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [jobs, isLoaded]);
 
+  const syncToCloud = (job: Job) => {
+    try {
+      fetch('/api/google/sync-jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync', job })
+      }).catch(err => console.error("Cloud sync fetch error:", err));
+    } catch (err) {
+      console.error("Cloud sync error:", err);
+    }
+  };
+
   const addJob = (formData: any, status: Job["status"] = "Active"): string => {
     const newId = `JOB-${Math.floor(1000 + Math.random() * 9000)}`;
     const now = Date.now();
@@ -103,24 +115,34 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
       timeline: status === "Waiting Approval" ? { estimatedAt: now } : {},
     };
     setJobs(prev => [newJob, ...prev]);
+    syncToCloud(newJob);
     return newId;
   };
 
   const updateJobStatus = (id: string, status: Job["status"]) => {
-    setJobs(prev => prev.map(j => j.id === id ? { ...j, status } : j));
+    setJobs(prev => prev.map(j => {
+      if (j.id === id) {
+        const updated = { ...j, status };
+        syncToCloud(updated);
+        return updated;
+      }
+      return j;
+    }));
   };
 
   const updateJobDetails = (id: string, details: Partial<Job["details"]>) => {
     setJobs(prev => prev.map(j => {
       if (j.id !== id) return j;
       const mergedDetails = { ...j.details, ...details };
-      return {
+      const updated = {
         ...j,
         customerName: mergedDetails.fullName || j.customerName,
         vehicleNumber: mergedDetails.regNumber || j.vehicleNumber,
         serviceType: mergedDetails.serviceType || j.serviceType,
         details: mergedDetails,
       };
+      syncToCloud(updated);
+      return updated;
     }));
   };
 

@@ -40,6 +40,7 @@ function JobDetailPageContent() {
   const [files, setFiles] = useState<{ documents: any[] }>({
     documents: [],
   });
+  const [isSaving, setIsSaving] = useState(false);
 
   // Helper: convert a data: URL to a blob: URL for reliable PDF embedding
   const dataurlToBlob = (dataUrl: string): string => {
@@ -217,35 +218,61 @@ function JobDetailPageContent() {
     setEditData({ ...d, serviceCharge: val, totalCharge: val });
   };
 
-  const handleSaveChanges = () => {
-    // Merge newly uploaded file previews into editData
-    const finalData = { ...editData };
-    if (files.documents.length > 0) {
-      // Use existing edited documents as base, then append new uploads
-      const baseDocs = Array.isArray(finalData.documents) ? finalData.documents : [];
-      finalData.documents = [
-        ...baseDocs,
-        ...files.documents.map(f => ({
-          preview: f.preview,
-          name: f.name,
-          type: f.type
-        }))
-      ];
-    }
-    
-    // Convert legacy individual docs (idProof, rcBook, etc.) into the new documents array format if they exist and haven't been migrated yet.
-    ['idProof', 'rcBook', 'selfie', 'workEvidence'].forEach(legacyKey => {
-      if (job.details[legacyKey] && !finalData.documents?.some((d: any) => d.name === legacyKey)) {
-        if (!finalData.documents) finalData.documents = [];
-        const legacyItems = Array.isArray(job.details[legacyKey]) ? job.details[legacyKey] : [{ preview: job.details[legacyKey], name: legacyKey, type: 'image/jpeg' }];
-        finalData.documents.push(...legacyItems);
-      }
-    });
+  const handleSaveChanges = async () => {
+    setIsSaving(true);
+    try {
+      // Merge newly uploaded file previews into editData
+      const finalData = { ...editData };
+      if (files.documents.length > 0) {
+        // Use existing edited documents as base, then append new uploads
+        const baseDocs = Array.isArray(finalData.documents) ? finalData.documents : [];
+        
+        const uploadedDocs = await Promise.all(
+          files.documents.map(async (f) => {
+            if (f.file) {
+              const formData = new FormData();
+              formData.append('file', f.file);
+              formData.append('fileName', f.name);
+              
+              try {
+                const res = await fetch('/api/google/upload-file', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.webViewLink) {
+                  return { preview: data.webViewLink, name: f.name, type: f.type };
+                }
+              } catch (err) {
+                console.error("Upload failed", err);
+              }
+            }
+            return { preview: f.preview, name: f.name, type: f.type };
+          })
+        );
 
-    updateJobDetails(job.id, finalData);
-    setIsReadOnly(true);
-    // Clear local file state after save
-    setFiles({ documents: [] });
+        finalData.documents = [
+          ...baseDocs,
+          ...uploadedDocs
+        ];
+      }
+      
+      // Convert legacy individual docs (idProof, rcBook, etc.) into the new documents array format if they exist and haven't been migrated yet.
+      ['idProof', 'rcBook', 'selfie', 'workEvidence'].forEach(legacyKey => {
+        if (job.details[legacyKey] && !finalData.documents?.some((d: any) => d.name === legacyKey)) {
+          if (!finalData.documents) finalData.documents = [];
+          const legacyItems = Array.isArray(job.details[legacyKey]) ? job.details[legacyKey] : [{ preview: job.details[legacyKey], name: legacyKey, type: 'image/jpeg' }];
+          finalData.documents.push(...legacyItems);
+        }
+      });
+
+      updateJobDetails(job.id, finalData);
+      setIsReadOnly(true);
+      // Clear local file state after save
+      setFiles({ documents: [] });
+    } catch (e) {
+      console.error(e);
+      alert("Failed to save documents.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleEditClick = () => {
@@ -304,8 +331,8 @@ function JobDetailPageContent() {
          </div>
          <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button className="secondary-btn small-btn" onClick={() => window.print()}><Printer size={16} /></button>
-            <button className="primary-btn small-btn" onClick={handleEditClick}>
-              {isReadOnly ? <Lock size={16} /> : <Check size={16} />}
+            <button className="primary-btn small-btn" onClick={handleEditClick} disabled={isSaving}>
+              {isSaving ? <span style={{ fontSize: '0.8rem' }}>Wait...</span> : isReadOnly ? <Lock size={16} /> : <Check size={16} />}
             </button>
             {!isReadOnly && (
               <button className="secondary-btn small-btn" style={{ color: "var(--danger)", borderColor: "rgba(239,68,68,0.3)" }}

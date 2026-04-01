@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { SettingsProvider } from "@/context/SettingsContext";
@@ -11,8 +11,15 @@ export const metadata: Metadata = {
   title: "Sai Auto Key Works | E-KYC Registry",
   description: "Secure Digital Registry & Locksmithing Compliance",
   manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
   themeColor: "#1e3a8a",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

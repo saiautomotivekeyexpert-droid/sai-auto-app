@@ -237,7 +237,8 @@ export default function Dashboard() {
             font-size: 1.5rem;
           }
           .stats-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
           }
         }
       `}</style>
