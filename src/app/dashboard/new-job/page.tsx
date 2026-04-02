@@ -272,11 +272,11 @@ export default function NewJobPage() {
       
       const data = await res.json();
       
-      if (data.success || otpInput === "9999") { // Emergency bypass for testing (DND block fix)
+      if (data.success) { // Real OTP verification
         setOtpVerified(true);
         setShowOtpModal(false);
       } else {
-        alert(data.error || "Invalid OTP! Please check the server console for the real code.");
+        alert(data.error || "Invalid OTP!");
       }
     } catch (e) {
        alert("Error validating OTP.");
@@ -802,12 +802,6 @@ export default function NewJobPage() {
                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
                  Didn't receive code? <button type="button" style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', padding: 0, fontWeight: 700, cursor: 'pointer' }}>Resend</button>
                </p>
-               <div className="dnd-notice" style={{ marginTop: '1rem', padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.1)' }}>
-                 <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                   🛡️ Carrier-side DND block active? <br/>
-                   Use <strong>9999</strong> to verify immediately.
-                 </p>
-               </div>
             </div>
 
             <div className="modal-actions" style={{ flexDirection: 'column', gap: '0.75rem' }}>

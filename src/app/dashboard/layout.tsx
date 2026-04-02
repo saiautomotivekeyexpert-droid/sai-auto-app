@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Search, Bell, User as UserIcon, Menu, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function DashboardLayout({
   children,
@@ -10,6 +11,18 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const auth = localStorage.getItem('sai_auto_auth');
+    if (!auth) {
+      router.push('/login');
+    }
+  }, [router]);
+
+  if (typeof window !== 'undefined' && !localStorage.getItem('sai_auto_auth')) {
+    return null; // Prevent flash of content
+  }
   return (
     <div className="dashboard-layout">
       {/* Mobile Overlay */}
@@ -37,7 +50,7 @@ export default function DashboardLayout({
               <Bell size={20} />
             </button>
             <div className="user-profile">
-              <span className="user-name hide-mobile">Admin John</span>
+              <span className="user-name hide-mobile">Sai Auto Key Expert</span>
               <div className="avatar">
                 <UserIcon size={16} />
               </div>
