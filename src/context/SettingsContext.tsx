@@ -272,8 +272,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setParticulars(migrated);
     }
     
-    // After local init, try to pull latest from cloud (device-independent fallback)
-    pullFromCloud(localStorage.getItem("GOOGLE_SPREADSHEET_ID") || "").finally(() => {
+    // Always pull from the global cloud source on mount for parity
+    pullFromCloud("").finally(() => {
       setIsInitialized(true);
       setCloudLoaded(true);
     });
@@ -295,9 +295,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // Cloud Sync Logic
   const syncToCloud = async () => {
     try {
-      if (!cloudLoaded) return; // Never sync until we've at least tried to pull
-      const spreadsheetId = localStorage.getItem("GOOGLE_SPREADSHEET_ID");
-      if (!spreadsheetId) return;
+      if (!cloudLoaded) return; 
 
       setIsSyncing(true);
       const dataToSync = {
@@ -309,7 +307,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       await fetch('/api/google/sync-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: dataToSync, spreadsheetId })
+        body: JSON.stringify({ data: dataToSync })
       });
       setLastSyncTime(new Date());
       setIsSyncing(false);

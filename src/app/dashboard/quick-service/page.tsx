@@ -1088,38 +1088,23 @@ export default function QuickServicePage() {
         @media (max-width: 768px) {
           .selection-grid {
             grid-template-columns: 1fr;
-            gap: 1.5rem;
-          }
-          .selection-card {
-            padding: 2rem 1.5rem;
-          }
-          .pos-header {
-            flex-direction: column;
-            align-items: flex-start;
             gap: 1rem;
           }
-          .header-search {
-            width: 100%;
+           .pos-header {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 1.25rem;
           }
           .items-grid {
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 0.75rem;
-          }
-          .item-card {
-            padding: 1rem;
-            flex-direction: column;
-            align-items: flex-start;
+            grid-template-columns: 1fr;
             gap: 1rem;
           }
-          .item-icon {
-            width: 40px;
-            height: 40px;
-          }
-          .modal-content {
+          .item-card {
             padding: 1.5rem;
+            flex-direction: row; /* Keep row but wrap better */
           }
-          .complete-btn {
-            padding: 0.75rem;
+          .category-tabs {
+            margin-top: 0.5rem;
           }
         }
 

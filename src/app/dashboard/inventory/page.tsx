@@ -1134,14 +1134,21 @@ export default function InventoryPage() {
              font-size: 0.75rem;
           }
           .items-grid {
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            grid-template-columns: 1fr;
             gap: 0.75rem;
           }
-          .pos-service-management-list .catalog-item {
-             padding: 1rem !important;
+          .product-bag > div:first-child {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 1rem;
           }
-          .pos-service-management-list input[type="text"] {
-             width: 100% !important;
+          .product-bag > div:first-child > div:last-child {
+            margin-left: 0 !important;
+            width: 100%;
+            justify-content: space-between;
+          }
+          .unit-mark {
+            word-break: break-all;
           }
         }
       `}</style>
