@@ -1103,7 +1103,12 @@ export default function InventoryPage() {
           }
           .inventory-content-layout {
             padding: 0;
-            gap: 1.5rem;
+            gap: 1rem;
+            grid-template-columns: 1fr;
+          }
+          .batch-creator, .list-container {
+            padding: 1.25rem;
+            border-radius: 12px;
           }
           .row {
             flex-direction: column;
@@ -1122,7 +1127,7 @@ export default function InventoryPage() {
             width: 100%;
           }
           .catalog-item select {
-            width: fit-content;
+            width: 100% !important;
           }
           .series-stats {
             flex-direction: column;
