@@ -158,6 +158,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [catalogCategories, setCatalogCategories] = useState<CatalogCategory[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [cloudLoaded, setCloudLoaded] = useState(false);
 
   const [subCategories, setSubCategories] = useState<SubCategoryItem[]>(DEFAULT_SUB_CATEGORIES);
   const [estimateTerms, setEstimateTerms] = useState<string>(
@@ -271,10 +272,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setParticulars(migrated);
     }
     
-    setIsInitialized(true);
-
     // After local init, try to pull latest from cloud (device-independent fallback)
-    pullFromCloud(localStorage.getItem("GOOGLE_SPREADSHEET_ID") || "");
+    pullFromCloud(localStorage.getItem("GOOGLE_SPREADSHEET_ID") || "").finally(() => {
+      setIsInitialized(true);
+      setCloudLoaded(true);
+    });
   }, []);
 
   // Save to localStorage whenever state changes (only after initialization)
@@ -293,6 +295,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // Cloud Sync Logic
   const syncToCloud = async () => {
     try {
+      if (!cloudLoaded) return; // Never sync until we've at least tried to pull
       const spreadsheetId = localStorage.getItem("GOOGLE_SPREADSHEET_ID");
       if (!spreadsheetId) return;
 
@@ -344,14 +347,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   // Trigger auto-sync on any change (debounced manually via useEffect)
   useEffect(() => {
-    if (!isInitialized) return;
+    if (!isInitialized || !cloudLoaded) return;
     const timer = setTimeout(() => {
       syncToCloud();
     }, 3000); // sync after 3s of inactivity
     return () => clearTimeout(timer);
   }, [
     serviceTypes, particulars, inventorySeries, catalogCategories, 
-    shopProfile, partners, subCategories, partnerPin, isInitialized
+    shopProfile, partners, subCategories, partnerPin, isInitialized, cloudLoaded
   ]);
 
   const addServiceType = (type: string) => setServiceTypes(prev => [...new Set([...prev, type.toUpperCase()])]);
