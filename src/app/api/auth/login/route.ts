@@ -7,7 +7,7 @@ export async function POST(req: Request) {
     const adminUser = process.env.ADMIN_USERNAME || 'admin';
     const adminPass = process.env.ADMIN_PASSWORD || '1234';
 
-    if (username === adminUser && password === adminPass) {
+    if (username.toLowerCase() === adminUser.toLowerCase() && password === adminPass) {
       // In a real app, you'd set a secure HTTP-only cookie here.
       // For this specific e-KYC requirement, we'll return a success token.
       return NextResponse.json({ 

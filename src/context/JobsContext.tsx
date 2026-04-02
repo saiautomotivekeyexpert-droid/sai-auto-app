@@ -40,19 +40,52 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const savedJobs = localStorage.getItem("kyc_jobs_v3");
-    if (savedJobs) {
-      try {
-        const parsed = JSON.parse(savedJobs);
-        // Ensure every job has a timeline object (backward compat)
-        setJobs(parsed.map((j: any) => ({ timeline: {}, ...j })));
-      } catch {
-        setJobs([]);
+    const loadInitialData = async () => {
+      // 1. Load from localStorage (Local Cache)
+      const savedJobs = localStorage.getItem("kyc_jobs_v3");
+      if (savedJobs) {
+        try {
+          const parsed = JSON.parse(savedJobs);
+          setJobs(parsed.map((j: any) => ({ timeline: {}, ...j })));
+        } catch {
+          setJobs([]);
+        }
       }
-    } else {
-      setJobs([]);
-    }
-    setIsLoaded(true);
+
+      // 2. Load from Cloud (Source of Truth)
+      try {
+        const res = await fetch('/api/google/sync-jobs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'fetch' })
+        });
+        const data = await res.json();
+        
+        if (data.success && data.data && Array.isArray(data.data)) {
+          // Use indices from rowData: [id, date, status, name, vehicle, service, total, details]
+          // Filter out header row if it exists (check if first item is "Job ID")
+          const rows = data.data[0]?.[0] === "Job ID" ? data.data.slice(1) : data.data;
+
+          setJobs(rows.map((row: any[]) => ({
+            id: row[0],
+            date: row[1],
+            status: row[2] as any,
+            customerName: row[3],
+            vehicleNumber: row[4],
+            serviceType: row[5],
+            details: typeof row[7] === 'string' ? JSON.parse(row[7]) : {},
+            timeline: {},
+            createdAt: Date.now() // Approximated since not in sheet yet
+          })));
+        }
+      } catch (err) {
+        console.error("Cloud fetch failed:", err);
+      }
+      
+      setIsLoaded(true);
+    };
+
+    loadInitialData();
   }, []);
 
   useEffect(() => {

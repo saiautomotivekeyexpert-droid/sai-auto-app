@@ -226,44 +226,54 @@ export default function Dashboard() {
         }
         .table-responsive {
           overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          margin: 0 -0.5rem;
+          padding: 0 0.5rem;
         }
         .jobs-table {
           width: 100%;
           border-collapse: collapse;
           text-align: left;
+          min-width: 650px; /* Force scroll on small screens */
         }
         .jobs-table th {
-          padding: 1rem;
-          font-size: 0.85rem;
+          padding: 1rem 0.75rem;
+          font-size: 0.8rem;
           font-weight: 600;
           color: var(--text-muted);
           border-bottom: 1px solid var(--glass-border);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
         .jobs-table td {
-          padding: 1rem;
-          font-size: 0.9rem;
+          padding: 1rem 0.75rem;
+          font-size: 0.85rem;
           border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          white-space: nowrap;
         }
         .job-id-badge {
           font-family: var(--font-mono);
           background: rgba(255, 255, 255, 0.1);
           padding: 0.25rem 0.5rem;
           border-radius: 4px;
-          font-size: 0.8rem;
+          font-size: 0.75rem;
+          font-weight: 600;
         }
         .plate-badge {
           background: #f1f5f9;
           color: #0f172a;
           font-weight: 700;
-          padding: 0.2rem 0.6rem;
+          padding: 0.2rem 0.5rem;
           border-radius: 4px;
           border: 1px solid #cbd5e1;
+          font-size: 0.75rem;
         }
         .status-badge {
-          padding: 0.25rem 0.75rem;
+          padding: 0.25rem 0.6rem;
           border-radius: 2rem;
-          font-size: 0.75rem;
+          font-size: 0.7rem;
           font-weight: 600;
+          display: inline-block;
         }
         .status-badge.active { background: rgba(59, 130, 246, 0.15); color: var(--accent-primary); }
         .status-badge.completed { background: rgba(16, 185, 129, 0.15); color: var(--success); }
@@ -277,22 +287,30 @@ export default function Dashboard() {
           background: transparent;
           border: 1px solid var(--glass-border);
           color: var(--text-primary);
-          padding: 0.4rem 0.8rem;
+          padding: 0.35rem 0.7rem;
           border-radius: var(--radius-md);
-          font-size: 0.8rem;
+          font-size: 0.75rem;
+          font-weight: 600;
         }
         .action-link:hover {
           background: var(--bg-tertiary);
         }
         
         @media (max-width: 768px) {
+          .dashboard-content { gap: 1rem; }
           .welcome-section h1 {
             font-size: 1.5rem;
           }
           .stats-grid {
             grid-template-columns: repeat(2, 1fr);
-            gap: 1rem;
+            gap: 0.75rem;
           }
+          .stat-card { padding: 1rem; gap: 0.75rem; }
+          .stat-icon { width: 40px; height: 40px; }
+          .stat-value { font-size: 1.25rem; }
+          .table-section { padding: 1rem; }
+          .table-header h2 { font-size: 1.1rem; }
+          .primary-btn { font-size: 0.8rem; padding: 0.6rem 1rem; }
         }
       `}</style>
     </div>
