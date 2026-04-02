@@ -94,7 +94,7 @@ export default function DashboardLayout({
           display: none;
         }
         
-        @media (max-width: 1024px) {
+        @media (max-width: 1200px) {
           .sidebar-wrapper {
             position: fixed;
             top: 0;

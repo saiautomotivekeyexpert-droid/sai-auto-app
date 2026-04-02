@@ -2,17 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useSettings } from "@/context/SettingsContext";
-import {
-  Search,
-  Package,
-  Trash2,
-  Plus,
-  Hash,
-  List,
-  ChevronRight,
-  Zap,
-  RefreshCcw
-} from "lucide-react";
+import { Plus, Trash2, Settings as SettingsIcon, Save, ChevronRight, Package, Search, Hash, List, Zap, RefreshCcw } from "lucide-react";
 
 export default function InventoryPage() {
   const {
@@ -789,22 +779,22 @@ export default function InventoryPage() {
                   const itemCategory = productCategories[productName.toLowerCase()] || "Others";
                   const typedSeriesList = seriesList as any[];
                   return (
-                    <div key={productName} className="product-bag glass-panel" style={{ padding: '1rem', border: '1px solid var(--accent-primary)', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.03)', marginBottom: '1.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem', borderBottom: '1px solid rgba(59, 130, 246, 0.2)', paddingBottom: '0.75rem' }}>
+                    <div key={productName} className="product-bag glass-panel" style={{ padding: '1rem', border: '1px solid var(--accent-primary)', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.03)', marginBottom: '1.5rem', overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem', borderBottom: '1px solid rgba(59, 130, 246, 0.2)', paddingBottom: '0.75rem', flexWrap: 'wrap' }}>
                         <Package size={20} color="var(--accent-primary)" />
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontWeight: 800, fontSize: '1.1rem', letterSpacing: '0.05em', color: 'var(--text-primary)' }}>{productName.toUpperCase()}</span>
                           <span style={{ fontSize: '0.65rem', color: 'var(--accent-primary)', fontWeight: 600 }}>{itemCategory.toUpperCase()}</span>
                         </div>
-                        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                           <button 
                             className="primary-btn" 
                             onClick={() => handleQuickAdd(productName)}
-                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'rgba(59, 130, 246, 0.2)', border: '1px solid rgba(59, 130, 246, 0.3)', color: 'var(--accent-primary)' }}
+                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'rgba(59, 130, 246, 0.2)', border: '1px solid rgba(59, 130, 246, 0.3)', color: 'var(--accent-primary)', whiteSpace: 'nowrap' }}
                           >
                             <Plus size={14} /> Add Stock
                           </button>
-                          <span style={{ fontSize: '0.7rem', background: 'var(--accent-primary)', color: 'white', padding: '0.1rem 0.5rem', borderRadius: '4px' }}>
+                          <span style={{ fontSize: '0.7rem', background: 'var(--accent-primary)', color: 'white', padding: '0.1rem 0.5rem', borderRadius: '4px', whiteSpace: 'nowrap' }}>
                             {typedSeriesList.length} {typedSeriesList.length === 1 ? 'BATCH' : 'BATCHES'}
                           </span>
                         </div>
@@ -1091,7 +1081,7 @@ export default function InventoryPage() {
           align-items: center;
         }
 
-        @media (max-width: 1100px) {
+        @media (max-width: 1200px) {
           .inventory-content-layout {
             grid-template-columns: 1fr;
           }
