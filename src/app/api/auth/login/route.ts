@@ -5,7 +5,7 @@ export async function POST(req: Request) {
     const { username, password } = await req.json();
 
     const adminUser = process.env.ADMIN_USERNAME || 'admin';
-    const adminPass = process.env.ADMIN_PASSWORD || 'admin786';
+    const adminPass = process.env.ADMIN_PASSWORD || '1234';
 
     if (username === adminUser && password === adminPass) {
       // In a real app, you'd set a secure HTTP-only cookie here.
