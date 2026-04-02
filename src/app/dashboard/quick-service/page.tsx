@@ -1069,6 +1069,59 @@ export default function QuickServicePage() {
           word-break: break-all;
           margin-top: 0.5rem;
         }
+        @media (max-width: 900px) {
+          .pos-main-layout {
+            grid-template-columns: 1fr;
+          }
+          .cart-sidebar {
+            position: relative;
+            top: 0;
+            width: 100%;
+            height: auto;
+            max-height: none;
+          }
+           .pos-container {
+            height: auto;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .selection-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+          }
+          .selection-card {
+            padding: 2rem 1.5rem;
+          }
+          .pos-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+          }
+          .header-search {
+            width: 100%;
+          }
+          .items-grid {
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 0.75rem;
+          }
+          .item-card {
+            padding: 1rem;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+          }
+          .item-icon {
+            width: 40px;
+            height: 40px;
+          }
+          .modal-content {
+            padding: 1.5rem;
+          }
+          .complete-btn {
+            padding: 0.75rem;
+          }
+        }
 
       `}</style>
     </div>

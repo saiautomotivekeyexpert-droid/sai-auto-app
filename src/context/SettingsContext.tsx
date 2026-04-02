@@ -273,11 +273,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     
     setIsInitialized(true);
 
-    // After local init, try to pull latest from cloud if spreadsheet ID exists
-    const spreadsheetId = localStorage.getItem("GOOGLE_SPREADSHEET_ID");
-    if (spreadsheetId) {
-      pullFromCloud(spreadsheetId);
-    }
+    // After local init, try to pull latest from cloud (device-independent fallback)
+    pullFromCloud(localStorage.getItem("GOOGLE_SPREADSHEET_ID") || "");
   }, []);
 
   // Save to localStorage whenever state changes (only after initialization)
@@ -320,9 +317,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const pullFromCloud = async (spreadsheetId: string) => {
+  const pullFromCloud = async (spreadsheetId?: string) => {
     try {
-      const res = await fetch(`/api/google/sync-settings?spreadsheetId=${spreadsheetId}`);
+      const url = spreadsheetId 
+        ? `/api/google/sync-settings?spreadsheetId=${spreadsheetId}`
+        : `/api/google/sync-settings`;
+      
+      const res = await fetch(url);
       const { data } = await res.json();
       if (data) {
         if (data.serviceTypes) setServiceTypes(data.serviceTypes);

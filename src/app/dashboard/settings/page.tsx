@@ -462,9 +462,24 @@ export default function SettingsPage() {
           border: 1px dashed var(--glass-border);
         }
 
-        @media (max-width: 900px) {
-          .inventory-layout {
+        @media (max-width: 768px) {
+          .settings-grid {
             grid-template-columns: 1fr;
+            gap: 1.5rem;
+          }
+          .settings-card {
+            min-height: auto;
+            padding: 1.25rem;
+          }
+          .report-terms-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+          }
+          .settings-header h1 {
+            font-size: 1.75rem;
+          }
+          .settings-card[style*="grid-column: span 2"] {
+            grid-column: span 1 !important;
           }
         }
       `}</style>

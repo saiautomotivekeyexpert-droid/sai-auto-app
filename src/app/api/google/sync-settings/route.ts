@@ -3,10 +3,12 @@ import { GoogleService } from '@/lib/googleService';
 
 export async function POST(req: Request) {
   try {
-    const { data, spreadsheetId } = await req.json();
+    const body = await req.json();
+    const data = body.data;
+    const spreadsheetId = body.spreadsheetId || process.env.GOOGLE_SPREADSHEET_ID;
     
     if (!spreadsheetId) {
-      return NextResponse.json({ error: 'spreadsheetId is required' }, { status: 400 });
+      return NextResponse.json({ error: 'spreadsheetId is required and not found in environment' }, { status: 400 });
     }
 
     // We store the entire settings object as a JSON string in a single cell for simplicity,
@@ -26,10 +28,10 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const spreadsheetId = searchParams.get('spreadsheetId');
+    const spreadsheetId = searchParams.get('spreadsheetId') || process.env.GOOGLE_SPREADSHEET_ID;
     
     if (!spreadsheetId) {
-      return NextResponse.json({ error: 'spreadsheetId is required' }, { status: 400 });
+      return NextResponse.json({ error: 'spreadsheetId is required and not found in environment' }, { status: 400 });
     }
 
     const rows = await GoogleService.getJobs(spreadsheetId);

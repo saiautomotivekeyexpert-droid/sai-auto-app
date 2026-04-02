@@ -1101,22 +1101,47 @@ export default function InventoryPage() {
           .inventory-header h1 {
             font-size: 1.5rem;
           }
+          .inventory-content-layout {
+            padding: 0;
+            gap: 1.5rem;
+          }
           .row {
             flex-direction: column;
             gap: 1rem;
           }
           .catalog-item {
             flex-direction: column;
-            align-items: flex-start !important;
+            align-items: stretch !important;
             gap: 1rem;
+            padding: 1rem !important;
           }
           .catalog-item input[type="text"] {
             width: 100% !important;
+          }
+          .catalog-item > div:first-child {
+            width: 100%;
+          }
+          .catalog-item select {
+            width: fit-content;
           }
           .series-stats {
             flex-direction: column;
             align-items: flex-start;
             gap: 0.5rem;
+          }
+          .batch-type-toggle button {
+             padding: 0.5rem;
+             font-size: 0.75rem;
+          }
+          .items-grid {
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 0.75rem;
+          }
+          .pos-service-management-list .catalog-item {
+             padding: 1rem !important;
+          }
+          .pos-service-management-list input[type="text"] {
+             width: 100% !important;
           }
         }
       `}</style>
