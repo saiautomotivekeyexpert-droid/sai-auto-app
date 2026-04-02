@@ -26,7 +26,7 @@ export interface Job {
 interface JobsContextType {
   jobs: Job[];
   isLoaded: boolean;
-  addJob: (jobData: any, status?: Job["status"]) => string;
+  addJob: (jobData: any, status?: Job["status"], pregeneratedId?: string) => string;
   updateJobStatus: (id: string, status: Job["status"]) => void;
   updateJobDetails: (id: string, details: Partial<Job["details"]>) => void;
   addTimelineEvent: (id: string, event: keyof JobTimeline) => void;
@@ -100,8 +100,8 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addJob = (formData: any, status: Job["status"] = "Active"): string => {
-    const newId = `JOB-${Math.floor(1000 + Math.random() * 9000)}`;
+  const addJob = (formData: any, status: Job["status"] = "Active", pregeneratedId?: string): string => {
+    const newId = pregeneratedId || `JOB-${Math.floor(1000 + Math.random() * 9000)}`;
     const now = Date.now();
     const newJob: Job = {
       id: newId,

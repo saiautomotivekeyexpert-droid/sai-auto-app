@@ -13,20 +13,36 @@ export class GoogleService {
     if (this.sheets) return;
 
     try {
-      // In a real environment, you'd provide the key file path or environment variables.
-      // We use service account auth.
-      this.auth = new google.auth.GoogleAuth({
-        keyFile: 'credentials.json',
-        scopes: [
-          'https://www.googleapis.com/auth/spreadsheets',
-          'https://www.googleapis.com/auth/drive.file',
-        ],
-      });
+      const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
+      const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+      if (clientEmail && privateKey) {
+        // PROD: Use environment variables (Vercel compatible)
+        this.auth = new google.auth.GoogleAuth({
+          credentials: {
+            client_email: clientEmail,
+            private_key: privateKey,
+          },
+          scopes: [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive.file',
+          ],
+        });
+      } else {
+        // DEV: Fallback to local file
+        this.auth = new google.auth.GoogleAuth({
+          keyFile: 'credentials.json',
+          scopes: [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive.file',
+          ],
+        });
+      }
 
       this.sheets = google.sheets({ version: 'v4', auth: this.auth });
       this.drive = google.drive({ version: 'v3', auth: this.auth });
     } catch (error) {
-      console.warn("Google API Auth failed. Ensure credentials.json is present.", error);
+      console.warn("Google API Auth failed. Ensure credentials are set.", error);
     }
   }
 
@@ -55,6 +71,8 @@ export class GoogleService {
     await this.init();
     if (!this.drive) throw new Error("Drive API not initialized");
 
+    const { Readable } = require('stream');
+
     const response = await this.drive.files.create({
       requestBody: {
         name: fileName,
@@ -62,7 +80,7 @@ export class GoogleService {
       },
       media: {
         mimeType,
-        body,
+        body: Readable.from(body), // Must be a stream for the googleapis SDK
       },
       fields: 'id, webViewLink',
     });

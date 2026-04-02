@@ -516,7 +516,9 @@ function InvoiceContent({ id }: { id: string }) {
           .inv-company-addr { max-width: none; }
           .inv-memo-box { width: 100%; margin-top: 1rem; }
           .inv-divider { margin: 0 1rem; }
-          .inv-two-col { grid-template-columns: 1fr; padding: 1rem; }
+          .inv-two-col { grid-template-columns: repeat(2, 1fr); padding: 1rem; gap: 0.5rem; }
+          .inv-field-value { font-size: 0.8rem; }
+          .inv-field-label { font-size: 0.55rem; }
           .inv-section-title { padding: 0.5rem 1rem; }
           .inv-table { width: calc(100% - 2rem); margin: 0 1rem 1.5rem; }
           .inv-table th, .inv-table td { padding: 0.5rem 0.4rem; font-size: 0.75rem; }

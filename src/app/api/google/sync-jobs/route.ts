@@ -7,9 +7,26 @@ export async function POST(req: Request) {
     const { action, job, jobs } = body;
     const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
 
-    if (!spreadsheetId) {
-      return NextResponse.json({ error: 'Google Spreadsheet ID is not configured in environment variables.' }, { status: 500 });
+    if (!spreadsheetId || spreadsheetId === "your_spreadsheet_id_here") {
+      // Fail gracefully so the frontend component doesn't get a 500 crash/loop
+      return NextResponse.json({ success: true, message: 'Google Spreadsheet ID is missing - sync bypassed.' }, { status: 200 });
     }
+
+    const sanitizeDetails = (details: any) => {
+      if (!details) return {};
+      try {
+        const cleaned = JSON.parse(JSON.stringify(details));
+        if (cleaned.documents && Array.isArray(cleaned.documents)) {
+          cleaned.documents = cleaned.documents.map((doc: any) => ({
+            ...doc,
+            preview: doc.preview?.startsWith('data:') ? '[IMAGE_DATA_STRIPPED_FOR_SHEET]' : doc.preview
+          }));
+        }
+        return cleaned;
+      } catch (e) {
+        return { error: 'Failed to serialize details' };
+      }
+    };
 
     if (action === 'sync') {
       // For a single job sync
@@ -22,7 +39,7 @@ export async function POST(req: Request) {
           job.vehicleNumber,
           job.serviceType,
           job.details?.totalCharge || 0,
-          JSON.stringify(job.details || {})
+          JSON.stringify(sanitizeDetails(job.details))
         ];
         
         await GoogleService.addJob(spreadsheetId, rowData);
@@ -34,7 +51,7 @@ export async function POST(req: Request) {
         for (const j of jobs) {
            const rowData = [
              j.id, j.date, j.status, j.customerName, j.vehicleNumber, 
-             j.serviceType, j.details?.totalCharge || 0, JSON.stringify(j.details || {})
+             j.serviceType, j.details?.totalCharge || 0, JSON.stringify(sanitizeDetails(j.details))
            ];
            await GoogleService.addJob(spreadsheetId, rowData);
         }

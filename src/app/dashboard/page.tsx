@@ -11,6 +11,51 @@ export default function Dashboard() {
   const { inventorySeries } = useSettings();
   const recentJobs = [...jobs].sort((a, b) => b.createdAt - a.createdAt);
   const [visibleAmounts, setVisibleAmounts] = useState<Record<string, boolean>>({});
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+
+  const handleForceSync = async (job: any) => {
+    setSyncingId(job.id);
+    try {
+      const docs = job.details?.documents || [];
+      const cloudDocs = [];
+      
+      // 1. Upload any offline images to Google Drive
+      for (const d of docs) {
+        if (d.preview && d.preview.startsWith('data:') && !d.cloudUrl) {
+          try {
+            const res = await fetch(d.preview);
+            const blob = await res.blob();
+            const file = new File([blob], d.name || 'offline_document.jpg', { type: blob.type });
+
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('fileName', d.name || 'offline_document');
+            
+            const upRes = await fetch('/api/google/upload-file', { method: 'POST', body: fd });
+            const upData = await upRes.json();
+            
+            cloudDocs.push({ ...d, cloudUrl: upData.success ? upData.url : undefined });
+          } catch(e) {
+             cloudDocs.push(d);
+          }
+        } else {
+          cloudDocs.push(d);
+        }
+      }
+
+      // 2. Sync updated Job JSON to Google Sheets
+      const syncJob = { ...job, details: { ...job.details, documents: cloudDocs } };
+      await fetch('/api/google/sync-jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync', job: syncJob })
+      });
+      alert('Offline Job retroactively pushed to Google Drive and Sheets!');
+    } catch (err) {
+      alert('Failed to sync retroactively.');
+    }
+    setSyncingId(null);
+  };
 
   const inventoryAlertCount = useMemo(() => {
     return inventorySeries.filter(s => s.isExhausted || s.items.filter(i => i.status === "Available").length <= 2).length;
@@ -105,10 +150,18 @@ export default function Dashboard() {
                       {new Date(job.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase()}
                     </div>
                   </td>
-                  <td>
+                  <td style={{ display: 'flex', gap: '8px' }}>
                     <Link href={`/dashboard/job?id=${job.id}`} className="action-link">
                       Open
                     </Link>
+                    <button 
+                      className="action-link" 
+                      onClick={() => handleForceSync(job)}
+                      disabled={syncingId === job.id}
+                      style={{ background: 'var(--accent-primary)', color: 'white', border: 'none', cursor: 'pointer' }}
+                    >
+                      {syncingId === job.id ? 'Syncing...' : 'Force Sync'}
+                    </button>
                   </td>
                 </tr>
               ))}

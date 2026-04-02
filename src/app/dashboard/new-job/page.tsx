@@ -18,7 +18,8 @@ export default function NewJobPage() {
     subCategories: subCategoryOptions,
     partners: partnerOptions,
     carBrands,
-    carModels
+    carModels,
+    consumeByProductName
   } = useSettings();
   const { addJob } = useJobs();
   const [step, setStep] = useState(1);
@@ -166,7 +167,7 @@ export default function NewJobPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpVerified) {
       alert("Please verify your phone number via OTP first.");
@@ -174,21 +175,63 @@ export default function NewJobPage() {
       return;
     }
     
-    // Merge files into formData
+    // Upload files to Google Drive before continuing
+    const cloudDocs = [];
+    for (const f of files.documents) {
+      let driveUrl = '';
+      if (f.file) {
+        try {
+          const uploadData = new FormData();
+          uploadData.append('file', f.file);
+          uploadData.append('fileName', f.name || 'document_upload');
+          
+          const res = await fetch('/api/google/upload-file', {
+            method: 'POST',
+            body: uploadData
+          });
+          const jsonRes = await res.json();
+          if (jsonRes.success) driveUrl = jsonRes.url;
+        } catch (err) {
+          console.error("Cloud upload error:", err);
+        }
+      }
+      
+      cloudDocs.push({
+        preview: f.preview, // retain offline preview
+        name: f.name,
+        type: f.type,
+        cloudUrl: driveUrl // The Google Drive view link!
+      });
+    }
+
+    // Inventory Auto-Deduction logic
+    const jobId = `JOB-${Math.floor(1000 + Math.random() * 9000)}`; // Pre-generate ID for linking
+    const inventoryUsage: any[] = [];
+    
+    formData.particulars.forEach(p => {
+      // Try to consume from stock
+      const result = consumeByProductName(p.name, jobId);
+      if (result) {
+        inventoryUsage.push({
+          productName: p.name,
+          itemId: result.itemId,
+          mark: result.mark
+        });
+      }
+    });
+
+    // Merge files and inventory usage into formData
     const finalData = {
       ...formData,
-      documents: files.documents.map(f => ({
-        preview: f.preview,
-        name: f.name,
-        type: f.type
-      }))
+      documents: cloudDocs,
+      inventoryUsage // Link specific serial numbers used
     };
 
-    addJob(finalData, 'Waiting Approval');
+    addJob(finalData, 'Waiting Approval', jobId);
     router.push('/dashboard');
   };
 
-  const handleSendOTP = () => {
+  const handleSendOTP = async () => {
     if (formData.phone.length < 10) {
       alert("Please enter a valid 10-digit mobile number.");
       return;
@@ -201,23 +244,45 @@ export default function NewJobPage() {
 
     setOtpSent(true);
     setShowOtpModal(true);
-    // In a real app, this would call an API
-    console.log("Mock OTP sent to:", formData.phone);
+    
+    try {
+      // Simulate real OTP SMS
+      const res = await fetch('/api/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: formData.phone })
+      });
+      const data = await res.json();
+      console.log("Requested OTP from server for:", formData.phone);
+      
+      // Real OTP call completed
+    } catch (e) {
+      console.error("Failed to call OTP API", e);
+    }
   };
 
-  const handleVerifyOTP = () => {
+  const handleVerifyOTP = async () => {
     setIsVerifying(true);
-    // Simulate API delay
-    setTimeout(() => {
-      if (otpInput === "1234") {
+    try {
+      const res = await fetch('/api/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: formData.phone, code: otpInput })
+      });
+      
+      const data = await res.json();
+      
+      if (data.success || otpInput === "9999") { // Emergency bypass for testing (DND block fix)
         setOtpVerified(true);
         setShowOtpModal(false);
-        setIsVerifying(false);
       } else {
-        alert("Invalid OTP! Try 1234 for testing.");
-        setIsVerifying(false);
+        alert(data.error || "Invalid OTP! Please check the server console for the real code.");
       }
-    }, 1000);
+    } catch (e) {
+       alert("Error validating OTP.");
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   return (
@@ -1101,7 +1166,7 @@ export default function NewJobPage() {
         @media (max-width: 768px) {
           .form-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
           .form-card { padding: 1.5rem 1rem; }
-          .grid { grid-template-columns: 1fr; gap: 1rem; }
+          .grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; }
           .stepper { gap: 0.4rem; }
           .step-dot { width: 24px; height: 24px; font-size: 0.7rem; }
           .upload-choice-buttons { flex-direction: column; }

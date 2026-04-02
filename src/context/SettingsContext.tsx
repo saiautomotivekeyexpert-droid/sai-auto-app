@@ -93,6 +93,9 @@ interface SettingsContextType {
   removeCatalogCategory: (name: string) => void;
   restoreRecommendedDefaults: () => void;
   releaseInventoryItem: (jobId: string) => void;
+  consumeByProductName: (productName: string, jobId: string) => { itemId: string, mark: string } | null;
+  isSyncing: boolean;
+  lastSyncTime: Date | null;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -153,6 +156,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [particulars, setParticulars] = useState<ParticularItem[]>(DEFAULT_PARTICULARS);
   const [inventorySeries, setInventorySeries] = useState<InventorySeries[]>([]);
   const [catalogCategories, setCatalogCategories] = useState<CatalogCategory[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   const [subCategories, setSubCategories] = useState<SubCategoryItem[]>(DEFAULT_SUB_CATEGORIES);
   const [estimateTerms, setEstimateTerms] = useState<string>(
@@ -267,6 +272,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
     
     setIsInitialized(true);
+
+    // After local init, try to pull latest from cloud if spreadsheet ID exists
+    const spreadsheetId = localStorage.getItem("GOOGLE_SPREADSHEET_ID");
+    if (spreadsheetId) {
+      pullFromCloud(spreadsheetId);
+    }
   }, []);
 
   // Save to localStorage whenever state changes (only after initialization)
@@ -281,6 +292,66 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { if(isInitialized) localStorage.setItem("inventorySeries", JSON.stringify(inventorySeries)); }, [inventorySeries, isInitialized]);
   useEffect(() => { if(isInitialized) localStorage.setItem("catalogCategories", JSON.stringify(catalogCategories)); }, [catalogCategories, isInitialized]);
   useEffect(() => { if(isInitialized) localStorage.setItem("partnerPin", partnerPin); }, [partnerPin, isInitialized]);
+
+  // Cloud Sync Logic
+  const syncToCloud = async () => {
+    try {
+      const spreadsheetId = localStorage.getItem("GOOGLE_SPREADSHEET_ID");
+      if (!spreadsheetId) return;
+
+      setIsSyncing(true);
+      const dataToSync = {
+        serviceTypes, consentTypes, particulars, subCategories, partners,
+        estimateTerms, invoiceTerms, shopProfile, inventorySeries,
+        catalogCategories, partnerPin
+      };
+
+      await fetch('/api/google/sync-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: dataToSync, spreadsheetId })
+      });
+      setLastSyncTime(new Date());
+      setIsSyncing(false);
+      console.log("Settings synced to cloud");
+    } catch (err) {
+      console.error("Cloud sync failed:", err);
+      setIsSyncing(false);
+    }
+  };
+
+  const pullFromCloud = async (spreadsheetId: string) => {
+    try {
+      const res = await fetch(`/api/google/sync-settings?spreadsheetId=${spreadsheetId}`);
+      const { data } = await res.json();
+      if (data) {
+        if (data.serviceTypes) setServiceTypes(data.serviceTypes);
+        if (data.particulars) setParticulars(data.particulars);
+        if (data.inventorySeries) setInventorySeries(data.inventorySeries);
+        if (data.catalogCategories) setCatalogCategories(data.catalogCategories);
+        if (data.shopProfile) setShopProfile(data.shopProfile);
+        if (data.partners) setPartners(data.partners);
+        if (data.subCategories) setSubCategories(data.subCategories);
+        if (data.partnerPin) setPartnerPin(data.partnerPin);
+        return true;
+      }
+    } catch (err) {
+      console.error("Cloud pull failed:", err);
+    }
+    return false;
+  };
+
+  // Trigger auto-sync on any change (debounced manually via useEffect)
+  useEffect(() => {
+    if (!isInitialized) return;
+    const timer = setTimeout(() => {
+      syncToCloud();
+    }, 3000); // sync after 3s of inactivity
+    return () => clearTimeout(timer);
+  }, [
+    serviceTypes, particulars, inventorySeries, catalogCategories, 
+    shopProfile, partners, subCategories, partnerPin, isInitialized
+  ]);
 
   const addServiceType = (type: string) => setServiceTypes(prev => [...new Set([...prev, type.toUpperCase()])]);
   const removeServiceType = (type: string) => setServiceTypes(prev => prev.filter(t => t !== type));
@@ -405,6 +476,23 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  const consumeByProductName = (productName: string, jobId: string) => {
+    let consumedItem = null;
+    
+    // Find first available item across all series with matching name
+    for (const series of inventorySeries) {
+      if (series.name.toLowerCase() === productName.toLowerCase()) {
+        const availableItem = series.items.find(item => item.status === "Available");
+        if (availableItem) {
+          consumeInventoryItem(availableItem.id, jobId);
+          consumedItem = { itemId: availableItem.id, mark: availableItem.mark };
+          break;
+        }
+      }
+    }
+    return consumedItem;
+  };
+
   const removeInventorySeries = (id: string) => {
     setInventorySeries(prev => prev.filter(s => s.id !== id));
   };
@@ -429,7 +517,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       toggleCatalogCategoryPOS,
       removeCatalogCategory,
       restoreRecommendedDefaults,
-      releaseInventoryItem
+      releaseInventoryItem,
+      consumeByProductName,
+      isSyncing,
+      lastSyncTime
     }}>
       {children}
     </SettingsContext.Provider>
