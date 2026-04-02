@@ -94,54 +94,6 @@ export default function DashboardLayout({
           display: none;
         }
         
-        @media (max-width: 1200px) {
-          .sidebar-wrapper {
-            position: fixed;
-            top: 0;
-            left: -280px;
-            bottom: 0;
-            width: 280px;
-            z-index: 1000;
-            transition: left 0.3s ease, visibility 0s 0.3s;
-            background: var(--bg-primary);
-            visibility: hidden;
-          }
-          .sidebar-wrapper.open {
-            left: 0;
-            visibility: visible;
-            transition: left 0.3s ease;
-          }
-          .mobile-menu-btn {
-            display: block;
-          }
-          .mobile-overlay {
-            display: block;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
-            z-index: 999;
-          }
-          .top-bar {
-            padding: 1rem;
-          }
-          .search-box {
-            max-width: none;
-            flex: 1;
-            padding: 0.4rem 1rem;
-          }
-          .hide-mobile {
-            display: none;
-          }
-          .user-profile {
-            padding-left: 0;
-            border-left: none;
-          }
-        }
-
         .search-box {
           display: flex;
           align-items: center;
@@ -198,9 +150,56 @@ export default function DashboardLayout({
           padding: 0 2rem 2rem;
           flex: 1;
         }
-        @media (max-width: 768px) {
+
+        @media (max-width: 1200px) {
+          .sidebar-wrapper {
+            position: fixed;
+            top: 0;
+            left: -280px;
+            bottom: 0;
+            width: 280px;
+            z-index: 1000;
+            transition: left 0.3s ease;
+            background: var(--bg-primary);
+            display: none; 
+            visibility: hidden;
+          }
+          .sidebar-wrapper.open {
+            left: 0;
+            display: block;
+            visibility: visible;
+          }
+          .mobile-menu-btn {
+            display: block;
+          }
+          .mobile-overlay {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 999;
+          }
+          .top-bar {
+            padding: 1rem;
+          }
+          .search-box {
+            max-width: none;
+            flex: 1;
+            padding: 0.4rem 1rem;
+          }
+          .hide-mobile {
+            display: none;
+          }
+          .user-profile {
+            padding-left: 0;
+            border-left: none;
+          }
           .content-inner {
-            padding: 0 0.75rem 0.75rem;
+            padding: 0 0.75rem 1rem;
           }
         }
       `}</style>

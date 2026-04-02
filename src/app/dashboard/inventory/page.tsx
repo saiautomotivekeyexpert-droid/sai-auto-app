@@ -1103,6 +1103,7 @@ export default function InventoryPage() {
             border-radius: 8px;
             width: 100%;
             margin: 0;
+            box-sizing: border-box;
           }
           .row {
             flex-direction: column;
@@ -1113,6 +1114,7 @@ export default function InventoryPage() {
             align-items: stretch !important;
             gap: 0.75rem;
             padding: 0.75rem !important;
+            box-sizing: border-box;
           }
           .catalog-item input[type="text"] {
             width: 100% !important;
@@ -1139,6 +1141,7 @@ export default function InventoryPage() {
           .product-bag {
             padding: 0.5rem !important;
             margin-bottom: 1rem !important;
+            box-sizing: border-box;
           }
           .product-bag > div:first-child {
             flex-direction: column;
@@ -1159,6 +1162,7 @@ export default function InventoryPage() {
           }
           .stock-unit {
             padding: 0.5rem !important;
+            box-sizing: border-box;
           }
         }
       `}</style>

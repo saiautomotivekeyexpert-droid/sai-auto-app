@@ -1085,7 +1085,7 @@ export default function QuickServicePage() {
           }
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 1200px) {
           .selection-grid {
             grid-template-columns: 1fr;
             gap: 1rem;
@@ -1102,6 +1102,7 @@ export default function QuickServicePage() {
           .item-card {
             padding: 1.5rem;
             flex-direction: row; /* Keep row but wrap better */
+            box-sizing: border-box;
           }
           .category-tabs {
             margin-top: 0.5rem;
