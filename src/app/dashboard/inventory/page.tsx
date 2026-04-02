@@ -1087,28 +1087,32 @@ export default function InventoryPage() {
           }
         }
         
-        @media (max-width: 768px) {
+        @media (max-width: 1200px) {
           .inventory-header h1 {
-            font-size: 1.5rem;
+            font-size: 1.4rem;
           }
           .inventory-content-layout {
             padding: 0;
             gap: 1rem;
             grid-template-columns: 1fr;
+            width: 100%;
+            overflow-x: hidden;
           }
           .batch-creator, .list-container {
-            padding: 1.25rem;
-            border-radius: 12px;
+            padding: 0.75rem !important;
+            border-radius: 8px;
+            width: 100%;
+            margin: 0;
           }
           .row {
             flex-direction: column;
-            gap: 1rem;
+            gap: 0.75rem;
           }
           .catalog-item {
             flex-direction: column;
             align-items: stretch !important;
-            gap: 1rem;
-            padding: 1rem !important;
+            gap: 0.75rem;
+            padding: 0.75rem !important;
           }
           .catalog-item input[type="text"] {
             width: 100% !important;
@@ -1125,20 +1129,24 @@ export default function InventoryPage() {
             gap: 0.5rem;
           }
           .batch-type-toggle button {
-             padding: 0.5rem;
-             font-size: 0.75rem;
+             padding: 0.4rem;
+             font-size: 0.7rem;
           }
           .items-grid {
             grid-template-columns: 1fr;
             gap: 0.75rem;
           }
+          .product-bag {
+            padding: 0.5rem !important;
+            margin-bottom: 1rem !important;
+          }
           .product-bag > div:first-child {
             flex-direction: column;
             align-items: flex-start !important;
-            gap: 1rem;
+            gap: 0.75rem;
           }
           .product-bag > div:first-child span {
-            font-size: 0.9rem !important;
+            font-size: 0.85rem !important;
           }
           .product-bag > div:first-child > div:last-child {
             margin-left: 0 !important;
@@ -1147,7 +1155,10 @@ export default function InventoryPage() {
           }
           .unit-mark {
             word-break: break-all;
-            font-size: 0.75rem !important;
+            font-size: 0.7rem !important;
+          }
+          .stock-unit {
+            padding: 0.5rem !important;
           }
         }
       `}</style>

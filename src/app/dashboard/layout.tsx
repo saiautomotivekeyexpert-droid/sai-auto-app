@@ -102,11 +102,14 @@ export default function DashboardLayout({
             bottom: 0;
             width: 280px;
             z-index: 1000;
-            transition: left 0.3s ease;
+            transition: left 0.3s ease, visibility 0s 0.3s;
             background: var(--bg-primary);
+            visibility: hidden;
           }
           .sidebar-wrapper.open {
             left: 0;
+            visibility: visible;
+            transition: left 0.3s ease;
           }
           .mobile-menu-btn {
             display: block;
@@ -128,6 +131,7 @@ export default function DashboardLayout({
           .search-box {
             max-width: none;
             flex: 1;
+            padding: 0.4rem 1rem;
           }
           .hide-mobile {
             display: none;
@@ -196,7 +200,7 @@ export default function DashboardLayout({
         }
         @media (max-width: 768px) {
           .content-inner {
-            padding: 0 1rem 1rem;
+            padding: 0 0.75rem 0.75rem;
           }
         }
       `}</style>
