@@ -1137,6 +1137,9 @@ export default function InventoryPage() {
             align-items: flex-start !important;
             gap: 1rem;
           }
+          .product-bag > div:first-child span {
+            font-size: 0.9rem !important;
+          }
           .product-bag > div:first-child > div:last-child {
             margin-left: 0 !important;
             width: 100%;
@@ -1144,6 +1147,7 @@ export default function InventoryPage() {
           }
           .unit-mark {
             word-break: break-all;
+            font-size: 0.75rem !important;
           }
         }
       `}</style>
