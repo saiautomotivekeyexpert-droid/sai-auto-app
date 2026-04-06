@@ -153,7 +153,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   ]);
   const [partnerPin, setPartnerPin] = useState<string>("1234");
 
-  const [particulars, setParticulars] = useState<ParticularItem[]>(DEFAULT_PARTICULARS);
+  const [particulars, setParticulars] = useState<ParticularItem[]>([]);
   const [inventorySeries, setInventorySeries] = useState<InventorySeries[]>([]);
   const [catalogCategories, setCatalogCategories] = useState<CatalogCategory[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -272,6 +272,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setParticulars(migrated);
     }
     
+    // Deep Wipe Check: If hasn't been deep wiped yet, clear everything
+    const deepWiped = localStorage.getItem("catalog_deep_wiped_v1");
+    if (!deepWiped) {
+      setParticulars([]);
+      setInventorySeries([]);
+      localStorage.setItem("particulars", JSON.stringify([]));
+      localStorage.setItem("inventorySeries", JSON.stringify([]));
+      localStorage.setItem("catalog_deep_wiped_v1", "true");
+      console.log("CATALOG DEEP WIPE PERFORMED");
+    }
+
     // Always pull from the global cloud source on mount for parity
     pullFromCloud("").finally(() => {
       setIsInitialized(true);
