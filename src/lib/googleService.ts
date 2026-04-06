@@ -47,11 +47,39 @@ export class GoogleService {
   }
 
   /**
+   * Helper to ensure a specific sheet exists in the spreadsheet.
+   */
+  private static async ensureSheetExists(spreadsheetId: string, sheetName: string) {
+    try {
+      await this.sheets.spreadsheets.get({
+        spreadsheetId,
+        ranges: [sheetName],
+      });
+    } catch (error: any) {
+      if (error.status === 400 || error.message.includes('Unable to parse range')) {
+        console.log(`Creating missing sheet: ${sheetName}`);
+        try {
+          await this.sheets.spreadsheets.batchUpdate({
+            spreadsheetId,
+            requestBody: {
+              requests: [{ addSheet: { properties: { title: sheetName } } }],
+            },
+          });
+        } catch (createError) {
+          console.error(`Failed to create sheet ${sheetName}:`, createError);
+        }
+      }
+    }
+  }
+
+  /**
    * Adds or updates a setting record in a dedicated 'Settings' sheet.
    */
   static async addSetting(spreadsheetId: string, rowData: any[]) {
     await this.init();
     if (!this.sheets) throw new Error("Sheets API not initialized");
+
+    await this.ensureSheetExists(spreadsheetId, 'Settings');
 
     const settingId = rowData[0];
     
@@ -116,6 +144,8 @@ export class GoogleService {
   static async addJob(spreadsheetId: string, rowData: any[]) {
     await this.init();
     if (!this.sheets) throw new Error("Sheets API not initialized");
+
+    await this.ensureSheetExists(spreadsheetId, 'Jobs');
 
     const jobId = rowData[0];
     
