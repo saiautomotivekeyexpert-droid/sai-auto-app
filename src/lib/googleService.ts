@@ -216,7 +216,7 @@ export class GoogleService {
 
     const response = await this.sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Jobs!A:Z',
+      range: 'Jobs!A:T',
     });
     return response.data.values;
   }
@@ -232,6 +232,22 @@ export class GoogleService {
       spreadsheetId,
       range: 'Jobs!A1:Z5000', // Total wipe - everything including headers
     });
+
+    // Initialize with NEW headers (A-T)
+    const headers = [[
+      "NAME", "ADDRESS", "MOBILE NO.", "REFERENCE NAME", "COMPLAINT HISTORY",
+      "VEHICLE NO.", "VEHICLE BRAND", "VEHICLE MODEL", "MANUFACTURE YEAR", "VEHICLE TYPE",
+      "ESTIMATE MEMO NO.", "VEHICLE ESTIMATE", "STATUS", "E-KYC SERVICE", "CONSENT TYPE",
+      "SUB-CATEGORIES", "JOB PARTICULARS", "DOCUMENT DETAIL", "AFTER SALES SERVICE", "JOB TIMELINE"
+    ]];
+
+    await this.sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'Jobs!A1:T1',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: headers },
+    });
+
     return { success: true };
   }
 

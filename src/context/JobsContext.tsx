@@ -63,36 +63,52 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
         const data = await res.json();
         
         if (data.success && data.data && Array.isArray(data.data)) {
-          // Use indices from rowData: [id, date, status, name, vehicle, service, total, details]
-          // Filter out header row if it exists (check if first item is "Job ID")
-          const rows = data.data[0]?.[0] === "Job ID" ? data.data.slice(1) : data.data;
+          // Use indices from 20-column layout: A(0)=NAME, ..., K(10)=ID, M(12)=STATUS, ...
+          // Filter out header row if it exists (check if first item is "NAME")
+          const rows = data.data[0]?.[0] === "NAME" ? data.data.slice(1) : data.data;
 
-          // Deduplicate by ID: Keep the LAST row for each Job ID (most recent update)
           const jobMap: Record<string, Job> = {};
           rows.forEach((row: any[]) => {
-            const id = row[0];
+            const id = row[10]; // ESTIMATE MEMO NO.
             if (!id) return;
             
-            // STRICT FILTER: Only allow IDs starting with JOB- or QS-
             const idUpper = id.toString().trim().toUpperCase();
             if (!idUpper.startsWith("JOB-") && !idUpper.startsWith("QS-")) {
-              return; // Skip system rows, settings (APP_SETTINGS), etc.
+              return; 
             }
             
+            const timeline = typeof row[19] === 'string' ? JSON.parse(row[19]) : {};
+            const particulars = typeof row[16] === 'string' ? JSON.parse(row[16]) : [];
+
             jobMap[idUpper] = {
               id: idUpper,
-              date: row[1],
-              status: row[2] as any,
-              customerName: row[3],
-              vehicleNumber: row[4],
-              serviceType: row[5],
-              details: typeof row[7] === 'string' ? JSON.parse(row[7]) : {},
-              timeline: {},
-              createdAt: Date.now() // Approximated
+              customerName: row[0] || '',
+              vehicleNumber: row[5] || '',
+              serviceType: row[13] || '',
+              status: row[12] as any || 'Pending',
+              date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(), // Fallback
+              createdAt: Date.now(),
+              timeline: timeline,
+              details: {
+                customerAddress: row[1] || '',
+                customerPhone: row[2] || '',
+                referenceName: row[3] || '',
+                complaintHistory: row[4] || '',
+                vehicleBrand: row[6] || '',
+                vehicleModel: row[7] || '',
+                manufactureYear: row[8] || '',
+                vehicleType: row[9] || '',
+                totalCharge: row[11] || 0,
+                consentType: row[14] || '',
+                selectedSubCategories: (row[15] || '').split(',').map((s: string) => s.trim()).filter(Boolean),
+                selectedItems: particulars,
+                docsFolderLink: row[17] || '',
+                afterSales: row[18] || ''
+              }
             };
           });
 
-          setJobs(Object.values(jobMap).reverse()); // Reverse to keep newer ones on top if needed or keep order
+          setJobs(Object.values(jobMap).reverse());
         }
       } catch (err) {
         console.error("Cloud fetch failed:", err);

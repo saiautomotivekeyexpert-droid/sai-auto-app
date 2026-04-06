@@ -18,9 +18,11 @@ export async function GET(req: Request) {
       if (!allRows) return NextResponse.json({ success: true, data: [] });
       
       // ABSOLUTE FILTER: Remove any system rows or settings rows
-      const filteredData = allRows.filter(row => {
-        const id = row[0]?.toString().trim().toUpperCase();
-        return id && id !== "APP_SETTINGS" && (id.startsWith("JOB-") || id.startsWith("QS-"));
+      // And ignore the header row if it's there
+      const filteredData = allRows.filter((row: any[]) => {
+        const id = row[10]?.toString().trim().toUpperCase(); // Index 10 is ESTIMATE MEMO NO (Job ID)
+        if (!id || id === "ESTIMATE MEMO NO.") return false;
+        return id !== "APP_SETTINGS" && (id.startsWith("JOB-") || id.startsWith("QS-"));
       });
       
       return NextResponse.json({ success: true, data: filteredData });
@@ -43,46 +45,44 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: 'Google Spreadsheet ID is missing - sync bypassed.' }, { status: 200 });
     }
 
-    const sanitizeDetails = (details: any) => {
-      if (!details) return {};
-      try {
-        const cleaned = JSON.parse(JSON.stringify(details));
-        if (cleaned.documents && Array.isArray(cleaned.documents)) {
-          cleaned.documents = cleaned.documents.map((doc: any) => ({
-            ...doc,
-            preview: doc.preview?.startsWith('data:') ? '[IMAGE_DATA_STRIPPED_FOR_SHEET]' : doc.preview
-          }));
-        }
-        return cleaned;
-      } catch (e) {
-        return { error: 'Failed to serialize details' };
-      }
+    /**
+     * Maps a Job object to the 20-column array structure (A-T)
+     */
+    const mapJobToRow = (j: any) => {
+      const d = j.details || {};
+      return [
+        j.customerName || '',                // A: NAME
+        d.customerAddress || '',             // B: ADDRESS
+        d.customerPhone || '',                // C: MOBILE NO.
+        d.referenceName || '',               // D: REFERENCE NAME
+        d.complaintHistory || '',            // E: COMPLAINT HISTORY
+        j.vehicleNumber || '',               // F: VEHICLE NO.
+        d.vehicleBrand || '',                // G: VEHICLE BRAND
+        d.vehicleModel || '',                // H: VEHICLE MODEL
+        d.manufactureYear || '',             // I: MANUFACTURE YEAR
+        d.vehicleType || '',                 // J: VEHICLE TYPE
+        j.id || '',                          // K: ESTIMATE MEMO NO.
+        d.totalCharge || 0,                  // L: VEHICLE ESTIMATE
+        j.status || '',                      // M: STATUS
+        j.serviceType || '',                 // N: E-KYC SERVICE
+        d.consentType || '',                 // O: CONSENT TYPE
+        (d.selectedSubCategories || []).join(', '), // P: SUB-CATEGORIES
+        JSON.stringify(d.selectedItems || []), // Q: JOB PARTICULARS
+        d.docsFolderLink || '',              // R: DOCUMENT DETAIL
+        d.afterSales || '',                  // S: AFTER SALES SERVICE
+        JSON.stringify(j.timeline || {})      // T: JOB TIMELINE
+      ];
     };
 
     if (action === 'append' || action === 'sync') {
       if (job) {
-        const rowData = [
-          job.id,
-          job.date,
-          job.status,
-          job.customerName,
-          job.vehicleNumber,
-          job.serviceType,
-          job.details?.totalCharge || 0,
-          JSON.stringify(sanitizeDetails(job.details))
-        ];
-        
-        await GoogleService.addJob(spreadsheetId, rowData);
+        await GoogleService.addJob(spreadsheetId, mapJobToRow(job));
         return NextResponse.json({ success: true, message: 'Job synced successfully.' });
       }
       
       if (jobs && Array.isArray(jobs)) {
         for (const j of jobs) {
-           const rowData = [
-             j.id, j.date, j.status, j.customerName, j.vehicleNumber, 
-             j.serviceType, j.details?.totalCharge || 0, JSON.stringify(sanitizeDetails(j.details))
-           ];
-           await GoogleService.addJob(spreadsheetId, rowData);
+           await GoogleService.addJob(spreadsheetId, mapJobToRow(j));
         }
         return NextResponse.json({ success: true, message: `${jobs.length} jobs synced successfully.` });
       }
