@@ -50,6 +50,30 @@ export async function POST(req: Request) {
      */
     const mapJobToRow = (j: any) => {
       const d = j.details || {};
+      
+      // Format Particulars as comma-separated string (Column Q)
+      const particulars = (d.selectedItems || [])
+        .map((item: any) => item.name)
+        .join(',');
+
+      // Format Documents as =HYPERLINK("url", "name") (Column R)
+      // We use the 'documents' array if available, otherwise fallback to docsFolderLink
+      let docDetail = '';
+      if (d.documents && Array.isArray(d.documents)) {
+        docDetail = d.documents
+          .map((doc: any) => {
+            const url = doc.cloudUrl || doc.preview;
+            if (url && (url.startsWith('http') || url.includes('drive.google.com'))) {
+              return `=HYPERLINK("${url}", "${doc.name || 'Document'}")`;
+            }
+            return doc.name || '';
+          })
+          .filter(Boolean)
+          .join(', ');
+      } else if (d.docsFolderLink) {
+        docDetail = d.docsFolderLink;
+      }
+
       return [
         j.customerName || '',                // A: NAME
         d.customerAddress || '',             // B: ADDRESS
@@ -67,9 +91,9 @@ export async function POST(req: Request) {
         j.serviceType || '',                 // N: E-KYC SERVICE
         d.consentType || '',                 // O: CONSENT TYPE
         (d.selectedSubCategories || []).join(', '), // P: SUB-CATEGORIES
-        JSON.stringify(d.selectedItems || []), // Q: JOB PARTICULARS
-        d.docsFolderLink || '',              // R: DOCUMENT DETAIL
-        d.afterSales || '',                  // S: AFTER SALES SERVICE
+        particulars,                         // Q: JOB PARTICULARS (CSV)
+        docDetail,                           // R: DOCUMENT DETAIL (Hyperlinks)
+        d.afterSales || d.afterSalesComplaint || '', // S: AFTER SALES SERVICE
         JSON.stringify(j.timeline || {})      // T: JOB TIMELINE
       ];
     };
