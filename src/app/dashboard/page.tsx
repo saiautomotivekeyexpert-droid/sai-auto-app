@@ -9,9 +9,10 @@ import { useSettings } from "@/context/SettingsContext";
 export default function Dashboard() {
   const { jobs } = useJobs();
   const { inventorySeries } = useSettings();
-  const recentJobs = [...jobs].sort((a, b) => b.createdAt - a.createdAt);
   const [visibleAmounts, setVisibleAmounts] = useState<Record<string, boolean>>({});
   const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("All");
 
   const handleForceSync = async (job: any) => {
     setSyncingId(job.id);
@@ -66,15 +67,34 @@ export default function Dashboard() {
   };
 
   const stats = [
-    { name: "Active Jobs", count: recentJobs.filter(j => j.status === "Active").length, icon: Clock, color: "var(--accent-primary)" },
-    { name: "New E-KYC Today", count: recentJobs.filter(j => new Date(j.createdAt).toDateString() === new Date().toDateString()).length, icon: FileText, color: "var(--warning)" },
-    { name: "Completed", count: recentJobs.filter(j => j.status === "Completed").length, icon: CheckCircle, color: "var(--success)" },
+    { name: "Active Jobs", count: jobs.filter(j => j.status === "Active").length, icon: Clock, color: "var(--accent-primary)" },
+    { name: "New E-KYC Today", count: jobs.filter(j => new Date(j.createdAt).toDateString() === new Date().toDateString()).length, icon: FileText, color: "var(--warning)" },
+    { name: "Completed", count: jobs.filter(j => j.status === "Completed").length, icon: CheckCircle, color: "var(--success)" },
     { name: "Inventory Alert", count: inventoryAlertCount, icon: Package, color: "var(--danger)" },
   ];
 
+  const filteredJobs = useMemo(() => {
+    let filtered = [...jobs].sort((a, b) => b.createdAt - a.createdAt);
+    
+    if (activeTab !== "All") {
+      filtered = filtered.filter(j => j.status === activeTab);
+    }
+    
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(j => 
+        j.id.toLowerCase().includes(q) || 
+        j.customerName.toLowerCase().includes(q) || 
+        j.vehicleNumber.toLowerCase().includes(q)
+      );
+    }
+    
+    return filtered;
+  }, [jobs, activeTab, searchQuery]);
+
   const exportToCSV = () => {
     const headers = "Job ID,Customer,Vehicle,Service,Status,Timeline\n";
-    const rows = recentJobs.map(j => `${j.id},${j.customerName},${j.vehicleNumber},${j.serviceType},${j.status},${j.date}`).join("\n");
+    const rows = filteredJobs.map((j: any) => `${j.id},${j.customerName},${j.vehicleNumber},${j.serviceType},${j.status},${j.date}`).join("\n");
     const blob = new Blob([headers + rows], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -116,8 +136,28 @@ export default function Dashboard() {
 
       <div className="table-section glass-panel">
         <div className="table-header">
-          <h2>Active Jobs</h2>
-          <button className="secondary-btn">View All</button>
+          <div className="search-filter-box">
+             <div className="search-wrapper">
+                <input 
+                  type="text" 
+                  placeholder="Search Name, Vehicle or ID..." 
+                  className="search-input"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+             </div>
+             <div className="status-tabs">
+                {["All", "Active", "Waiting Approval", "Approved", "Completed"].map(status => (
+                  <button 
+                    key={status} 
+                    className={`tab-btn ${activeTab === status ? "active" : ""}`}
+                    onClick={() => setActiveTab(status)}
+                  >
+                    {status}
+                  </button>
+                ))}
+             </div>
+          </div>
         </div>
         <div className="table-responsive">
           <table className="jobs-table">
@@ -133,7 +173,7 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {recentJobs.map((job) => (
+              {filteredJobs.map((job) => (
                 <tr key={job.id}>
                   <td><span className="job-id-badge">{job.id}</span></td>
                   <td>{job.customerName}</td>
@@ -220,9 +260,60 @@ export default function Dashboard() {
         }
         .table-header {
           display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1.5rem;
+          flex-direction: column;
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+        }
+        .search-filter-box {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+          width: 100%;
+        }
+        .search-wrapper {
+          flex: 1;
+        }
+        .search-input {
+          width: 100%;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid var(--glass-border);
+          color: white;
+          padding: 0.75rem 1.25rem;
+          border-radius: var(--radius-md);
+          font-size: 0.9rem;
+          outline: none;
+          transition: border-color 0.2s;
+        }
+        .search-input:focus {
+          border-color: var(--accent-primary);
+        }
+        .status-tabs {
+          display: flex;
+          gap: 0.5rem;
+          overflow-x: auto;
+          padding-bottom: 0.5rem;
+          scrollbar-width: none;
+        }
+        .status-tabs::-webkit-scrollbar { display: none; }
+        .tab-btn {
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid var(--glass-border);
+          color: var(--text-muted);
+          padding: 0.5rem 1rem;
+          border-radius: 999px;
+          font-size: 0.8rem;
+          font-weight: 600;
+          white-space: nowrap;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .tab-btn:hover {
+          background: rgba(255, 255, 255, 0.1);
+        }
+        .tab-btn.active {
+          background: var(--accent-primary);
+          border-color: var(--accent-primary);
+          color: white;
         }
         .table-responsive {
           overflow-x: auto;

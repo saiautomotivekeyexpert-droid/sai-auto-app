@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useSettings } from "@/context/SettingsContext";
-import { Plus, Trash2, Settings as SettingsIcon, Save, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Settings as SettingsIcon, Save, ChevronRight, AlertTriangle, RefreshCcw } from "lucide-react";
+import { useJobs } from "@/context/JobsContext";
 
 export default function SettingsPage() {
   const { 

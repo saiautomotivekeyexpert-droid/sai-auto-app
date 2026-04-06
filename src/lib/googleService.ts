@@ -47,21 +47,111 @@ export class GoogleService {
   }
 
   /**
-   * Appends a new job record to the Google Sheet.
+   * Adds or updates a setting record in a dedicated 'Settings' sheet.
+   */
+  static async addSetting(spreadsheetId: string, rowData: any[]) {
+    await this.init();
+    if (!this.sheets) throw new Error("Sheets API not initialized");
+
+    const settingId = rowData[0];
+    
+    // 1. Check if setting exists in 'Settings' sheet
+    let rowIndex = -1;
+    try {
+      const existing = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'Settings!A:A',
+      });
+      const rows = existing.data.values || [];
+      rowIndex = rows.findIndex((row: any[]) => row[0] === settingId);
+    } catch (e) {
+      // Sheet might not exist yet, we'll handle it during append
+    }
+
+    if (rowIndex !== -1) {
+      const actualRowNumber = rowIndex + 1;
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `Settings!A${actualRowNumber}:Z${actualRowNumber}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [rowData],
+        },
+      });
+      return { action: 'updated', rowIndex: actualRowNumber };
+    } else {
+      const response = await this.sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'Settings!A:Z',
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [rowData],
+        },
+      });
+      return { action: 'appended', data: response.data };
+    }
+  }
+
+  static async getSettings(spreadsheetId: string) {
+    await this.init();
+    if (!this.sheets) throw new Error("Sheets API not initialized");
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'Settings!A:Z',
+      });
+      return response.data.values;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Fetches all job records from the Google Sheet.
+   */
+  /**
+   * Adds or updates a job record in the Google Sheet.
+   * If the Job ID exists, it updates the row; otherwise, it appends.
    */
   static async addJob(spreadsheetId: string, rowData: any[]) {
     await this.init();
     if (!this.sheets) throw new Error("Sheets API not initialized");
 
-    const response = await this.sheets.spreadsheets.values.append({
+    const jobId = rowData[0];
+    
+    // 1. Check if job exists to update it
+    const existing = await this.sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Jobs!A:Z',
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: [rowData],
-      },
+      range: 'Jobs!A:A',
     });
-    return response.data;
+    
+    const rows = existing.data.values || [];
+    const rowIndex = rows.findIndex((row: any[]) => row[0] === jobId);
+
+    if (rowIndex !== -1) {
+      // Update existing row (v4 uses 1-based indexing for ranges)
+      const actualRowNumber = rowIndex + 1;
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `Jobs!A${actualRowNumber}:Z${actualRowNumber}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [rowData],
+        },
+      });
+      return { action: 'updated', rowIndex: actualRowNumber };
+    } else {
+      // Append new row
+      const response = await this.sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'Jobs!A:Z',
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [rowData],
+        },
+      });
+      return { action: 'appended', data: response.data };
+    }
   }
 
   /**
@@ -99,5 +189,37 @@ export class GoogleService {
       range: 'Jobs!A:Z',
     });
     return response.data.values;
+  }
+
+  /**
+   * Clears all job data from the sheet (except header).
+   */
+  static async clearJobs(spreadsheetId: string) {
+    await this.init();
+    if (!this.sheets) throw new Error("Sheets API not initialized");
+
+    await this.sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range: 'Jobs!A1:Z5000', // Total wipe - everything including headers
+    });
+    return { success: true };
+  }
+
+  /**
+   * Clears all settings data from the sheet (except header).
+   */
+  static async clearSettings(spreadsheetId: string) {
+    try {
+      await this.init();
+      if (!this.sheets) throw new Error("Sheets API not initialized");
+
+      await this.sheets.spreadsheets.values.clear({
+        spreadsheetId,
+        range: 'Settings!A2:Z5000',
+      });
+    } catch (e) {
+      console.warn("Settings sheet clear skipped (might not exist):", e.message);
+    }
+    return { success: true };
   }
 }

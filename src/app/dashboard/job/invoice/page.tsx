@@ -40,13 +40,15 @@ function InvoiceContent({ id }: { id: string }) {
 
   const d = isCustomizing ? tempDetails : (job.details || {});
   const particulars: any[] = d.particulars || [];
+  const manualItems: any[] = d.manualItems || [];
   const isEstimate = forceType === "estimate" || job.status === "Waiting Approval" || job.status === "Approved" || job.status === "Rejected";
   
   const isQuickService = job.serviceType === "Quick Service";
   const serviceCharge = Number(d.serviceCharge) || 0;
-  // For E-KYC, physical items (particulars) do not add to the price total
+  // For E-KYC, physical items (particulars) do not add to the price total unless it's Quick Service
   const realItemsTotal = particulars.reduce((sum: number, p: any) => sum + (Number(p.cost || 0) * (p.quantity || 1)), 0);
-  const grandTotal = Number(d.totalCharge) || (serviceCharge + (isQuickService ? realItemsTotal : 0));
+  const manualItemsTotal = manualItems.reduce((sum: number, p: any) => sum + (Number(p.rate || 0) * (p.qty || 1)), 0);
+  const grandTotal = Number(d.totalCharge) || (serviceCharge + manualItemsTotal + (isQuickService ? realItemsTotal : 0));
   
   const handleSaveCustom = () => {
     updateJobDetails(job.id, {
@@ -73,17 +75,22 @@ function InvoiceContent({ id }: { id: string }) {
 
   const handleWhatsApp = () => {
     const isQuickService = job.serviceType === "Quick Service";
-    const lines = particulars.map((p: any) => {
+    const particularsLines = particulars.map((p: any) => {
       const productName = p.category === "Services" ? "SERVICE" : p.name;
       const sType = (p.serviceType || "-").toUpperCase();
-      if (!isQuickService) {
-        return `  - ${productName} [${sType}]`;
-      }
+      if (!isQuickService) return `  - ${productName} [${sType}]`;
       const isZero = Number(p.cost) === 0 && Number(p.originalPrice) > 0;
       const amountStr = isZero ? `~~₹${Number(p.originalPrice) * (p.quantity || 1)}~~ ₹0` : `₹${Number(p.cost) * (p.quantity || 1)}`;
       return `  - ${productName} [${sType}] (${p.quantity || 1} x ${amountStr})`;
     }).join("\n");
-    const text = `*${isEstimate ? "Estimate" : "Invoice"} from ${shopName}*\n\n*${isEstimate ? "Estimate" : "Memo"} #:* ${memoNumber}\n*Date:* ${dateStr}\n\n*Customer:* ${job.customerName}\n*Vehicle:* ${job.vehicleNumber}\n\n*Service:* ${d.serviceType} – ${hideTotal ? 'TBD' : '₹' + serviceCharge}\n*Particulars:*\n${lines || "  - None"}\n\n*${hideTotal ? 'TOTAL TBD' : 'Summary Total: ₹' + (isQuickService ? grandTotal : serviceCharge)}*\n\nThank you for your business!`;
+
+    const manualLines = manualItems.map((m: any) => {
+      return `  - ${m.product.toUpperCase()} [${m.serviceType.toUpperCase()}] (${m.qty} x ₹${m.rate})`;
+    }).join("\n");
+
+    const allLines = [particularsLines, manualLines].filter(x => x).join("\n");
+
+    const text = `*${isEstimate ? "Estimate" : "Invoice"} from ${shopName}*\n\n*${isEstimate ? "Estimate" : "Memo"} #:* ${memoNumber}\n*Date:* ${dateStr}\n\n*Customer:* ${job.customerName}\n*Vehicle:* ${job.vehicleNumber}\n\n*Service:* ${d.serviceType} – ${hideTotal ? 'TBD' : '₹' + serviceCharge}\n*Items & Extras:*\n${allLines || "  - None"}\n\n*${hideTotal ? 'TOTAL TBD' : 'Summary Total: ₹' + grandTotal}*\n\nThank you for your business!`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
@@ -219,143 +226,74 @@ function InvoiceContent({ id }: { id: string }) {
         <table className="inv-table">
           <thead>
             <tr>
+              <th className="center">S.NO</th>
+              <th>SERVICE TYPE</th>
               <th>PRODUCT</th>
-              <th className="center">SERVICE TYPE</th>
               <th className="center">QTY</th>
+              <th className="right">RATE</th>
               <th className="right">AMOUNT</th>
             </tr>
           </thead>
           <tbody>
-            {job.serviceType === "Quick Service" ? (
-              particulars.map((p: any, idx: number) => (
-                <tr key={idx}>
-                  <td>
-                    {isCustomizing ? (
-                      <input className="edit-input" value={p.name} onChange={(e) => {
-                        const next = [...particulars];
-                        next[idx].name = e.target.value;
-                        setTempDetails({...d, particulars: next});
-                      }} />
-                    ) : (
-                      <>
-                        <strong>{p.category === "Services" ? "SERVICE" : p.name.toUpperCase()}</strong>
-                        {p.stockMark && <div style={{ fontSize: '0.7rem', color: 'rgba(0,0,0,0.4)', fontWeight: 700 }}>MARK: {p.stockMark}</div>}
-                      </>
-                    )}
-                  </td>
-                  <td className="center" style={{ verticalAlign: 'top', paddingTop: '0.85rem' }}>
-                    {isCustomizing ? (
-                      <input className="edit-input" style={{ textAlign: 'center' }} value={p.serviceType || ""} onChange={(e) => {
-                        const next = [...particulars];
-                        next[idx].serviceType = e.target.value;
-                        setTempDetails({...d, particulars: next});
-                      }} />
-                    ) : (
-                      <div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900 }}>
-                        {(p.serviceType || "-").toUpperCase()}
-                      </div>
-                    )}
-                  </td>
-                  <td className="center" style={{ verticalAlign: 'top', paddingTop: '0.85rem', fontWeight: 700 }}>
-                    {isCustomizing ? (
-                      <input className="edit-input" style={{ textAlign: 'center', width: '40px' }} value={p.quantity || 1} onChange={(e) => {
-                        const next = [...particulars];
-                        next[idx].quantity = Number(e.target.value);
-                        setTempDetails({...d, particulars: next});
-                      }} />
-                    ) : (
-                      p.quantity || 1
-                    )}
-                  </td>
-                  <td className="right" style={{ verticalAlign: 'top', paddingTop: '0.85rem' }}>
-                    {isCustomizing ? (
-                      <input className="edit-input" style={{ textAlign: 'right', width: '80px' }} value={p.cost || 0} onChange={(e) => {
-                        const next = [...particulars];
-                        next[idx].cost = Number(e.target.value);
-                        setTempDetails({...d, particulars: next});
-                      }} />
-                    ) : (
-                      Number(p.cost) === 0 && Number(p.originalPrice) > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                          <span style={{ fontSize: '0.75rem', textDecoration: 'line-through', color: 'rgba(0,0,0,0.3)', fontWeight: 600 }}>
-                            ₹ {((p.originalPrice || 0) * (p.quantity || 1)).toLocaleString("en-IN")}
-                          </span>
-                          <strong style={{ color: 'var(--success)' }}>FREE</strong>
-                        </div>
-                      ) : (
-                        <strong>₹ {((p.cost || 0) * (p.quantity || 1)).toLocaleString("en-IN")}</strong>
-                      )
-                    )}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td>
-                  <div style={{ paddingBottom: (!hideTotal && particulars.length > 0) ? '0.5rem' : '0' }}>
-                    {isCustomizing ? (
-                      <input className="edit-input" value={Array.isArray(d.subCategories) ? d.subCategories.join(' + ') : (d.serviceType || job.serviceType)} onChange={(e) => {
-                        setTempDetails({...d, subCategories: e.target.value.split(' + '), serviceType: e.target.value});
-                      }} />
-                    ) : (
-                      !(isEstimate && d.hideEstimateTotal) && job.details?.subCategories && job.details.subCategories.length > 0 ? (
-                        <strong>{job.details.subCategories.join(' + ').toUpperCase()}</strong>
-                      ) : (
-                        <strong>{(d.serviceType || job.serviceType).toUpperCase()}</strong>
-                      )
-                    )}
-                  </div>
-                  {(particulars.length > 0) && (
-                    <ul style={{ margin: '0.2rem 0 0 1rem', padding: 0, fontSize: '0.82rem', color: 'rgba(0,0,0,0.4)', fontWeight: 600, lineHeight: 1.5 }}>
-                      {particulars.map((p: any, idx: number) => (
-                        <li key={idx}>
-                          {isCustomizing ? (
-                            <input className="edit-input" style={{ fontSize: '0.7rem', padding: '0.1rem 0.3rem', width: 'auto' }} value={p.name} onChange={(e) => {
-                              const next = [...particulars];
-                              next[idx].name = e.target.value;
-                              setTempDetails({...d, particulars: next});
-                            }} />
-                          ) : (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                              <span>{p.name}</span>
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </td>
-                <td className="center" style={{ verticalAlign: 'top', paddingTop: '0.85rem' }}>
-                  {isCustomizing ? (
-                    <input className="edit-input" style={{ textAlign: 'center' }} value={d.serviceType || job.serviceType} onChange={(e) => {
-                      setTempDetails({...d, serviceType: e.target.value});
-                    }} />
-                  ) : (
-                    <div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900 }}>
-                      {(d.serviceType || job.serviceType).toUpperCase()}
-                    </div>
-                  )}
-                </td>
-                <td className="center" style={{ verticalAlign: 'top', paddingTop: '0.85rem', fontWeight: 700 }}>
-                  {isCustomizing ? (
-                    <input className="edit-input" style={{ textAlign: 'center', width: '40px' }} value={d.serviceQty || 1} onChange={(e) => {
-                      setTempDetails({...d, serviceQty: Number(e.target.value)});
-                    }} />
-                  ) : (
-                    d.serviceQty || 1
-                  )}
-                </td>
-                <td className="right" style={{ verticalAlign: 'top', paddingTop: '0.85rem' }}>
-                  {isCustomizing ? (
-                    <input className="edit-input" style={{ textAlign: 'right', width: '100px' }} value={d.totalCharge || grandTotal} onChange={(e) => {
-                      setTempDetails({...d, totalCharge: Number(e.target.value), serviceCharge: Number(e.target.value)});
-                    }} />
-                  ) : (
-                    <strong>{hideTotal ? "TBD" : `₹ ${grandTotal.toLocaleString("en-IN")}`}</strong>
-                  )}
-                </td>
-              </tr>
-            )}
+            {/* RENDER ALL ITEMS: Particulars + Manual Items */}
+            {(() => {
+              let rows = [];
+              let sno = 1;
+
+              // 1. Catalog Particulars
+              particulars.forEach((p, idx) => {
+                const productName = p.category === "Services" ? "SERVICE" : p.name.toUpperCase();
+                const serviceType = (p.serviceType || "-").toUpperCase();
+                const qty = p.quantity || 1;
+                const cost = p.cost || 0;
+                const amount = cost * qty;
+
+                rows.push(
+                  <tr key={`p-${idx}`}>
+                    <td className="center">{sno++}</td>
+                    <td><div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900 }}>{serviceType}</div></td>
+                    <td>
+                      <strong>{productName}</strong>
+                      {p.stockMark && <div style={{ fontSize: '0.7rem', color: 'rgba(0,0,0,0.4)', fontWeight: 700 }}>MARK: {p.stockMark}</div>}
+                    </td>
+                    <td className="center">{qty}</td>
+                    <td className="right">₹ {Number(cost).toLocaleString("en-IN")}</td>
+                    <td className="right"><strong>₹ {amount.toLocaleString("en-IN")}</strong></td>
+                  </tr>
+                );
+              });
+
+              // 2. Manual Items
+              manualItems.forEach((m, idx) => {
+                const amount = (m.qty || 1) * (m.rate || 0);
+                rows.push(
+                  <tr key={`m-${idx}`}>
+                    <td className="center">{sno++}</td>
+                    <td><div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900 }}>{(m.serviceType || "-").toUpperCase()}</div></td>
+                    <td><strong>{(m.product || "-").toUpperCase()}</strong></td>
+                    <td className="center">{m.qty}</td>
+                    <td className="right">₹ {Number(m.rate).toLocaleString("en-IN")}</td>
+                    <td className="right"><strong>₹ {amount.toLocaleString("en-IN")}</strong></td>
+                  </tr>
+                );
+              });
+              
+              // If no items, show default service charge row for E-KYC
+              if (rows.length === 0) {
+                rows.push(
+                  <tr key="default">
+                    <td className="center">1</td>
+                    <td><div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900 }}>{(d.serviceType || job.serviceType).toUpperCase()}</div></td>
+                    <td><strong>SERVICE CHARGE</strong></td>
+                    <td className="center">{d.serviceQty || 1}</td>
+                    <td className="right">₹ {Number(serviceCharge).toLocaleString("en-IN")}</td>
+                    <td className="right"><strong>₹ {Number(serviceCharge).toLocaleString("en-IN")}</strong></td>
+                  </tr>
+                );
+              }
+
+              return rows;
+            })()}
 
             {/* TIERED PRICING TABLE - ONLY SHOW IF hideEstimateTotal IS TRUE */}
             {(isEstimate && d.hideEstimateTotal && d.qualityOptions && d.qualityOptions.length > 0) && (
@@ -420,7 +358,7 @@ function InvoiceContent({ id }: { id: string }) {
 
             {(!hideTotal && !isEstimate) && (
               <tr className="inv-total-row">
-                <td colSpan={3}><strong>SUMMARY TOTAL</strong></td>
+                <td colSpan={5}><strong>SUMMARY TOTAL</strong></td>
                 <td className="right">
                   {isCustomizing ? (
                     <input className="edit-input" style={{ textAlign: 'right', fontStyle: 'bold', width: '100px' }} value={d.totalCharge || grandTotal} onChange={(e) => {
@@ -434,7 +372,7 @@ function InvoiceContent({ id }: { id: string }) {
             )}
             {(hideTotal || isEstimate) && (
               <tr className="inv-total-row">
-                <td colSpan={4} className="center">
+                <td colSpan={6} style={{ padding: '0' }}>
                   <strong style={{ color: '#1e3a8a' }}>{isEstimate ? "ESTIMATE - SELECT PREFERRED GRADE" : `CONFIRMED GRADE: ${d.approvedGrade?.label || d.selectedGrade}`}</strong>
                 </td>
               </tr>

@@ -35,6 +35,9 @@ function JobDetailPageContent() {
   const [particularsStep, setParticularsStep] = useState(1); // 1: Sub-category, 2: Particulars
   const [tempSubCategories, setTempSubCategories] = useState<string[]>([]);
   const [selectedStockItem, setSelectedStockItem] = useState<{seriesId: string, itemId: string, mark: string, rawId?: string, rate: number} | null>(null);
+  const [manualItems, setManualItems] = useState<any[]>([]);
+  const [showManualAdd, setShowManualAdd] = useState(false);
+  const [newManualItem, setNewManualItem] = useState({ serviceType: "", product: "", qty: 1, rate: 0 });
 
   // File Upload State for late uploads
   const [files, setFiles] = useState<{ documents: any[] }>({
@@ -130,6 +133,7 @@ function JobDetailPageContent() {
         }
       });
       setEditData(details);
+      setManualItems(details.manualItems || []);
     }
   }, [job?.id, job?.details]);
 
@@ -174,7 +178,8 @@ function JobDetailPageContent() {
   const particulars: any[] = d.particulars || [];
   const serviceCharge = Number(d.serviceCharge) || 0;
   const itemsCharge = particulars.reduce((s: number, p: any) => s + Number(p.cost || 0), 0);
-  const total = Number(d.totalCharge) || (serviceCharge + itemsCharge);
+  const manualItemsCharge = (manualItems || []).reduce((s: number, p: any) => s + (Number(p.rate || 0) * Number(p.qty || 1)), 0);
+  const total = Number(d.totalCharge) || (serviceCharge + itemsCharge + manualItemsCharge);
   const needsDocuments = d.uploadChoice === "later" && (!d.documents || d.documents.length === 0);
 
   const refField = (label: string, val: string, key: string, inputType = "text", options?: string[]) => (
@@ -263,7 +268,7 @@ function JobDetailPageContent() {
         }
       });
 
-      updateJobDetails(job.id, finalData);
+      updateJobDetails(job.id, { ...finalData, manualItems });
       setIsReadOnly(true);
       // Clear local file state after save
       setFiles({ documents: [] });
@@ -947,7 +952,54 @@ function JobDetailPageContent() {
                 </div>
                 
 
-                <div className="modal-actions">
+                {/* MANUAL ITEMS SECTION */}
+                <div style={{ marginTop: '2rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--accent-primary)' }}>🛠️ Manual Invoice Items</h4>
+                    <button className="secondary-btn small-btn" onClick={() => setShowManualAdd(!showManualAdd)}>
+                      {showManualAdd ? "Cancel" : "+ Add Manual"}
+                    </button>
+                  </div>
+
+                  {showManualAdd && (
+                    <div className="glass-panel" style={{ padding: '1rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                        <input className="display-input" placeholder="Service (e.g. ALL KEY LOST)" value={newManualItem.serviceType} onChange={e => setNewManualItem({...newManualItem, serviceType: e.target.value})} />
+                        <input className="display-input" placeholder="Product (e.g. SMART KEY)" value={newManualItem.product} onChange={e => setNewManualItem({...newManualItem, product: e.target.value})} />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                        <input type="number" className="display-input" placeholder="Qty" value={newManualItem.qty} onChange={e => setNewManualItem({...newManualItem, qty: Number(e.target.value)})} />
+                        <input type="number" className="display-input" placeholder="Rate (₹)" value={newManualItem.rate} onChange={e => setNewManualItem({...newManualItem, rate: Number(e.target.value)})} />
+                      </div>
+                      <button className="primary-btn w-full" style={{ background: 'var(--success)' }} 
+                        onClick={() => {
+                          if (!newManualItem.serviceType || !newManualItem.product) return alert("Please fill both Service and Product");
+                          setManualItems(prev => [...prev, { ...newManualItem, id: Date.now().toString() }]);
+                          setNewManualItem({ serviceType: "", product: "", qty: 1, rate: 0 });
+                          setShowManualAdd(false);
+                        }}>
+                        Add to Invoice
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="manual-items-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {manualItems.map((mi, idx) => (
+                      <div key={mi.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{mi.serviceType.toUpperCase()}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{mi.product} — {mi.qty} x ₹{mi.rate}</div>
+                        </div>
+                        <div style={{ fontWeight: 800, color: 'var(--accent-primary)', marginRight: '1rem' }}>₹{mi.qty * mi.rate}</div>
+                        <button style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }} onClick={() => setManualItems(prev => prev.filter(x => x.id !== mi.id))}>
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="modal-actions" style={{ marginTop: '2rem' }}>
                   <button className="secondary-btn" onClick={() => setParticularsStep(1)}><ChevronLeft size={16} /> Back</button>
                    <button 
                      className="primary-btn" 
@@ -965,6 +1017,7 @@ function JobDetailPageContent() {
                        updateJobDetails(job.id, { 
                          subCategories: tempSubCategories,
                          particulars: d.particulars || [],
+                         manualItems: manualItems,
                          commission: commission || 0
                        });
                        if (job.status === "In Progress") {

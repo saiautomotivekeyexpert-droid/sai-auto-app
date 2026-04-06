@@ -1,6 +1,38 @@
 import { NextResponse } from 'next/server';
 import { GoogleService } from '@/lib/googleService';
 
+export const dynamic = 'force-dynamic';
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const action = searchParams.get('action');
+    const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
+
+    if (!spreadsheetId || spreadsheetId === "your_spreadsheet_id_here") {
+      return NextResponse.json({ success: true, data: [] });
+    }
+
+    if (action === 'fetch') {
+      const allRows = await GoogleService.getJobs(spreadsheetId);
+      if (!allRows) return NextResponse.json({ success: true, data: [] });
+      
+      // ABSOLUTE FILTER: Remove any system rows or settings rows
+      const filteredData = allRows.filter(row => {
+        const id = row[0]?.toString().trim().toUpperCase();
+        return id && id !== "APP_SETTINGS" && (id.startsWith("JOB-") || id.startsWith("QS-"));
+      });
+      
+      return NextResponse.json({ success: true, data: filteredData });
+    }
+
+    return NextResponse.json({ error: 'Invalid action provided.' }, { status: 400 });
+  } catch (error: any) {
+    console.error("Error in sync-jobs GET route:", error);
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -8,7 +40,6 @@ export async function POST(req: Request) {
     const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
 
     if (!spreadsheetId || spreadsheetId === "your_spreadsheet_id_here") {
-      // Fail gracefully so the frontend component doesn't get a 500 crash/loop
       return NextResponse.json({ success: true, message: 'Google Spreadsheet ID is missing - sync bypassed.' }, { status: 200 });
     }
 
@@ -28,8 +59,7 @@ export async function POST(req: Request) {
       }
     };
 
-    if (action === 'sync') {
-      // For a single job sync
+    if (action === 'append' || action === 'sync') {
       if (job) {
         const rowData = [
           job.id,
@@ -43,10 +73,9 @@ export async function POST(req: Request) {
         ];
         
         await GoogleService.addJob(spreadsheetId, rowData);
-        return NextResponse.json({ success: true, message: 'Job synced successfully to Google Sheets.' });
+        return NextResponse.json({ success: true, message: 'Job synced successfully.' });
       }
       
-      // For bulk sync
       if (jobs && Array.isArray(jobs)) {
         for (const j of jobs) {
            const rowData = [
@@ -59,14 +88,15 @@ export async function POST(req: Request) {
       }
     }
 
-    if (action === 'fetch') {
-       const existingData = await GoogleService.getJobs(spreadsheetId);
-       return NextResponse.json({ success: true, data: existingData });
+    if (action === 'clear') {
+       await GoogleService.clearJobs(spreadsheetId);
+       await GoogleService.clearSettings(spreadsheetId);
+       return NextResponse.json({ success: true, message: 'All job data and system settings cleared.' });
     }
 
     return NextResponse.json({ error: 'Invalid action provided.' }, { status: 400 });
   } catch (error: any) {
-    console.error("Error in sync-jobs route:", error);
+    console.error("Error in sync-jobs POST route:", error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }

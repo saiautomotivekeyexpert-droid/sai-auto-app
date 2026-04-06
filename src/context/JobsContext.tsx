@@ -31,6 +31,7 @@ interface JobsContextType {
   updateJobDetails: (id: string, details: Partial<Job["details"]>) => void;
   addTimelineEvent: (id: string, event: keyof JobTimeline) => void;
   deleteJob: (id: string) => void;
+  clearAllJobs: () => Promise<void>;
 }
 
 const JobsContext = createContext<JobsContextType | undefined>(undefined);
@@ -66,17 +67,32 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
           // Filter out header row if it exists (check if first item is "Job ID")
           const rows = data.data[0]?.[0] === "Job ID" ? data.data.slice(1) : data.data;
 
-          setJobs(rows.map((row: any[]) => ({
-            id: row[0],
-            date: row[1],
-            status: row[2] as any,
-            customerName: row[3],
-            vehicleNumber: row[4],
-            serviceType: row[5],
-            details: typeof row[7] === 'string' ? JSON.parse(row[7]) : {},
-            timeline: {},
-            createdAt: Date.now() // Approximated since not in sheet yet
-          })));
+          // Deduplicate by ID: Keep the LAST row for each Job ID (most recent update)
+          const jobMap: Record<string, Job> = {};
+          rows.forEach((row: any[]) => {
+            const id = row[0];
+            if (!id) return;
+            
+            // STRICT FILTER: Only allow IDs starting with JOB- or QS-
+            const idUpper = id.toString().trim().toUpperCase();
+            if (!idUpper.startsWith("JOB-") && !idUpper.startsWith("QS-")) {
+              return; // Skip system rows, settings (APP_SETTINGS), etc.
+            }
+            
+            jobMap[idUpper] = {
+              id: idUpper,
+              date: row[1],
+              status: row[2] as any,
+              customerName: row[3],
+              vehicleNumber: row[4],
+              serviceType: row[5],
+              details: typeof row[7] === 'string' ? JSON.parse(row[7]) : {},
+              timeline: {},
+              createdAt: Date.now() // Approximated
+            };
+          });
+
+          setJobs(Object.values(jobMap).reverse()); // Reverse to keep newer ones on top if needed or keep order
         }
       } catch (err) {
         console.error("Cloud fetch failed:", err);
@@ -190,8 +206,33 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
     setJobs(prev => prev.filter(j => j.id !== id));
   };
 
+  const clearAllJobs = async () => {
+    try {
+      // 1. Clear Server
+      const res = await fetch('/api/google/sync-jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'clear' })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        // 2. Clear Local State
+        setJobs([]);
+        // 3. Clear Local Storage
+        localStorage.removeItem("kyc_jobs_v3");
+        alert("All job data cleared successfully from Server and Local device.");
+      } else {
+        alert("Server clear failed: " + data.error);
+      }
+    } catch (err) {
+      console.error("Clear failed:", err);
+      alert("An error occurred while clearing data.");
+    }
+  };
+
   return (
-    <JobsContext.Provider value={{ jobs, isLoaded, addJob, updateJobStatus, updateJobDetails, addTimelineEvent, deleteJob }}>
+    <JobsContext.Provider value={{ jobs, isLoaded, addJob, updateJobStatus, updateJobDetails, addTimelineEvent, deleteJob, clearAllJobs }}>
       {children}
     </JobsContext.Provider>
   );

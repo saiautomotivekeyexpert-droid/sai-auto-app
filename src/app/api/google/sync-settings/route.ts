@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { GoogleService } from '@/lib/googleService';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -16,7 +18,7 @@ export async function POST(req: Request) {
     // Let's use a 'Settings' sheet and column A for the key, column B for the JSON value.
     
     const settingsJson = JSON.stringify(data);
-    await GoogleService.addJob(spreadsheetId, ['APP_SETTINGS', settingsJson, new Date().toISOString()]);
+    await GoogleService.addSetting(spreadsheetId, ['APP_SETTINGS', settingsJson, new Date().toISOString()]);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
@@ -34,7 +36,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'spreadsheetId is required and not found in environment' }, { status: 400 });
     }
 
-    const rows = await GoogleService.getJobs(spreadsheetId);
+    const rows = await GoogleService.getSettings(spreadsheetId);
     if (!rows || rows.length === 0) return NextResponse.json({ data: null });
 
     // Find the latest 'APP_SETTINGS' row
