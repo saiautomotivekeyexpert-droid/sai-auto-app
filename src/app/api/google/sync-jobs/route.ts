@@ -75,16 +75,16 @@ export async function POST(req: Request) {
       }
 
       return [
-        j.customerName || '',                // A: NAME
-        d.customerAddress || '',             // B: ADDRESS
-        d.customerPhone || '',                // C: MOBILE NO.
+        j.customerName || d.fullName || '',   // A: NAME
+        d.address || d.customerAddress || '', // B: ADDRESS
+        d.phone || d.customerPhone || '',      // C: MOBILE NO.
         d.referenceName || '',               // D: REFERENCE NAME
         d.complaintHistory || '',            // E: COMPLAINT HISTORY
-        j.vehicleNumber || '',               // F: VEHICLE NO.
-        d.vehicleBrand || '',                // G: VEHICLE BRAND
-        d.vehicleModel || '',                // H: VEHICLE MODEL
-        d.manufactureYear || '',             // I: MANUFACTURE YEAR
-        d.vehicleType || '',                 // J: VEHICLE TYPE
+        j.vehicleNumber || d.regNumber || '', // F: VEHICLE NO.
+        d.brand || d.vehicleBrand || '',     // G: VEHICLE BRAND
+        d.model || d.vehicleModel || '',     // H: VEHICLE MODEL
+        d.year || d.manufactureYear || '',    // I: MANUFACTURE YEAR
+        d.category || d.vehicleType || '',    // J: VEHICLE TYPE
         j.id || '',                          // K: ESTIMATE MEMO NO.
         d.totalCharge || 0,                  // L: VEHICLE ESTIMATE
         j.status || '',                      // M: STATUS
