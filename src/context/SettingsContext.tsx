@@ -176,107 +176,62 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     "Other": ["Custom"]
   };
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    const savedServices = localStorage.getItem("serviceTypes");
-    const savedConsent = localStorage.getItem("consentTypes");
-    const savedParticulars = localStorage.getItem("particulars");
-    const savedSubCategories = localStorage.getItem("subCategories");
-    const savedEstTerms = localStorage.getItem("estimateTerms");
-    const savedInvTerms = localStorage.getItem("invoiceTerms");
-    const savedProfile = localStorage.getItem("shopProfile");
-    const savedInventory = localStorage.getItem("inventorySeries");
-    const savedCategories = localStorage.getItem("catalogCategories");
-  
-    if (savedServices) setServiceTypes(JSON.parse(savedServices));
-    if (savedInventory) setInventorySeries(JSON.parse(savedInventory));
-    if (savedCategories) {
-      const parsed = JSON.parse(savedCategories);
-      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "string") {
-        // Migration: string[] -> CatalogCategory[]
-        const migrated = parsed.map((c: string) => ({ name: c, showInPOS: true }));
-        setCatalogCategories(migrated);
-        localStorage.setItem("catalogCategories", JSON.stringify(migrated));
-      } else {
-        setCatalogCategories(parsed);
+  // Flatten inventory series into rows for Google Sheets
+  const flattenInventory = (series: InventorySeries[]) => {
+    const rows: any[][] = [];
+    series.forEach(s => {
+      s.items.forEach(item => {
+        rows.push([
+          s.id, s.name, s.vendor, s.purchaseRate, s.purchaseDate,
+          item.id, item.mark, item.rawId || '', item.status, 
+          item.usedInJobId || '', item.usedAt || ''
+        ]);
+      });
+    });
+    return rows;
+  };
+
+  // Reconstruct inventory series from spreadsheet rows
+  const unflattenInventory = (rows: any[][]) => {
+    const seriesMap: Record<string, InventorySeries> = {};
+    rows.forEach(row => {
+      const sId = row[0];
+      if (!seriesMap[sId]) {
+        seriesMap[sId] = {
+          id: sId,
+          name: row[1],
+          vendor: row[2],
+          purchaseRate: Number(row[3]) || 0,
+          purchaseDate: row[4],
+          createdAt: Number(sId) || Date.now(),
+          items: [],
+          isExhausted: false
+        };
       }
-    } else {
-      // Initialize with defaults if nothing saved
-      setCatalogCategories(RECOMMENDED_CATALOG_CATEGORIES.map(c => ({ name: c, showInPOS: true })));
-    }
-    if (savedConsent) {
-      const parsed = JSON.parse(savedConsent);
-      const normalized = parsed.map((c: string) => {
-        if (typeof c !== 'string') return c;
-        let val = c.toUpperCase().trim();
-        const oldTrusted = ["MECHANIC", "GARAGE", "DEALER", "ASSOCIATED TRAVELS", "KEY MAKER", "PERSONAL SELF", "TRANSPORT", "PERSONALSELF"];
-        if (oldTrusted.includes(val)) return "PARTNER";
-        return val;
+      seriesMap[sId].items.push({
+        id: row[5],
+        mark: row[6],
+        rawId: row[7],
+        status: row[8] as any,
+        usedInJobId: row[9] || undefined,
+        usedAt: Number(row[10]) || undefined
       });
-      const unique = Array.from(new Set(normalized)) as string[];
-      // Keep only our core UI types
-      const coreTypes = ["OWNER", "DRIVER", "PARTNER", "OTHER"];
-      setConsentTypes(coreTypes.filter(t => unique.includes(t) || t === "OWNER" || t === "OTHER"));
-    }
-    const savedPartners = localStorage.getItem("partners");
-    if (savedPartners) setPartners(JSON.parse(savedPartners));
-    if (savedSubCategories) setSubCategories(JSON.parse(savedSubCategories));
-    if (savedEstTerms) setEstimateTerms(savedEstTerms);
-    if (savedInvTerms) setInvoiceTerms(savedInvTerms);
-    if (savedProfile) setShopProfile(JSON.parse(savedProfile));
-    
-    if (savedParticulars) {
-      const parsed = JSON.parse(savedParticulars);
-      const migrated = parsed.map((item: any, index: number) => {
-        if (typeof item === 'string') {
-          return { id: `migrated-${index}`, name: item, cost: 0, partnerPrice: 0, expense: 0, isQuickService: true, category: "Others" };
-        }
-        
-        // Auto-categorize based on name if category is missing
-        let cat = item.category || "Others";
-        if (!item.category) {
-          if (item.name.toLowerCase().includes("transponder")) cat = "Transponder";
-          else if (item.name.toLowerCase().includes("remote")) cat = "Remote";
-          else if (item.name.toLowerCase().includes("smart key")) cat = "Smart Key";
-        }
+    });
 
-        return { expense: 0, partnerPrice: item.cost || 0, isQuickService: true, category: cat, ...item }; // Ensure defaults
-      });
+    return Object.values(seriesMap).map(s => ({
+      ...s,
+      isExhausted: s.items.length > 0 && s.items.every(i => i.status === "Used")
+    })).sort((a, b) => b.createdAt - a.createdAt);
+  };
 
-      setParticulars(migrated);
-    }
-    
-    // ULTRA AGGRESSIVE WIPE (v2): Clear everything if not v2 wiped
-    const deepWipedV2 = localStorage.getItem("catalog_deep_wiped_v2");
-    if (!deepWipedV2) {
-      setParticulars([]);
-      setInventorySeries([]);
-      localStorage.clear(); // NUKE EVERYTHING
-      localStorage.setItem("catalog_deep_wiped_v2", "true");
-      console.log("ULTRA CATALOG DEEP WIPE PERFORMED");
-      window.location.reload(); // Force refresh to apply clean state
-      return;
-    }
-
-    // Always pull from the global cloud source on mount for parity
+  // Load from Cloud on mount
+  useEffect(() => {
+    // We strictly use cloud pull on mount. No more localStorage as primary.
     pullFromCloud("").finally(() => {
       setIsInitialized(true);
       setCloudLoaded(true);
     });
   }, []);
-
-  // Save to localStorage whenever state changes (only after initialization)
-  useEffect(() => { if(isInitialized) localStorage.setItem("serviceTypes", JSON.stringify(serviceTypes)); }, [serviceTypes, isInitialized]);
-  useEffect(() => { if(isInitialized) localStorage.setItem("consentTypes", JSON.stringify(consentTypes)); }, [consentTypes, isInitialized]);
-  useEffect(() => { if(isInitialized) localStorage.setItem("partners", JSON.stringify(partners)); }, [partners, isInitialized]);
-  useEffect(() => { if(isInitialized) localStorage.setItem("particulars", JSON.stringify(particulars)); }, [particulars, isInitialized]);
-  useEffect(() => { if(isInitialized) localStorage.setItem("subCategories", JSON.stringify(subCategories)); }, [subCategories, isInitialized]);
-  useEffect(() => { if(isInitialized) localStorage.setItem("estimateTerms", estimateTerms); }, [estimateTerms, isInitialized]);
-  useEffect(() => { if(isInitialized) localStorage.setItem("invoiceTerms", invoiceTerms); }, [invoiceTerms, isInitialized]);
-  useEffect(() => { if(isInitialized) localStorage.setItem("shopProfile", JSON.stringify(shopProfile)); }, [shopProfile, isInitialized]);
-  useEffect(() => { if(isInitialized) localStorage.setItem("inventorySeries", JSON.stringify(inventorySeries)); }, [inventorySeries, isInitialized]);
-  useEffect(() => { if(isInitialized) localStorage.setItem("catalogCategories", JSON.stringify(catalogCategories)); }, [catalogCategories, isInitialized]);
-  useEffect(() => { if(isInitialized) localStorage.setItem("partnerPin", partnerPin); }, [partnerPin, isInitialized]);
 
   // Cloud Sync Logic
   const syncToCloud = async () => {
@@ -286,18 +241,28 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setIsSyncing(true);
       const dataToSync = {
         serviceTypes, consentTypes, particulars, subCategories, partners,
-        estimateTerms, invoiceTerms, shopProfile, inventorySeries,
+        estimateTerms, invoiceTerms, shopProfile,
         catalogCategories, partnerPin
       };
 
+      // 1. Sync Settings Blob
       await fetch('/api/google/sync-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: dataToSync })
       });
+
+      // 2. Sync Stock (Flattened)
+      const stockRows = flattenInventory(inventorySeries);
+      await fetch('/api/google/sync-stock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: stockRows })
+      });
+
       setLastSyncTime(new Date());
       setIsSyncing(false);
-      console.log("Settings synced to cloud");
+      console.log("Settings & Stock synced to cloud");
     } catch (err) {
       console.error("Cloud sync failed:", err);
       setIsSyncing(false);
@@ -306,35 +271,43 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const pullFromCloud = async (spreadsheetId?: string) => {
     try {
-      const url = spreadsheetId 
-        ? `/api/google/sync-settings?spreadsheetId=${spreadsheetId}`
-        : `/api/google/sync-settings`;
+      const sidParam = spreadsheetId ? `?spreadsheetId=${spreadsheetId}` : '';
       
-      const res = await fetch(url);
-      const { data } = await res.json();
+      // 1. Pull Settings
+      const settingsRes = await fetch(`/api/google/sync-settings${sidParam}`);
+      const { data } = await settingsRes.json();
       if (data) {
         if (data.serviceTypes) setServiceTypes(data.serviceTypes);
         if (data.particulars) setParticulars(data.particulars);
-        if (data.inventorySeries) setInventorySeries(data.inventorySeries);
         if (data.catalogCategories) setCatalogCategories(data.catalogCategories);
         if (data.shopProfile) setShopProfile(data.shopProfile);
         if (data.partners) setPartners(data.partners);
         if (data.subCategories) setSubCategories(data.subCategories);
         if (data.partnerPin) setPartnerPin(data.partnerPin);
-        return true;
+        if (data.estimateTerms) setEstimateTerms(data.estimateTerms);
+        if (data.invoiceTerms) setInvoiceTerms(data.invoiceTerms);
       }
+
+      // 2. Pull Stock
+      const stockRes = await fetch(`/api/google/sync-stock${sidParam}`);
+      const { data: stockData } = await stockRes.json();
+      if (stockData && Array.isArray(stockData)) {
+        setInventorySeries(unflattenInventory(stockData));
+      }
+
+      return true;
     } catch (err) {
       console.error("Cloud pull failed:", err);
     }
     return false;
   };
 
-  // Trigger auto-sync on any change (debounced manually via useEffect)
+  // Trigger auto-sync on any change (debounced)
   useEffect(() => {
     if (!isInitialized || !cloudLoaded) return;
     const timer = setTimeout(() => {
       syncToCloud();
-    }, 3000); // sync after 3s of inactivity
+    }, 2000); 
     return () => clearTimeout(timer);
   }, [
     serviceTypes, particulars, inventorySeries, catalogCategories, 

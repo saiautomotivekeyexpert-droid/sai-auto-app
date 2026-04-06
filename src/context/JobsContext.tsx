@@ -124,37 +124,9 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (isLoaded) {
-      // Try to save normally; if localStorage quota exceeded, strip base64 previews and retry
-      const trySave = (data: Job[]) => {
-        try {
-          localStorage.setItem("kyc_jobs_v3", JSON.stringify(data));
-        } catch (e: any) {
-          if (e?.name === 'QuotaExceededError' || e?.code === 22) {
-            // Strip large base64 previews from documents to free space
-            const stripped = data.map(job => ({
-              ...job,
-              details: {
-                ...job.details,
-                documents: (job.details?.documents || []).map((doc: any) => ({
-                  name: doc.name,
-                  type: doc.type,
-                  preview: doc.preview?.startsWith('data:') ? '[large-file]' : doc.preview,
-                })),
-              },
-            }));
-            try {
-              localStorage.setItem("kyc_jobs_v3", JSON.stringify(stripped));
-              console.warn('Storage quota exceeded — document previews stripped to save space. Re-upload files to view them.');
-            } catch {
-              console.error('Storage critically full. Cannot save job data.');
-            }
-          }
-        }
-      };
-      trySave(jobs);
-    }
-  }, [jobs, isLoaded]);
+    // We strictly use cloud pull on mount. No more localStorage as primary.
+    // Fetch logic is already in loadInitialData.
+  }, []);
 
   const syncToCloud = (job: Job) => {
     try {
@@ -192,6 +164,34 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
       if (j.id === id) {
         const updated = { ...j, status };
         syncToCloud(updated);
+
+        // Trigger Ledger sync on completion
+        if (status === 'Completed') {
+          const d = updated.details || {};
+          const revenue = Number(d.totalCharge) || 0;
+          const baseExp = (d.particulars || d.selectedItems || []).reduce((s: number, p: any) => s + Number(p.expense || 0), 0);
+          const commExp = Number(d.commission) || 0;
+          const totalExp = baseExp + commExp;
+          const profit = revenue - totalExp;
+
+          const ledgerRow = [
+            new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
+            updated.id,
+            updated.customerName,
+            updated.vehicleNumber,
+            revenue,
+            totalExp,
+            profit,
+            "Job Revenue"
+          ];
+
+          fetch('/api/google/sync-ledger', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ row: ledgerRow })
+          }).catch(err => console.error("Ledger sync failed:", err));
+        }
+
         return updated;
       }
       return j;

@@ -64,12 +64,16 @@ export async function POST(req: Request) {
           .map((doc: any) => {
             const url = doc.cloudUrl || doc.preview;
             if (url && (url.startsWith('http') || url.includes('drive.google.com'))) {
-              return `=HYPERLINK("${url}", "${doc.name || 'Document'}")`;
+              return `HYPERLINK("${url}", "${doc.name || 'Document'}")`;
             }
-            return doc.name || '';
+            return `"${doc.name || ''}"`;
           })
           .filter(Boolean)
-          .join(', ');
+          .join(' & CHAR(10) & ');
+        
+        if (docDetail) {
+          docDetail = '=' + docDetail;
+        }
       } else if (d.docsFolderLink) {
         docDetail = d.docsFolderLink;
       }

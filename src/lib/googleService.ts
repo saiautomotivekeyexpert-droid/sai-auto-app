@@ -9,7 +9,7 @@ export class GoogleService {
   private static sheets: any;
   private static drive: any;
 
-  private static async init() {
+  public static async init() {
     if (this.sheets) return;
 
     try {
@@ -245,18 +245,37 @@ export class GoogleService {
     await this.init();
     if (!this.sheets) throw new Error("Sheets API not initialized");
 
+    // 1. Ensure Stock and Ledger sheets exist
+    const spreadsheet = await this.sheets.spreadsheets.get({ spreadsheetId });
+    const sheetNames = spreadsheet.data.sheets?.map((s: any) => s.properties.title) || [];
+    
+    const requests = [];
+    if (!sheetNames.includes('Stock')) {
+      requests.push({ addSheet: { properties: { title: 'Stock' } } });
+    }
+    if (!sheetNames.includes('Ledger')) {
+      requests.push({ addSheet: { properties: { title: 'Ledger' } } });
+    }
+
+    if (requests.length > 0) {
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests },
+      });
+    }
+
     await this.sheets.spreadsheets.values.clear({
       spreadsheetId,
-      range: 'Jobs!A1:Z5000', // Total wipe - everything including headers
+      range: 'Jobs!A1:Z5000',
     });
 
     // Initialize with NEW headers (A-T)
-    const headers = [[
-      "NAME", "ADDRESS", "MOBILE NO.", "REFERENCE NAME", "COMPLAINT HISTORY",
+    const headers = [
+      ["NAME", "ADDRESS", "MOBILE NO.", "REFERENCE NAME", "COMPLAINT HISTORY",
       "VEHICLE NO.", "VEHICLE BRAND", "VEHICLE MODEL", "MANUFACTURE YEAR", "VEHICLE TYPE",
       "ESTIMATE MEMO NO.", "VEHICLE ESTIMATE", "STATUS", "E-KYC SERVICE", "CONSENT TYPE",
-      "SUB-CATEGORIES", "JOB PARTICULARS", "DOCUMENT DETAIL", "AFTER SALES SERVICE", "JOB TIMELINE"
-    ]];
+      "SUB-CATEGORIES", "JOB PARTICULARS", "DOCUMENT DETAIL", "AFTER SALES SERVICE", "JOB TIMELINE"]
+    ];
 
     await this.sheets.spreadsheets.values.update({
       spreadsheetId,
@@ -265,6 +284,83 @@ export class GoogleService {
       requestBody: { values: headers },
     });
 
+    // Initialize Stock Sheet
+    await this.sheets.spreadsheets.values.clear({ spreadsheetId, range: 'Stock!A1:Z5000' });
+    const stockHeaders = [
+      ["SERIES ID", "PRODUCT NAME", "VENDOR", "RATE", "DATE", "ITEM ID", "MARK", "RAW ID", "STATUS", "JOB ID", "USED AT"]
+    ];
+    await this.sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'Stock!A1:K1',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: stockHeaders },
+    });
+
+    // Initialize Ledger Sheet
+    await this.sheets.spreadsheets.values.clear({ spreadsheetId, range: 'Ledger!A1:Z5000' });
+    const ledgerHeaders = [
+      ["DATE", "JOB ID", "CUSTOMER", "VEHICLE", "REVENUE", "EXPENSE", "PROFIT", "TYPE"]
+    ];
+    await this.sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'Ledger!A1:H1',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: ledgerHeaders },
+    });
+
+    return { success: true };
+  }
+
+  /**
+   * Fetches all stock items from the Spreadsheet.
+   */
+  static async getStock(spreadsheetId: string) {
+    await this.init();
+    if (!this.sheets) throw new Error("Sheets API not initialized");
+
+    const response = await this.sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Stock!A2:K5000',
+    });
+    return response.data.values;
+  }
+
+  /**
+   * Clears and overwrites the Stock sheet.
+   */
+  static async syncStock(spreadsheetId: string, rows: any[][]) {
+    await this.init();
+    if (!this.sheets) throw new Error("Sheets API not initialized");
+
+    await this.sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range: 'Stock!A2:K5000',
+    });
+
+    if (rows.length > 0) {
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: 'Stock!A2:K' + (rows.length + 1),
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: rows },
+      });
+    }
+    return { success: true };
+  }
+
+  /**
+   * Appends an entry to the Ledger sheet.
+   */
+  static async addLedgerEntry(spreadsheetId: string, row: any[]) {
+    await this.init();
+    if (!this.sheets) throw new Error("Sheets API not initialized");
+
+    await this.sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: 'Ledger!A2:H2',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [row] },
+    });
     return { success: true };
   }
 
