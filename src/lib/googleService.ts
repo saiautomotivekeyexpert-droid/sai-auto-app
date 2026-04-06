@@ -200,10 +200,27 @@ export class GoogleService {
       },
       media: {
         mimeType,
-        body: Readable.from(body), // Must be a stream for the googleapis SDK
+        body: Readable.from(body),
       },
-      fields: 'id, webViewLink',
+      fields: 'id, webViewLink, webContentLink',
     });
+
+    const fileId = response.data.id;
+
+    // IMPORTANT: Make the file viewable by anyone with the link
+    // This ensures clicking the link from the Google Sheet actually works
+    try {
+      await this.drive.permissions.create({
+        fileId: fileId,
+        requestBody: {
+          role: 'reader',
+          type: 'anyone',
+        },
+      });
+    } catch (permError: any) {
+      console.warn("Failed to set public permission on document:", permError.message);
+    }
+
     return response.data;
   }
 
@@ -263,7 +280,7 @@ export class GoogleService {
         spreadsheetId,
         range: 'Settings!A2:Z5000',
       });
-    } catch (e) {
+    } catch (e: any) {
       console.warn("Settings sheet clear skipped (might not exist):", e.message);
     }
     return { success: true };

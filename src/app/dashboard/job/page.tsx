@@ -226,10 +226,8 @@ function JobDetailPageContent() {
   const handleSaveChanges = async () => {
     setIsSaving(true);
     try {
-      // Merge newly uploaded file previews into editData
       const finalData = { ...editData };
       if (files.documents.length > 0) {
-        // Use existing edited documents as base, then append new uploads
         const baseDocs = Array.isArray(finalData.documents) ? finalData.documents : [];
         
         const uploadedDocs = await Promise.all(
@@ -259,7 +257,14 @@ function JobDetailPageContent() {
         ];
       }
       
-      // Convert legacy individual docs (idProof, rcBook, etc.) into the new documents array format if they exist and haven't been migrated yet.
+      // Update docsFolderLink for Google Sheets (Column R)
+      const allLinks = (finalData.documents || [])
+        .map((doc: any) => doc.preview || doc.url)
+        .filter((link: string) => link && (link.includes('drive.google.com') || link.startsWith('http')));
+      
+      finalData.docsFolderLink = allLinks.join(', ');
+
+      // Migration: legacy Individual docs -> documents array
       ['idProof', 'rcBook', 'selfie', 'workEvidence'].forEach(legacyKey => {
         if (job.details[legacyKey] && !finalData.documents?.some((d: any) => d.name === legacyKey)) {
           if (!finalData.documents) finalData.documents = [];
@@ -270,7 +275,6 @@ function JobDetailPageContent() {
 
       updateJobDetails(job.id, { ...finalData, manualItems });
       setIsReadOnly(true);
-      // Clear local file state after save
       setFiles({ documents: [] });
     } catch (e) {
       console.error(e);

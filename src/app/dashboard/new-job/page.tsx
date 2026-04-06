@@ -177,8 +177,10 @@ export default function NewJobPage() {
     
     // Upload files to Google Drive before continuing
     const cloudDocs = [];
+    const driveLinks: string[] = [];
+    
     for (const f of files.documents) {
-      let driveUrl = '';
+      let webViewLink = '';
       if (f.file) {
         try {
           const uploadData = new FormData();
@@ -190,7 +192,10 @@ export default function NewJobPage() {
             body: uploadData
           });
           const jsonRes = await res.json();
-          if (jsonRes.success) driveUrl = jsonRes.url;
+          if (jsonRes.success && jsonRes.webViewLink) {
+            webViewLink = jsonRes.webViewLink;
+            driveLinks.push(webViewLink);
+          }
         } catch (err) {
           console.error("Cloud upload error:", err);
         }
@@ -200,7 +205,7 @@ export default function NewJobPage() {
         preview: f.preview, // retain offline preview
         name: f.name,
         type: f.type,
-        cloudUrl: driveUrl // The Google Drive view link!
+        cloudUrl: webViewLink // The Google Drive view link!
       });
     }
 
@@ -224,6 +229,7 @@ export default function NewJobPage() {
     const finalData = {
       ...formData,
       documents: cloudDocs,
+      docsFolderLink: driveLinks.join(', '), // STORE LINKS FOR COLUMN R
       inventoryUsage // Link specific serial numbers used
     };
 
