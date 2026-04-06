@@ -100,33 +100,7 @@ interface SettingsContextType {
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
-const DEFAULT_PARTICULARS: ParticularItem[] = [
-  // Transponders
-  { id: "p1", name: "U- TRANSPONDER: XT27A-SC", cost: 800, partnerPrice: 800, expense: 200, isQuickService: true, category: "U- TRANSPONDERS" },
-  { id: "p2", name: "G- TRANSPONDER: NXP46-NORMAL", cost: 1000, partnerPrice: 1000, expense: 300, isQuickService: true, category: "G- TRANSPONDERS" },
-  { id: "p5", name: "U- TRANSPONDER: XT27B-SC", cost: 800, partnerPrice: 800, expense: 200, isQuickService: true, category: "U- TRANSPONDERS" },
-  
-  // Smart Keys
-  { id: "p13", name: "U- SMART KEY: XM38-HON", cost: 3500, partnerPrice: 3500, expense: 1500, isQuickService: true, category: "U- SMART KEY" },
-  { id: "p14", name: "U- SMART KEY: XM38-SUZ", cost: 3500, partnerPrice: 3500, expense: 1500, isQuickService: true, category: "U- SMART KEY" },
-  { id: "p15", name: "U- SMART KEY: XM38-HYC", cost: 3500, partnerPrice: 3500, expense: 1500, isQuickService: true, category: "U- SMART KEY" },
-  
-  // Remotes
-  { id: "p6", name: "U- REMOTE: XWR-(green)", cost: 1500, partnerPrice: 1500, expense: 600, isQuickService: true, category: "U- FLIP KEY REMOTE" },
-  { id: "p11", name: "U- TRANSPONDER REMOTE: XT27B-SR-(red)", cost: 2000, partnerPrice: 2000, expense: 800, isQuickService: true, category: "U- FLIP KEY REMOTE" },
-
-  // Shells & Blades (New Defaults)
-  { id: "p29", name: "REMOTE KEY SHELL: MARUTI 2-BTN", cost: 450, partnerPrice: 350, expense: 120, isQuickService: true, category: "REMOTE KEY SHELLS" },
-  { id: "p30", name: "KEY SHELL: HYUNDAI FLIP", cost: 350, partnerPrice: 250, expense: 90, isQuickService: true, category: "KEY SHELLS" },
-  { id: "p31", name: "BLADE: HU101", cost: 150, partnerPrice: 100, expense: 30, isQuickService: true, category: "BLADE" },
-  { id: "p32", name: "BATTERY: CR2032 (SONY)", cost: 150, partnerPrice: 100, expense: 40, isQuickService: true, category: "BATTERIES" },
-  
-  // Services
-  { id: "p25", name: "KEY SHELL REPLACEMENT", cost: 500, partnerPrice: 350, expense: 150, isQuickService: true, category: "SERVICES" },
-  { id: "p26", name: "REMOTE TESTING & BUTTONS", cost: 200, partnerPrice: 150, expense: 50, isQuickService: true, category: "SERVICES" },
-  { id: "p27", name: "BATTERY REPLACEMENT", cost: 150, partnerPrice: 100, expense: 30, isQuickService: true, category: "SERVICES" },
-  { id: "p28", name: "KEY CUTTING", cost: 300, partnerPrice: 200, expense: 50, isQuickService: true, category: "SERVICES" }
-];
+const DEFAULT_PARTICULARS: ParticularItem[] = [];
 
 const DEFAULT_SUB_CATEGORIES: SubCategoryItem[] = [
   { id: "sc1", name: "KEY CUTTING" },
@@ -272,15 +246,16 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setParticulars(migrated);
     }
     
-    // Deep Wipe Check: If hasn't been deep wiped yet, clear everything
-    const deepWiped = localStorage.getItem("catalog_deep_wiped_v1");
-    if (!deepWiped) {
+    // ULTRA AGGRESSIVE WIPE (v2): Clear everything if not v2 wiped
+    const deepWipedV2 = localStorage.getItem("catalog_deep_wiped_v2");
+    if (!deepWipedV2) {
       setParticulars([]);
       setInventorySeries([]);
-      localStorage.setItem("particulars", JSON.stringify([]));
-      localStorage.setItem("inventorySeries", JSON.stringify([]));
-      localStorage.setItem("catalog_deep_wiped_v1", "true");
-      console.log("CATALOG DEEP WIPE PERFORMED");
+      localStorage.clear(); // NUKE EVERYTHING
+      localStorage.setItem("catalog_deep_wiped_v2", "true");
+      console.log("ULTRA CATALOG DEEP WIPE PERFORMED");
+      window.location.reload(); // Force refresh to apply clean state
+      return;
     }
 
     // Always pull from the global cloud source on mount for parity
