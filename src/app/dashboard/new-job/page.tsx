@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { 
   User, MapPin, Smartphone, Car, ClipboardCheck, 
   Camera, IndianRupee, Save, ChevronRight, ChevronLeft,
-  AlertCircle, History, Check, Package, Share2, Download, X
+  AlertCircle, History, Check, Package, Share2, Download, X, Lock
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSettings } from "@/context/SettingsContext";
@@ -646,66 +646,19 @@ export default function NewJobPage() {
             </div>
           )}
 
-          {/* STEP 5: Sub-category & Job Particulars */}
+          {/* STEP 5: Additional Information */}
           {step === 5 && (
             <div className="step-content">
-              <h3><Package size={20} /> Job Particulars & Info</h3>
-              
-              <div className="form-group full-width">
-                <label className="label">Select Parts/Items Used</label>
-                <div className="chips-container" style={{ marginBottom: '1.5rem' }}>
-                  {particularsOptions.map((item: any) => (
-                    <div key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <button 
-                          type="button"
-                          className={`chip ${formData.particulars.some((p: any) => p.name === item.name) ? 'active' : ''}`}
-                          onClick={() => handleParticularToggle(item)}
-                        >
-                          {item.name}
-                        </button>
-                        {formData.particulars.some((p: any) => p.name === item.name) && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', padding: '2px 8px' }}>
-                            <button type="button" onClick={() => updateParticularQuantity(item.name, -1)} style={{ background: 'none', border: 'none', color: 'white', fontWeight: 800 }}>-</button>
-                            <span style={{ fontSize: '0.8rem', minWidth: '20px', textAlign: 'center' }}>{formData.particulars.find((p: any) => p.name === item.name).quantity || 1}</span>
-                            <button type="button" onClick={() => updateParticularQuantity(item.name, 1)} style={{ background: 'none', border: 'none', color: 'white', fontWeight: 800 }}>+</button>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Multi-Pick for selected items */}
-                      {formData.particulars.some((p: any) => p.name === item.name) && (
-                        <div style={{ paddingLeft: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                            {formData.particulars.find((p: any) => p.name === item.name)?.selectedMarks?.map((m: any, idx: number) => (
-                              <span key={idx} style={{ fontSize: '0.7rem', background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--glass-border)' }}>
-                                #{m.mark}
-                              </span>
-                            ))}
-                          </div>
-                          <button 
-                            type="button"
-                            className="secondary-btn small-btn"
-                            style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)' }}
-                            onClick={() => openStockPicker(item.name)}
-                          >
-                            <Package size={14} /> Link Stock ID
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <h3><Lock size={20} /> Additional Information</h3>
+              <p className="text-muted mb-4">Provide any extra context for the technician.</p>
 
-              {/* COMPLAINT & REFERENCE */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1.5rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="label">Complaint History (Optional)</label>
                   <textarea 
                     className="input-field" 
                     placeholder="Describe previous issues..."
-                    rows={3}
+                    rows={4}
                     style={{ resize: 'none' }}
                     value={formData.complaintHistory}
                     onChange={e => setFormData({...formData, complaintHistory: e.target.value})}
@@ -715,7 +668,7 @@ export default function NewJobPage() {
                   <label className="label">Reference Name (Optional)</label>
                   <input 
                     type="text" className="input-field" 
-                    placeholder="Referred by..."
+                    placeholder="e.g. SWADI AUTOMOBILE"
                     value={formData.referenceName}
                     onChange={e => setFormData({...formData, referenceName: e.target.value})}
                   />
