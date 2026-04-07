@@ -20,12 +20,18 @@ function InvoiceContent({ id }: { id: string }) {
   const [tempDetails, setTempDetails] = useState<any>(null);
   const [tempCustomerName, setTempCustomerName] = useState("");
   const [tempVehicleNumber, setTempVehicleNumber] = useState("");
+  const [tempParticulars, setTempParticulars] = useState<any[]>([]);
+  const [tempManualItems, setTempManualItems] = useState<any[]>([]);
+  const [tempServiceCharge, setTempServiceCharge] = useState(0);
 
   useEffect(() => {
     if (job) {
       setTempDetails(JSON.parse(JSON.stringify(job.details || {})));
       setTempCustomerName(job.customerName);
       setTempVehicleNumber(job.vehicleNumber);
+      setTempParticulars(JSON.parse(JSON.stringify(job.details?.particulars || job.details?.selectedItems || [])));
+      setTempManualItems(JSON.parse(JSON.stringify(job.details?.manualItems || [])));
+      setTempServiceCharge(Number(job.details?.serviceCharge) || 0);
     }
   }, [job?.id, isCustomizing]);
 
@@ -46,15 +52,22 @@ function InvoiceContent({ id }: { id: string }) {
   const isQuickService = job.serviceType === "Quick Service";
   const serviceCharge = Number(d.serviceCharge) || 0;
   // For E-KYC, physical items (particulars) do not add to the price total unless it's Quick Service
-  const realItemsTotal = particulars.reduce((sum: number, p: any) => sum + (Number(p.cost || 0) * (p.quantity || 1)), 0);
-  const manualItemsTotal = manualItems.reduce((sum: number, p: any) => sum + (Number(p.rate || 0) * (p.qty || 1)), 0);
-  const grandTotal = Number(d.totalCharge) || (serviceCharge + manualItemsTotal + (isQuickService ? realItemsTotal : 0));
+  const currentParticulars = isCustomizing ? tempParticulars : particulars;
+  const currentManualItems = isCustomizing ? tempManualItems : manualItems;
+  const currentServiceCharge = isCustomizing ? tempServiceCharge : serviceCharge;
+
+  const realItemsTotal = currentParticulars.reduce((sum: number, p: any) => sum + (Number(p.cost || 0) * (p.quantity || 1)), 0);
+  const manualItemsTotal = currentManualItems.reduce((sum: number, p: any) => sum + (Number(p.rate || 0) * (p.qty || 1)), 0);
+  const grandTotal = Number(d.totalCharge) || (currentServiceCharge + manualItemsTotal + (isQuickService ? realItemsTotal : 0));
   
   const handleSaveCustom = () => {
     updateJobDetails(job.id, {
       ...tempDetails,
       fullName: tempCustomerName,
-      regNumber: tempVehicleNumber
+      regNumber: tempVehicleNumber,
+      particulars: tempParticulars,
+      manualItems: tempManualItems,
+      serviceCharge: tempServiceCharge
     });
     setIsCustomizing(false);
   };
@@ -75,7 +88,7 @@ function InvoiceContent({ id }: { id: string }) {
 
   const handleWhatsApp = () => {
     const isQuickService = job.serviceType === "Quick Service";
-    const particularsLines = particulars.map((p: any) => {
+    const particularsLines = currentParticulars.map((p: any) => {
       const productName = p.category === "Services" ? "SERVICE" : p.name;
       const sType = (p.serviceType || "-").toUpperCase();
       if (!isQuickService) return `  - ${productName} [${sType}]`;
@@ -84,8 +97,8 @@ function InvoiceContent({ id }: { id: string }) {
       return `  - ${productName} [${sType}] (${p.quantity || 1} x ${amountStr})`;
     }).join("\n");
 
-    const manualLines = manualItems.map((m: any) => {
-      return `  - ${m.product.toUpperCase()} [${m.serviceType.toUpperCase()}] (${m.qty} x ₹${m.rate})`;
+    const manualLines = currentManualItems.map((m: any) => {
+      return `  - ${m.product?.toUpperCase()} [${m.serviceType?.toUpperCase()}] (${m.qty} x ₹${m.rate})`;
     }).join("\n");
 
     const allLines = [particularsLines, manualLines].filter(x => x).join("\n");
@@ -241,7 +254,8 @@ function InvoiceContent({ id }: { id: string }) {
               let sno = 1;
 
               // 1. Catalog Particulars
-              particulars.forEach((p, idx) => {
+              const activeParticulars = isCustomizing ? tempParticulars : particulars;
+              activeParticulars.forEach((p, idx) => {
                 const productName = p.category === "Services" ? "SERVICE" : p.name.toUpperCase();
                 const serviceType = (p.serviceType || "-").toUpperCase();
                 const qty = p.quantity || 1;
@@ -251,49 +265,177 @@ function InvoiceContent({ id }: { id: string }) {
                 rows.push(
                   <tr key={`p-${idx}`}>
                     <td className="center">{sno++}</td>
-                    <td><div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900 }}>{serviceType}</div></td>
                     <td>
-                      <strong>{productName}</strong>
+                      {isCustomizing ? (
+                        <input className="edit-input" value={p.serviceType || ""} onChange={e => {
+                          const newP = [...tempParticulars];
+                          newP[idx].serviceType = e.target.value;
+                          setTempParticulars(newP);
+                        }} />
+                      ) : (
+                        <div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900 }}>{serviceType}</div>
+                      )}
+                    </td>
+                    <td>
+                      {isCustomizing ? (
+                        <input className="edit-input" value={p.name || ""} onChange={e => {
+                          const newP = [...tempParticulars];
+                          newP[idx].name = e.target.value;
+                          setTempParticulars(newP);
+                        }} />
+                      ) : (
+                        <strong>{productName}</strong>
+                      )}
                       {p.stockMark && <div style={{ fontSize: '0.7rem', color: 'rgba(0,0,0,0.4)', fontWeight: 700 }}>MARK: {p.stockMark}</div>}
                     </td>
-                    <td className="center">{qty}</td>
-                    <td className="right">{isQuickService ? `₹ ${Number(cost).toLocaleString("en-IN")}` : "—"}</td>
-                    <td className="right"><strong>{isQuickService ? `₹ ${amount.toLocaleString("en-IN")}` : "FITTED"}</strong></td>
+                    <td className="center">
+                      {isCustomizing ? (
+                        <input className="edit-input center" type="number" value={p.quantity || 1} onChange={e => {
+                          const newP = [...tempParticulars];
+                          newP[idx].quantity = Number(e.target.value);
+                          setTempParticulars(newP);
+                        }} />
+                      ) : (
+                        qty
+                      )}
+                    </td>
+                    <td className="right">
+                      {isCustomizing ? (
+                        <input className="edit-input right" type="number" value={p.cost || 0} onChange={e => {
+                          const newP = [...tempParticulars];
+                          newP[idx].cost = Number(e.target.value);
+                          setTempParticulars(newP);
+                        }} />
+                      ) : (
+                        isQuickService ? `₹ ${Number(cost).toLocaleString("en-IN")}` : "—"
+                      )}
+                    </td>
+                    <td className="right" style={{ position: 'relative' }}>
+                      <strong>{isQuickService || isCustomizing ? `₹ ${amount.toLocaleString("en-IN")}` : "FITTED"}</strong>
+                      {isCustomizing && (
+                         <button 
+                           onClick={() => setTempParticulars(tempParticulars.filter((_, i) => i !== idx))}
+                           style={{ position: 'absolute', right: '-30px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
+                         >
+                           <X size={14} />
+                         </button>
+                      )}
+                    </td>
                   </tr>
                 );
               });
 
               // 2. Manual Items
-              manualItems.forEach((m, idx) => {
+              const activeManual = isCustomizing ? tempManualItems : manualItems;
+              activeManual.forEach((m, idx) => {
                 const amount = (m.qty || 1) * (m.rate || 0);
                 rows.push(
                   <tr key={`m-${idx}`}>
                     <td className="center">{sno++}</td>
-                    <td><div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900 }}>{(m.serviceType || "-").toUpperCase()}</div></td>
-                    <td><strong>{(m.product || "-").toUpperCase()}</strong></td>
-                    <td className="center">{m.qty}</td>
-                    <td className="right">₹ {Number(m.rate).toLocaleString("en-IN")}</td>
-                    <td className="right"><strong>₹ {amount.toLocaleString("en-IN")}</strong></td>
+                    <td>
+                      {isCustomizing ? (
+                        <input className="edit-input" value={m.serviceType || ""} onChange={e => {
+                          const newM = [...tempManualItems];
+                          newM[idx].serviceType = e.target.value;
+                          setTempManualItems(newM);
+                        }} />
+                      ) : (
+                        <div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900 }}>{(m.serviceType || "-").toUpperCase()}</div>
+                      )}
+                    </td>
+                    <td>
+                      {isCustomizing ? (
+                        <input className="edit-input" value={m.product || ""} onChange={e => {
+                          const newM = [...tempManualItems];
+                          newM[idx].product = e.target.value;
+                          setTempManualItems(newM);
+                        }} />
+                      ) : (
+                        <strong>{(m.product || "-").toUpperCase()}</strong>
+                      )}
+                    </td>
+                    <td className="center">
+                      {isCustomizing ? (
+                        <input className="edit-input center" type="number" value={m.qty || 1} onChange={e => {
+                          const newM = [...tempManualItems];
+                          newM[idx].qty = Number(e.target.value);
+                          setTempManualItems(newM);
+                        }} />
+                      ) : (
+                        m.qty
+                      )}
+                    </td>
+                    <td className="right">
+                      {isCustomizing ? (
+                        <input className="edit-input right" type="number" value={m.rate || 0} onChange={e => {
+                          const newM = [...tempManualItems];
+                          newM[idx].rate = Number(e.target.value);
+                          setTempManualItems(newM);
+                        }} />
+                      ) : (
+                        `₹ ${Number(m.rate).toLocaleString("en-IN")}`
+                      )}
+                    </td>
+                    <td className="right" style={{ position: 'relative' }}>
+                      <strong>₹ {amount.toLocaleString("en-IN")}</strong>
+                      {isCustomizing && (
+                         <button 
+                           onClick={() => setTempManualItems(tempManualItems.filter((_, i) => i !== idx))}
+                           style={{ position: 'absolute', right: '-30px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
+                         >
+                           <X size={14} />
+                         </button>
+                      )}
+                    </td>
                   </tr>
                 );
               });
               
               // If no items, show default service charge row for E-KYC
-              if (rows.length === 0) {
+              if (rows.length === 0 || isCustomizing) {
+                const sType = (isCustomizing ? (d.serviceType || job.serviceType) : (d.serviceType || job.serviceType)).toUpperCase();
                 rows.push(
                   <tr key="default">
-                    <td className="center">1</td>
-                    <td><div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900 }}>{(d.serviceType || job.serviceType).toUpperCase()}</div></td>
+                    <td className="center">{rows.length === 0 ? 1 : sno++}</td>
+                    <td>
+                      {isCustomizing ? (
+                        <input className="edit-input" value={d.serviceType || job.serviceType || ""} onChange={e => setTempDetails({...tempDetails, serviceType: e.target.value})} />
+                      ) : (
+                        <div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900 }}>{sType}</div>
+                      )}
+                    </td>
                     <td><strong>SERVICE CHARGE</strong></td>
                     <td className="center">{d.serviceQty || 1}</td>
-                    <td className="right">₹ {Number(serviceCharge).toLocaleString("en-IN")}</td>
-                    <td className="right"><strong>₹ {Number(serviceCharge).toLocaleString("en-IN")}</strong></td>
+                    <td className="right">
+                      {isCustomizing ? (
+                        <input className="edit-input right" type="number" value={tempServiceCharge} onChange={e => setTempServiceCharge(Number(e.target.value))} />
+                      ) : (
+                        `₹ ${Number(serviceCharge).toLocaleString("en-IN")}`
+                      )}
+                    </td>
+                    <td className="right"><strong>₹ {(isCustomizing ? tempServiceCharge : serviceCharge).toLocaleString("en-IN")}</strong></td>
                   </tr>
                 );
               }
 
               return rows;
             })()}
+
+            {isCustomizing && (
+              <tr>
+                <td colSpan={6} style={{ padding: '0.5rem' }}>
+                  <button 
+                    className="secondary-btn small-btn" 
+                    style={{ width: '100%', border: '1px dashed var(--accent-primary)', color: 'var(--accent-primary)', background: 'rgba(59,130,246,0.05)' }}
+                    onClick={() => {
+                      setTempManualItems([...tempManualItems, { serviceType: '', product: '', qty: 1, rate: 0 }]);
+                    }}
+                  >
+                    + Add New Custom Item
+                  </button>
+                </td>
+              </tr>
+            )}
 
             {/* TIERED PRICING TABLE - ONLY SHOW IF hideEstimateTotal IS TRUE */}
             {(isEstimate && d.hideEstimateTotal && d.qualityOptions && d.qualityOptions.length > 0) && (
@@ -360,13 +502,7 @@ function InvoiceContent({ id }: { id: string }) {
               <tr className="inv-total-row">
                 <td colSpan={5}><strong>SUMMARY TOTAL</strong></td>
                 <td className="right">
-                  {isCustomizing ? (
-                    <input className="edit-input" style={{ textAlign: 'right', fontStyle: 'bold', width: '100px' }} value={d.totalCharge || grandTotal} onChange={(e) => {
-                      setTempDetails({...d, totalCharge: Number(e.target.value)});
-                    }} />
-                  ) : (
-                    <strong>₹ {grandTotal.toLocaleString("en-IN")}</strong>
-                  )}
+                   <strong>₹ {grandTotal.toLocaleString("en-IN")}</strong>
                 </td>
               </tr>
             )}
@@ -466,6 +602,24 @@ function InvoiceContent({ id }: { id: string }) {
           .inv-footer { padding: 0.75rem 1rem; }
         }
         @media print { .no-print { display: none !important; } .inv-container { padding: 0; max-width: 100%; } .inv-paper { box-shadow: none; } body { background: white !important; } }
+        .edit-input {
+          width: 100%;
+          border: 1px solid rgba(59,130,246,0.3);
+          background: rgba(59,130,246,0.05);
+          padding: 2px 5px;
+          border-radius: 4px;
+          font-family: inherit;
+          font-size: inherit;
+          color: inherit;
+          outline: none;
+        }
+        .edit-input:focus {
+          border-color: var(--accent-primary);
+          background: white;
+          box-shadow: 0 0 0 2px rgba(59,130,246,0.1);
+        }
+        .edit-input.center { text-align: center; }
+        .edit-input.right { text-align: right; }
       `}</style>
     </div>
   );
