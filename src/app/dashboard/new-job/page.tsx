@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { 
   User, MapPin, Smartphone, Car, ClipboardCheck, 
   Camera, IndianRupee, Save, ChevronRight, ChevronLeft,
@@ -19,7 +19,7 @@ export default function NewJobPage() {
     partners: partnerOptions,
     carBrands,
     carModels,
-    consumeByProductName
+    inventorySeries
   } = useSettings();
   const { addJob } = useJobs();
   const [step, setStep] = useState(1);
@@ -71,7 +71,7 @@ export default function NewJobPage() {
   const [otpInput, setOtpInput] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
 
-  // File Upload State
+  const [stockPicker, setStockPicker] = useState<{ productName: string } | null>(null);
   const [files, setFiles] = useState<{ documents: { file: File | null, preview: string | null, name?: string, type?: string }[] }>({
     documents: [],
   });
@@ -128,15 +128,54 @@ export default function NewJobPage() {
     if (isSelected) {
       updated = formData.particulars.filter((i: any) => i.name !== item.name);
     } else {
-      updated = [...formData.particulars, item];
+      updated = [...formData.particulars, { ...item, selectedMarks: [], quantity: 1 }];
     }
     
     setFormData({ 
       ...formData, 
-      particulars: updated,
-      particularsCharge: 0 // No longer used
+      particulars: updated
     });
   };
+
+  const updateParticularQuantity = (name: string, delta: number) => {
+    setFormData(prev => ({
+      ...prev,
+      particulars: prev.particulars.map(p => {
+        if (p.name === name) {
+          const newQty = Math.max(1, (p.quantity || 1) + delta);
+          return { ...p, quantity: newQty };
+        }
+        return p;
+      })
+    }));
+  };
+
+  const openStockPicker = (productName: string) => {
+    setStockPicker({ productName });
+  };
+
+  const selectStockItem = (inventoryItem: any) => {
+    if (!stockPicker) return;
+    const updatedParticulars = [...formData.particulars];
+    const pIndex = updatedParticulars.findIndex(p => p.name === stockPicker.productName);
+    
+    if (pIndex > -1) {
+      const p = updatedParticulars[pIndex];
+      const selectedMarks = p.selectedMarks || [];
+      if (!selectedMarks.some((m: any) => m.id === inventoryItem.id)) {
+        selectedMarks.push({ id: inventoryItem.id, mark: inventoryItem.mark });
+        p.selectedMarks = selectedMarks;
+        p.quantity = selectedMarks.length;
+      }
+    }
+    
+    setFormData({ ...formData, particulars: updatedParticulars });
+    setStockPicker(null);
+  };
+
+  const availableStock = useMemo(() => {
+    return inventorySeries.flatMap(s => s.items.filter(i => i.status === 'Available').map(i => ({ ...i, seriesName: s.name })));
+  }, [inventorySeries]);
 
   const handleConfirmAndDownload = () => {
     const finalData: any = { ...formData };
@@ -210,17 +249,14 @@ export default function NewJobPage() {
     }
 
     // Inventory Auto-Deduction logic
-    const jobId = `JOB-${Math.floor(1000 + Math.random() * 9000)}`; // Pre-generate ID for linking
-    const inventoryUsage: any[] = [];
+    const jobId = savedJobId || `JOB-${Math.floor(1000 + Math.random() * 9000)}`; 
     
+    // Link specifically selected marks
+    const selectedMarksToConsume: any[] = [];
     formData.particulars.forEach(p => {
-      // Try to consume from stock
-      const result = consumeByProductName(p.name, jobId);
-      if (result) {
-        inventoryUsage.push({
-          productName: p.name,
-          itemId: result.itemId,
-          mark: result.mark
+      if (p.selectedMarks && p.selectedMarks.length > 0) {
+        p.selectedMarks.forEach((m: any) => {
+          selectedMarksToConsume.push({ itemId: m.id, mark: m.mark });
         });
       }
     });
@@ -230,10 +266,23 @@ export default function NewJobPage() {
       ...formData,
       documents: cloudDocs,
       docsFolderLink: driveLinks.join(', '), // STORE LINKS FOR COLUMN R
-      inventoryUsage // Link specific serial numbers used
+      selectedItems: formData.particulars // Use consistent key for backend
     };
 
     addJob(finalData, 'Waiting Approval', jobId);
+    
+    // Consume stock for all selected marks
+    selectedMarksToConsume.forEach(m => {
+       fetch('/api/google/sync-stock', {
+         method: 'POST',
+         body: JSON.stringify({ 
+           action: 'consume', 
+           itemId: m.itemId, 
+           jobId 
+         })
+       });
+    });
+
     router.push('/dashboard');
   };
 
@@ -594,11 +643,57 @@ export default function NewJobPage() {
           {/* STEP 5: Sub-category & Job Particulars */}
           {step === 5 && (
             <div className="step-content">
-              <h3><Package size={20} /> Additional Info</h3>
-              <p className="text-muted mb-4">Provide any complaint history or reference details for this job.</p>
+              <h3><Package size={20} /> Job Particulars & Info</h3>
+              
+              <div className="form-group full-width">
+                <label className="label">Select Parts/Items Used</label>
+                <div className="chips-container" style={{ marginBottom: '1.5rem' }}>
+                  {particularsOptions.map((item: any) => (
+                    <div key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <button 
+                          type="button"
+                          className={`chip ${formData.particulars.some((p: any) => p.name === item.name) ? 'active' : ''}`}
+                          onClick={() => handleParticularToggle(item)}
+                        >
+                          {item.name}
+                        </button>
+                        {formData.particulars.some((p: any) => p.name === item.name) && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', padding: '2px 8px' }}>
+                            <button type="button" onClick={() => updateParticularQuantity(item.name, -1)} style={{ background: 'none', border: 'none', color: 'white', fontWeight: 800 }}>-</button>
+                            <span style={{ fontSize: '0.8rem', minWidth: '20px', textAlign: 'center' }}>{formData.particulars.find((p: any) => p.name === item.name).quantity || 1}</span>
+                            <button type="button" onClick={() => updateParticularQuantity(item.name, 1)} style={{ background: 'none', border: 'none', color: 'white', fontWeight: 800 }}>+</button>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Multi-Pick for selected items */}
+                      {formData.particulars.some((p: any) => p.name === item.name) && (
+                        <div style={{ paddingLeft: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                            {formData.particulars.find((p: any) => p.name === item.name)?.selectedMarks?.map((m: any, idx: number) => (
+                              <span key={idx} style={{ fontSize: '0.7rem', background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--glass-border)' }}>
+                                #{m.mark}
+                              </span>
+                            ))}
+                          </div>
+                          <button 
+                            type="button" 
+                            className="text-accent" 
+                            style={{ fontSize: '0.7rem', textAlign: 'left', background: 'none' , border: 'none', padding: 0}} 
+                            onClick={() => openStockPicker(item.name)}
+                          >
+                            + Link Mark (Multi-Pick)
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {/* COMPLAINT & REFERENCE */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1.5rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
                 <div className="form-group">
                   <label className="label">Complaint History (Optional)</label>
                   <textarea 
@@ -657,7 +752,12 @@ export default function NewJobPage() {
                   {formData.particulars.length > 0 ? (
                     formData.particulars.map((p: any) => (
                       <div key={p.name} className="summary-item sub-item">
-                        <span>• {p.name}</span>
+                        <span>• {p.name} {p.quantity > 1 ? `(x${p.quantity})` : ''}</span>
+                        {p.selectedMarks?.length > 0 && (
+                          <div style={{ fontSize: '0.7rem', opacity: 0.7, paddingLeft: '1.2rem' }}>
+                            Marks: {p.selectedMarks.map((m: any) => `#${m.mark}`).join(', ')}
+                          </div>
+                        )}
                       </div>
                     ))
                   ) : (
@@ -780,6 +880,31 @@ export default function NewJobPage() {
           </div>
         </form>
       </div>
+
+      {/* STOCK PICKER MODAL */}
+      {stockPicker && (
+        <div className="modal-overlay" onClick={() => setStockPicker(null)}>
+          <div className="modal-card glass-panel animate-scale-in" style={{ maxWidth: '600px', width: '90%' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Select Stock for {stockPicker.productName}</h3>
+              <button className="close-btn" onClick={() => setStockPicker(null)}>&times;</button>
+            </div>
+            <div className="stock-list" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              <div className="stock-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '1rem', padding: '1rem' }}>
+                {availableStock.filter(i => i.seriesName === stockPicker.productName).map(item => (
+                  <div key={item.id} className="stock-card" style={{ padding: '1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', cursor: 'pointer', textAlign: 'center' }} onClick={() => selectStockItem(item)}>
+                    <div className="stock-mark" style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>{item.mark}</div>
+                    <div className="stock-id" style={{ fontSize: '0.7rem', opacity: 0.5 }}>{item.rawId}</div>
+                  </div>
+                ))}
+              </div>
+              {availableStock.filter(i => i.seriesName === stockPicker.productName).length === 0 && (
+                <p className="text-center text-muted" style={{ padding: '2rem' }}>No available stock for this product.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* OTP MODAL */}
       {showOtpModal && (

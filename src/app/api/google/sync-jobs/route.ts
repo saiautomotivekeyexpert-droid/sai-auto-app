@@ -10,7 +10,10 @@ export async function GET(req: Request) {
     const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
 
     if (!spreadsheetId || spreadsheetId === "your_spreadsheet_id_here") {
-      return NextResponse.json({ success: true, data: [] });
+      return NextResponse.json({ 
+        error: 'GOOGLE_SPREADSHEET_ID is missing or not configured correctly. Check your environment variables.',
+        success: false 
+      }, { status: 500 });
     }
 
     if (action === 'fetch') {
@@ -20,9 +23,13 @@ export async function GET(req: Request) {
       // ABSOLUTE FILTER: Remove any system rows or settings rows
       // And ignore the header row if it's there
       const filteredData = allRows.filter((row: any[]) => {
-        const id = row[10]?.toString().trim().toUpperCase(); // Index 10 is ESTIMATE MEMO NO (Job ID)
-        if (!id || id === "ESTIMATE MEMO NO.") return false;
-        return id !== "APP_SETTINGS" && (id.startsWith("JOB-") || id.startsWith("QS-"));
+        // More robust ID finding (Check column index 10 - Column K)
+        const id = row[10]?.toString().trim().toUpperCase();
+        if (!id || id === "" || id === "ESTIMATE MEMO NO.") return false;
+        
+        // Match standard ID patterns (JOB-xxxx or QS-xxxx)
+        const isJobOrQs = (id.startsWith("JOB-") || id.startsWith("QS-"));
+        return isJobOrQs && id !== "APP_SETTINGS";
       });
       
       return NextResponse.json({ success: true, data: filteredData });
@@ -51,32 +58,61 @@ export async function POST(req: Request) {
     const mapJobToRow = (j: any) => {
       const d = j.details || {};
       
-      // Format Particulars as comma-separated string (Column Q)
-      const particulars = (d.selectedItems || [])
-        .map((item: any) => item.name)
-        .join(',');
+      // Group items by name to format like "Product= #mark1, #mark2; Next= #mark3"
+      const groupedItems: Record<string, string[]> = {};
+      const items = (d.selectedItems || d.particulars || []);
+      
+      items.forEach((item: any) => {
+        if (!groupedItems[item.name]) {
+          groupedItems[item.name] = [];
+        }
+        
+        // Handle both single mark and array of marks
+        const marks = Array.isArray(item.selectedMarks) 
+          ? item.selectedMarks 
+          : (item.stockMark || item.mark ? [item.stockMark || item.mark] : []);
+        
+        marks.forEach((m: any) => {
+          const cleanMark = m.toString().trim();
+          if (cleanMark) {
+            groupedItems[item.name].push(`#${cleanMark.replace(/^#/, '')}`);
+          }
+        });
+      });
+
+      const particulars = Object.entries(groupedItems)
+        .map(([name, marks]) => {
+          if (marks.length > 0) {
+            // Remove duplicates and join
+            const uniqueMarks = Array.from(new Set(marks));
+            return `${name}= ${uniqueMarks.join(', ')}`;
+          }
+          return name;
+        })
+        .join('; ');
 
       // Format Documents as =HYPERLINK("url", "name") (Column R)
-      // We use the 'documents' array if available, otherwise fallback to docsFolderLink
       let docDetail = '';
-      if (d.documents && Array.isArray(d.documents)) {
-        docDetail = d.documents
-          .map((doc: any) => {
-            const url = doc.cloudUrl || doc.preview;
-            if (url && (url.startsWith('http') || url.includes('drive.google.com'))) {
-              return `HYPERLINK("${url}", "${doc.name || 'Document'}")`;
-            }
-            return `"${doc.name || ''}"`;
-          })
-          .filter(Boolean)
-          .join(' & CHAR(10) & ');
-        
-        if (docDetail) {
-          docDetail = '=' + docDetail;
+      if (d.documents && Array.isArray(d.documents) && d.documents.length > 0) {
+        // Find the first document with a valid web URL
+        const firstValidDoc = d.documents.find((doc: any) => {
+          const url = doc.cloudUrl || doc.preview;
+          return url && (url.startsWith('http') || url.includes('drive.google.com'));
+        });
+
+        if (firstValidDoc) {
+          const url = firstValidDoc.cloudUrl || firstValidDoc.preview;
+          const fileName = (firstValidDoc.name || 'Document').replace(/"/g, '""'); // Escape quotes for formula
+          docDetail = `=HYPERLINK("${url}", "CLICK TO VIEW: ${fileName}")`;
+        } else {
+          // Fallback to name only if no URL
+          docDetail = d.documents[0].name || '';
         }
       } else if (d.docsFolderLink) {
         docDetail = d.docsFolderLink;
       }
+
+      console.log(`[CLOUD SYNC] Job ${j.id}: docDetail constructed as: ${docDetail}`);
 
       return [
         j.customerName || d.fullName || '',   // A: NAME

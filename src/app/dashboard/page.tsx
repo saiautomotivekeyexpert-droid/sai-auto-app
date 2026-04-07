@@ -7,7 +7,7 @@ import { useJobs } from "@/context/JobsContext";
 import { useSettings } from "@/context/SettingsContext";
 
 export default function Dashboard() {
-  const { jobs } = useJobs();
+  const { jobs, isLoaded, syncError } = useJobs();
   const { inventorySeries } = useSettings();
   const [visibleAmounts, setVisibleAmounts] = useState<Record<string, boolean>>({});
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -108,6 +108,13 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-content">
+      {syncError && (
+        <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid #ef4444' }}>
+          <strong style={{ display: 'block', marginBottom: '0.25rem' }}>Cloud Connection Issue</strong>
+          <span style={{ fontSize: '0.85rem' }}>{syncError}</span>
+        </div>
+      )}
+
       <div className="welcome-section">
         <div className="flex-row">
           <div>
@@ -160,7 +167,18 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="table-responsive">
-          <table className="jobs-table">
+          {!isLoaded ? (
+            <div style={{ padding: '4rem 2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <div className="loading-spinner" style={{ margin: '0 auto 1rem' }}></div>
+              <p style={{ fontSize: '0.9rem' }}>Fetching latest data from Google Sheets...</p>
+            </div>
+          ) : filteredJobs.length === 0 ? (
+            <div style={{ padding: '4rem 2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <FileText size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
+              <p style={{ fontSize: '0.9rem' }}>No jobs found in the cloud records.</p>
+            </div>
+          ) : (
+            <table className="jobs-table">
             <thead>
               <tr>
                 <th>Job ID</th>
@@ -206,7 +224,8 @@ export default function Dashboard() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          )}
         </div>
       </div>
 
@@ -385,6 +404,20 @@ export default function Dashboard() {
         }
         .action-link:hover {
           background: var(--bg-tertiary);
+        }
+
+        .loading-spinner {
+          width: 40px;
+          height: 40px;
+          border: 3px solid rgba(255, 255, 255, 0.1);
+          border-top: 3px solid var(--accent-primary);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
         
         @media (max-width: 768px) {

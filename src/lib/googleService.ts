@@ -147,16 +147,16 @@ export class GoogleService {
 
     await this.ensureSheetExists(spreadsheetId, 'Jobs');
 
-    const jobId = rowData[0];
+    const jobId = rowData[10];
     
-    // 1. Check if job exists to update it
+    // 1. Check if job exists to update it (Check Column K: ESTIMATE MEMO NO.)
     const existing = await this.sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Jobs!A:A',
+      range: 'Jobs!K:K',
     });
     
     const rows = existing.data.values || [];
-    const rowIndex = rows.findIndex((row: any[]) => row[0] === jobId);
+    const rowIndex = rows.findIndex((row: any[]) => row[0]?.toString().trim().toUpperCase() === jobId?.toString().trim().toUpperCase());
 
     if (rowIndex !== -1) {
       // Update existing row (v4 uses 1-based indexing for ranges)

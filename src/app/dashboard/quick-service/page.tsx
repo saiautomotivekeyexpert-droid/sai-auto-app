@@ -89,7 +89,7 @@ export default function QuickServicePage() {
     const effectivePrice = isPartner ? (item.partnerPrice || item.cost) : item.cost;
     
     // Check if item is already in cart
-    const existingIndex = cart.findIndex(c => c.id === item.id && !c.inventoryItemId);
+    const existingIndex = cart.findIndex(c => c.id === item.id && (!c.selectedMarks || c.selectedMarks.length === 0));
     const initialServiceType = item.category === "Services" ? item.name : "";
 
     if (existingIndex > -1) {
@@ -97,7 +97,13 @@ export default function QuickServicePage() {
       newCart[existingIndex].quantity += 1;
       setCart(newCart);
     } else {
-      setCart([...cart, { ...item, quantity: 1, price: effectivePrice, inventoryItemId: null, stockMark: null, serviceType: initialServiceType }]);
+      setCart([...cart, { 
+        ...item, 
+        quantity: 1, 
+        price: effectivePrice, 
+        selectedMarks: [], // Now an array for multi-pick
+        serviceType: initialServiceType 
+      }]);
     }
   };
 
@@ -105,6 +111,10 @@ export default function QuickServicePage() {
     const newCart = [...cart];
     if (newCart[index].quantity > 1) {
       newCart[index].quantity -= 1;
+      // Also remove last selected mark if any
+      if (newCart[index].selectedMarks?.length > 0) {
+        newCart[index].selectedMarks.pop();
+      }
       setCart(newCart);
     } else {
       newCart.splice(index, 1);
@@ -157,8 +167,7 @@ export default function QuickServicePage() {
           quantity: item.quantity,
           category: item.category,
           serviceType: item.serviceType,
-          inventoryItemId: item.inventoryItemId,
-          stockMark: item.stockMark
+          selectedMarks: item.selectedMarks?.map((m: any) => m.mark) || []
         };
       }),
       totalCharge: totalAmount,
@@ -191,11 +200,19 @@ export default function QuickServicePage() {
   const selectStockItem = (inventoryItem: any) => {
     if (!stockPicker) return;
     const newCart = [...cart];
-    newCart[stockPicker.cartIndex] = {
-      ...newCart[stockPicker.cartIndex],
-      inventoryItemId: inventoryItem.id,
-      stockMark: inventoryItem.mark
-    };
+    const item = newCart[stockPicker.cartIndex];
+    
+    const selectedMarks = item.selectedMarks || [];
+    // Only add if not already selected for THIS item
+    if (!selectedMarks.some((m: any) => m.id === inventoryItem.id)) {
+      selectedMarks.push({ id: inventoryItem.id, mark: inventoryItem.mark });
+      item.selectedMarks = selectedMarks;
+      // Auto-increment quantity if marks exceed current quantity
+      if (selectedMarks.length > item.quantity) {
+        item.quantity = selectedMarks.length;
+      }
+    }
+    
     setCart(newCart);
     setStockPicker(null);
   };
@@ -537,11 +554,11 @@ export default function QuickServicePage() {
                   
                   {/* Stock Link Helper */}
                   <div className="item-stock-link">
-                    {item.stockMark ? (
-                      <div className="stock-assigned">
+                    {item.selectedMarks?.length > 0 ? (
+                      <div className="stock-assigned" style={{ flexWrap: 'wrap', gap: '4px' }}>
                         <CheckCircle size={12} color="var(--success)" />
-                        Mark: {item.stockMark}
-                        <button className="change-link" onClick={() => openStockPicker(item.id, index)}>Change</button>
+                        <span style={{ fontSize: '0.7rem' }}>Marks: {item.selectedMarks.map((m: any) => `#${m.mark}`).join(', ')}</span>
+                        <button className="change-link" onClick={() => openStockPicker(item.id, index)}>+ Add Mark</button>
                       </div>
                     ) : (
                       <button className="link-stock-btn" onClick={() => openStockPicker(item.id, index)}>

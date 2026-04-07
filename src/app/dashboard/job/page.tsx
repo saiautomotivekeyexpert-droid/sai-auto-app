@@ -227,35 +227,53 @@ function JobDetailPageContent() {
     setIsSaving(true);
     try {
       const finalData = { ...editData };
-      if (files.documents.length > 0) {
-        const baseDocs = Array.isArray(finalData.documents) ? finalData.documents : [];
+        // 1. Get all current documents (existing + new)
+        const currentDocs = [
+          ...(Array.isArray(finalData.documents) ? finalData.documents : []),
+          ...files.documents
+        ];
         
+        // 2. Upload any document that doesn't have a web link yet
         const uploadedDocs = await Promise.all(
-          files.documents.map(async (f) => {
-            if (f.file) {
+          currentDocs.map(async (doc) => {
+            // Already synced? Skip.
+            if (doc.preview && (doc.preview.startsWith('http') || doc.preview.includes('drive.google.com'))) {
+              return doc;
+            }
+
+            // Not synced but has file/preview? Upload.
+            const fileToUpload = (doc as any).file;
+            const previewToUpload = doc.preview;
+
+            if (fileToUpload || (previewToUpload && previewToUpload.startsWith('data:'))) {
               const formData = new FormData();
-              formData.append('file', f.file);
-              formData.append('fileName', f.name);
+              
+              if (fileToUpload) {
+                formData.append('file', fileToUpload);
+              } else {
+                // Convert base64 preview back to blob
+                const res = await fetch(previewToUpload);
+                const blob = await res.blob();
+                formData.append('file', blob);
+              }
+              
+              formData.append('fileName', doc.name || 'document.jpg');
               
               try {
                 const res = await fetch('/api/google/upload-file', { method: 'POST', body: formData });
                 const data = await res.json();
                 if (data.webViewLink) {
-                  return { preview: data.webViewLink, name: f.name, type: f.type };
+                  return { preview: data.webViewLink, name: doc.name, type: doc.type };
                 }
               } catch (err) {
-                console.error("Upload failed", err);
+                console.error("Upload failed for doc:", doc.name, err);
               }
             }
-            return { preview: f.preview, name: f.name, type: f.type };
+            return doc;
           })
         );
 
-        finalData.documents = [
-          ...baseDocs,
-          ...uploadedDocs
-        ];
-      }
+        finalData.documents = uploadedDocs;
       
       // Update docsFolderLink for Google Sheets (Column R)
       const allLinks = (finalData.documents || [])

@@ -32,6 +32,7 @@ interface JobsContextType {
   addTimelineEvent: (id: string, event: keyof JobTimeline) => void;
   deleteJob: (id: string) => void;
   clearAllJobs: () => Promise<void>;
+  syncError: string | null;
 }
 
 const JobsContext = createContext<JobsContextType | undefined>(undefined);
@@ -39,27 +40,14 @@ const JobsContext = createContext<JobsContextType | undefined>(undefined);
 export function JobsProvider({ children }: { children: React.ReactNode }) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadInitialData = async () => {
-      // 1. Load from localStorage (Local Cache)
-      const savedJobs = localStorage.getItem("kyc_jobs_v3");
-      if (savedJobs) {
-        try {
-          const parsed = JSON.parse(savedJobs);
-          setJobs(parsed.map((j: any) => ({ timeline: {}, ...j })));
-        } catch {
-          setJobs([]);
-        }
-      }
-
+      setSyncError(null);
       // 2. Load from Cloud (Source of Truth)
       try {
-        const res = await fetch('/api/google/sync-jobs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'fetch' })
-        });
+        const res = await fetch(`/api/google/sync-jobs?action=fetch&_t=${Date.now()}`);
         const data = await res.json();
         
         if (data.success && data.data && Array.isArray(data.data)) {
@@ -78,7 +66,33 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
             }
             
             const timeline = typeof row[19] === 'string' ? JSON.parse(row[19]) : {};
-            const particulars = typeof row[16] === 'string' ? JSON.parse(row[16]) : [];
+            const createdAt = timeline.estimatedAt || Date.now();
+            
+            // Robust Particulars Parsing (Handles Cloud-Native Human Readable Format)
+            let particulars: any[] = [];
+            const rawParticulars = row[16];
+            
+            if (rawParticulars && typeof rawParticulars === 'string') {
+                if (rawParticulars.includes('=') || rawParticulars.includes(';')) {
+                    // Custom Flat Format Parser (e.g., "Product= #1, #2; Item= #3")
+                    particulars = rawParticulars.split(';').map(part => {
+                        const [name, marksStr] = part.split('=').map(s => s.trim());
+                        if (!marksStr) return { name, quantity: 1 };
+                        const marks = marksStr.split(',').map(m => m.trim().replace(/^#/, ''));
+                        return { 
+                            name, 
+                            quantity: marks.length, 
+                            stockMark: marks[0], // fallback for single-mark logic
+                            selectedMarks: marks 
+                        };
+                    });
+                } else if (rawParticulars.startsWith('[') || rawParticulars.startsWith('{')) {
+                    try { particulars = JSON.parse(rawParticulars); } catch(e) { particulars = []; }
+                } else {
+                    // Simple CSV fallback
+                    particulars = rawParticulars.split(',').map(name => ({ name: name.trim(), quantity: 1 }));
+                }
+            }
 
             jobMap[idUpper] = {
               id: idUpper,
@@ -86,8 +100,8 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
               vehicleNumber: row[5] || '',
               serviceType: row[13] || '',
               status: row[12] as any || 'Pending',
-              date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(), // Fallback
-              createdAt: Date.now(),
+              date: new Date(createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
+              createdAt: createdAt,
               timeline: timeline,
               details: {
                 fullName: row[0] || '',
@@ -103,18 +117,22 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
                 totalCharge: row[11] || 0,
                 serviceType: row[13] || '',
                 consentType: row[14] || '',
-                selectedSubCategories: (row[15] || '').split(',').map((s: string) => s.trim()).filter(Boolean),
+                selectedSubCategories: (row[15] || '').toString().split(',').map((s: string) => s.trim()).filter(Boolean),
                 selectedItems: particulars,
                 docsFolderLink: row[17] || '',
-                afterSales: row[18] || ''
+                afterSales: row[18] || '',
+                timeline: timeline
               }
             };
           });
 
-          setJobs(Object.values(jobMap).reverse());
+          // Sort by createdAt DESC before setting state to ensure newest are on top
+          const sortedJobs = Object.values(jobMap).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+          setJobs(sortedJobs);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Cloud fetch failed:", err);
+        setSyncError(err.message || "Failed to connect to Google Sheets.");
       }
       
       setIsLoaded(true);
@@ -149,10 +167,10 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
       vehicleNumber: formData.regNumber,
       serviceType: formData.serviceType,
       status,
-      date: "Just now",
+      date: new Date(now).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
       createdAt: now,
       details: formData,
-      timeline: status === "Waiting Approval" ? { estimatedAt: now } : {},
+      timeline: { ...formData.timeline, estimatedAt: now },
     };
     setJobs(prev => [newJob, ...prev]);
     syncToCloud(newJob);
@@ -238,9 +256,7 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
       if (data.success) {
         // 2. Clear Local State
         setJobs([]);
-        // 3. Clear Local Storage
-        localStorage.removeItem("kyc_jobs_v3");
-        alert("All job data cleared successfully from Server and Local device.");
+        alert("All job data cleared successfully from Cloud.");
       } else {
         alert("Server clear failed: " + data.error);
       }
@@ -251,7 +267,7 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <JobsContext.Provider value={{ jobs, isLoaded, addJob, updateJobStatus, updateJobDetails, addTimelineEvent, deleteJob, clearAllJobs }}>
+    <JobsContext.Provider value={{ jobs, isLoaded, addJob, updateJobStatus, updateJobDetails, addTimelineEvent, deleteJob, clearAllJobs, syncError }}>
       {children}
     </JobsContext.Provider>
   );
