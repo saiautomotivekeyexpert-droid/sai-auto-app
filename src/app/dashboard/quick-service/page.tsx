@@ -13,6 +13,7 @@ import {
   Minus, 
   Trash2, 
   CheckCircle,
+  Check,
   Package,
   Search,
   List
@@ -205,21 +206,26 @@ export default function QuickServicePage() {
   const selectStockItem = (inventoryItem: any) => {
     if (!stockPicker) return;
     const newCart = [...cart];
-    const item = newCart[stockPicker.cartIndex];
+    const item = { ...newCart[stockPicker.cartIndex] };
     
-    const selectedMarks = item.selectedMarks || [];
-    // Only add if not already selected for THIS item
-    if (!selectedMarks.some((m: any) => m.id === inventoryItem.id)) {
+    const selectedMarks = item.selectedMarks ? [...item.selectedMarks] : [];
+    
+    const existingIndex = selectedMarks.findIndex((m: any) => m.id === inventoryItem.id);
+    if (existingIndex !== -1) {
+      selectedMarks.splice(existingIndex, 1);
+    } else {
       selectedMarks.push({ id: inventoryItem.id, mark: inventoryItem.mark });
-      item.selectedMarks = selectedMarks;
-      // Auto-increment quantity if marks exceed current quantity
-      if (selectedMarks.length > item.quantity) {
-        item.quantity = selectedMarks.length;
-      }
     }
     
+    item.selectedMarks = selectedMarks;
+    // Auto-increment quantity if marks exceed current quantity
+    if (selectedMarks.length > (item.quantity || 1)) {
+      item.quantity = selectedMarks.length;
+    }
+    
+    newCart[stockPicker.cartIndex] = item;
     setCart(newCart);
-    setStockPicker(null);
+    // Note: Modal stays open for multi-selection
   };
 
   const verifyPartnerLogin = () => {
@@ -681,26 +687,54 @@ export default function QuickServicePage() {
       {/* Stock Picker Modal */}
       {stockPicker && (
         <div className="modal-overlay" onClick={() => setStockPicker(null)}>
-          <div className="modal-content glass-panel animate-scale-in" style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
+          <div className="modal-content glass-panel animate-scale-in" style={{ maxWidth: '600px', width: '90%' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Select Stock Item</h3>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Package size={20} /> Select {cart[stockPicker.cartIndex]?.name}
+              </h3>
               <button className="close-btn" onClick={() => setStockPicker(null)}>&times;</button>
             </div>
             
-            <div className="stock-list">
-              {availableStock.length === 0 ? (
-                <p className="text-muted text-center py-4">No available stock items found.</p>
+            <div className="stock-list" style={{ maxHeight: '400px', overflowY: 'auto', padding: '1rem' }}>
+              {availableStock.filter(i => i.seriesName === cart[stockPicker.cartIndex]?.name).length === 0 ? (
+                <p className="text-muted text-center py-4">No available stock for this product.</p>
               ) : (
-                <div className="stock-grid">
-                  {availableStock.map(item => (
-                    <div key={item.id} className="stock-card" onClick={() => selectStockItem(item)}>
-                      <div className="stock-mark">{item.mark}</div>
-                      <div className="series-name">{item.seriesName}</div>
-                      <div className="stock-id">{item.rawId || "No Raw ID"}</div>
-                    </div>
-                  ))}
+                <div className="stock-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '1rem' }}>
+                  {availableStock.filter(i => i.seriesName === cart[stockPicker.cartIndex]?.name).map(item => {
+                    const isSelected = cart[stockPicker.cartIndex].selectedMarks?.some((m: any) => m.id === item.id);
+                    return (
+                      <div 
+                        key={item.id} 
+                        className={`stock-card ${isSelected ? 'selected' : ''}`} 
+                        style={{ 
+                          padding: '1rem', 
+                          background: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.05)', 
+                          border: isSelected ? '2px solid var(--accent-primary)' : '1px solid var(--glass-border)', 
+                          borderRadius: '12px', 
+                          cursor: 'pointer', 
+                          textAlign: 'center',
+                          position: 'relative',
+                          transition: 'all 0.2s'
+                        }} 
+                        onClick={() => selectStockItem(item)}
+                      >
+                        {isSelected && (
+                          <div style={{ position: 'absolute', top: '-8px', right: '-8px', background: 'var(--accent-primary)', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
+                            <Check size={12} strokeWidth={4} />
+                          </div>
+                        )}
+                        <div className="stock-mark" style={{ fontWeight: 800, fontSize: '1.1rem', color: isSelected ? 'var(--accent-primary)' : 'inherit' }}>{item.mark}</div>
+                        <div className="stock-id" style={{ fontSize: '0.65rem', opacity: 0.5, marginTop: '0.25rem' }}>{item.rawId || "ID missing"}</div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
+            </div>
+            <div className="modal-footer" style={{ padding: '1.5rem', borderTop: '1px solid var(--glass-border)' }}>
+              <button className="primary-btn" onClick={() => setStockPicker(null)} style={{ width: '100%', padding: '1rem', fontWeight: 800 }}>
+                DONE SELECTING
+              </button>
             </div>
           </div>
         </div>

@@ -160,17 +160,23 @@ export default function NewJobPage() {
     const pIndex = updatedParticulars.findIndex(p => p.name === stockPicker.productName);
     
     if (pIndex > -1) {
-      const p = updatedParticulars[pIndex];
-      const selectedMarks = p.selectedMarks || [];
-      if (!selectedMarks.some((m: any) => m.id === inventoryItem.id)) {
+      const p = { ...updatedParticulars[pIndex] };
+      const selectedMarks = p.selectedMarks ? [...p.selectedMarks] : [];
+      
+      const existingIndex = selectedMarks.findIndex((m: any) => m.id === inventoryItem.id);
+      if (existingIndex !== -1) {
+        selectedMarks.splice(existingIndex, 1);
+      } else {
         selectedMarks.push({ id: inventoryItem.id, mark: inventoryItem.mark });
-        p.selectedMarks = selectedMarks;
-        p.quantity = selectedMarks.length;
       }
+      
+      p.selectedMarks = selectedMarks;
+      p.quantity = Math.max(1, selectedMarks.length);
+      updatedParticulars[pIndex] = p;
     }
     
     setFormData({ ...formData, particulars: updatedParticulars });
-    setStockPicker(null);
+    // Note: Modal stays open for multi-selection
   };
 
   const availableStock = useMemo(() => {
@@ -891,16 +897,43 @@ export default function NewJobPage() {
             </div>
             <div className="stock-list" style={{ maxHeight: '400px', overflowY: 'auto' }}>
               <div className="stock-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '1rem', padding: '1rem' }}>
-                {availableStock.filter(i => i.seriesName === stockPicker.productName).map(item => (
-                  <div key={item.id} className="stock-card" style={{ padding: '1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', cursor: 'pointer', textAlign: 'center' }} onClick={() => selectStockItem(item)}>
-                    <div className="stock-mark" style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>{item.mark}</div>
-                    <div className="stock-id" style={{ fontSize: '0.7rem', opacity: 0.5 }}>{item.rawId}</div>
-                  </div>
-                ))}
+                {availableStock.filter(i => i.seriesName === stockPicker.productName).map(item => {
+                  const isSelected = formData.particulars.find(p => p.name === stockPicker.productName)?.selectedMarks?.some((m: any) => m.id === item.id);
+                  return (
+                    <div 
+                      key={item.id} 
+                      className={`stock-card ${isSelected ? 'selected' : ''}`} 
+                      style={{ 
+                        padding: '1rem', 
+                        background: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.05)', 
+                        border: isSelected ? '2px solid var(--accent-primary)' : '1px solid var(--glass-border)', 
+                        borderRadius: '8px', 
+                        cursor: 'pointer', 
+                        textAlign: 'center',
+                        position: 'relative',
+                        transition: 'all 0.2s'
+                      }} 
+                      onClick={() => selectStockItem(item)}
+                    >
+                      {isSelected && (
+                        <div style={{ position: 'absolute', top: '-8px', right: '-8px', background: 'var(--accent-primary)', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Check size={12} strokeWidth={4} />
+                        </div>
+                      )}
+                      <div className="stock-mark" style={{ fontWeight: 800, color: isSelected ? 'var(--accent-primary)' : 'inherit' }}>{item.mark}</div>
+                      <div className="stock-id" style={{ fontSize: '0.7rem', opacity: 0.5 }}>{item.rawId}</div>
+                    </div>
+                  );
+                })}
               </div>
               {availableStock.filter(i => i.seriesName === stockPicker.productName).length === 0 && (
                 <p className="text-center text-muted" style={{ padding: '2rem' }}>No available stock for this product.</p>
               )}
+            </div>
+            <div className="modal-footer" style={{ padding: '1.5rem', borderTop: '1px solid var(--glass-border)', textAlign: 'right' }}>
+               <button className="primary-btn" onClick={() => setStockPicker(null)} style={{ width: '100%', padding: '1rem' }}>
+                  DONE SELECTING SEIRALS
+               </button>
             </div>
           </div>
         </div>
