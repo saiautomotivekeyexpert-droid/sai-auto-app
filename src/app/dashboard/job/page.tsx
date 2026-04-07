@@ -927,7 +927,8 @@ function JobDetailPageContent() {
                         const sel = d.particulars?.some((x: any) => x.name === p.name);
                         const pOptions = catalogItems || [];
                         const pDef = pOptions.find((opt: any) => opt.name === p.name);
-                        const hasInventory = pDef?.hasInventory === true || pDef?.hasInventory === "true";
+                        const stockSeries = inventorySeries.find(s => s.name === p.name);
+                        const hasInventory = pDef?.hasInventory === true || pDef?.hasInventory === "true" || !!stockSeries;
                         
                         return (
                           <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -1030,13 +1031,13 @@ function JobDetailPageContent() {
                        color: '#000',
                        opacity: (d.particulars || []).some((p: any) => {
                          const pDef = (catalogItems || []).find((opt: any) => opt.name === p.name);
-                         const hasInv = pDef?.hasInventory === true || pDef?.hasInventory === "true";
+                         const hasInv = pDef?.hasInventory === true || pDef?.hasInventory === "true" || inventorySeries.some(s => s.name === p.name);
                          return hasInv && (!p.selectedMarks || p.selectedMarks.length === 0);
                        }) ? 0.5 : 1
                      }} 
                      disabled={(d.particulars || []).some((p: any) => {
                         const pDef = (catalogItems || []).find((opt: any) => opt.name === p.name);
-                        const hasInv = pDef?.hasInventory === true || pDef?.hasInventory === "true";
+                        const hasInv = pDef?.hasInventory === true || pDef?.hasInventory === "true" || inventorySeries.some(s => s.name === p.name);
                         return hasInv && (!p.selectedMarks || p.selectedMarks.length === 0);
                       })}
                      onClick={() => {
