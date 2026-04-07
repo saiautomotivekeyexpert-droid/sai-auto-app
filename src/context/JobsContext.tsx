@@ -135,6 +135,7 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
                 consentType: row[14] || '',
                 selectedSubCategories: (row[15] || '').toString().split(',').map((s: string) => s.trim()).filter(Boolean),
                 selectedItems: particulars,
+                particulars: particulars,
                 docsFolderLink: row[17] || '',
                 afterSales: row[18] || '',
                 timeline: timeline

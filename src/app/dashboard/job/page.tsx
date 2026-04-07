@@ -124,6 +124,14 @@ function JobDetailPageContent() {
   useEffect(() => {
     if (job) {
       const details = { ...job.details };
+      // Migration: Ensure particulars and selectedItems are aliased
+      if (!details.particulars && details.selectedItems) {
+        details.particulars = details.selectedItems;
+      }
+      if (details.particulars && !details.selectedItems) {
+        details.selectedItems = details.particulars;
+      }
+
       // Migration: Ensure all legacy docs are in the documents array
       if (!details.documents) details.documents = [];
       ['idProof', 'rcBook', 'selfie', 'workEvidence'].forEach(key => {
