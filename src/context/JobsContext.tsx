@@ -78,11 +78,17 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
                     particulars = rawParticulars.split(';').map(part => {
                         const [name, marksStr] = part.split('=').map(s => s.trim());
                         if (!marksStr) return { name, quantity: 1 };
-                        const marks = marksStr.split(',').map(m => m.trim().replace(/^#/, ''));
+                        const marks = marksStr.split(',').map(m => {
+                            const mark = m.trim().startsWith('#') ? m.trim() : `#${m.trim()}`;
+                            return { 
+                                mark, 
+                                itemId: `cloud-${mark}`, // Unique ID for cloud-restored items
+                                status: 'Consumed' 
+                            };
+                        });
                         return { 
                             name, 
                             quantity: marks.length, 
-                            stockMark: marks[0], // fallback for single-mark logic
                             selectedMarks: marks 
                         };
                     });

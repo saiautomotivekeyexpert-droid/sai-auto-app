@@ -185,7 +185,7 @@ export default function QuickServicePage() {
     cart.forEach(item => {
       if (item.selectedMarks && item.selectedMarks.length > 0) {
         item.selectedMarks.forEach((m: any) => {
-          consumeInventoryItem(m.id, jobId);
+          consumeInventoryItem(m.itemId, jobId);
         });
       } else if (item.inventoryItemId) {
         // Fallback for single-item logic
@@ -210,11 +210,11 @@ export default function QuickServicePage() {
     
     const selectedMarks = item.selectedMarks ? [...item.selectedMarks] : [];
     
-    const existingIndex = selectedMarks.findIndex((m: any) => m.id === inventoryItem.id);
+    const existingIndex = selectedMarks.findIndex((m: any) => m.itemId === inventoryItem.id);
     if (existingIndex !== -1) {
       selectedMarks.splice(existingIndex, 1);
     } else {
-      selectedMarks.push({ id: inventoryItem.id, mark: inventoryItem.mark });
+      selectedMarks.push({ itemId: inventoryItem.id, mark: inventoryItem.mark });
     }
     
     item.selectedMarks = selectedMarks;
@@ -573,7 +573,7 @@ export default function QuickServicePage() {
                       </div>
                     ) : (
                       <button className="link-stock-btn" onClick={() => openStockPicker(item.id, index)}>
-                        <Package size={12} /> Link Stock ID
+                        <Package size={14} /> Link Stock ID
                       </button>
                     )}
                     <button className="delete-item" onClick={() => deleteFromCart(index)}><Trash2 size={14} /></button>

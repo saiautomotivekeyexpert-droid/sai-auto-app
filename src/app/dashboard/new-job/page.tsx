@@ -163,11 +163,11 @@ export default function NewJobPage() {
       const p = { ...updatedParticulars[pIndex] };
       const selectedMarks = p.selectedMarks ? [...p.selectedMarks] : [];
       
-      const existingIndex = selectedMarks.findIndex((m: any) => m.id === inventoryItem.id);
+      const existingIndex = selectedMarks.findIndex((m: any) => m.itemId === inventoryItem.id);
       if (existingIndex !== -1) {
         selectedMarks.splice(existingIndex, 1);
       } else {
-        selectedMarks.push({ id: inventoryItem.id, mark: inventoryItem.mark });
+        selectedMarks.push({ itemId: inventoryItem.id, mark: inventoryItem.mark });
       }
       
       p.selectedMarks = selectedMarks;
@@ -262,7 +262,7 @@ export default function NewJobPage() {
     formData.particulars.forEach(p => {
       if (p.selectedMarks && p.selectedMarks.length > 0) {
         p.selectedMarks.forEach((m: any) => {
-          selectedMarksToConsume.push({ itemId: m.id, mark: m.mark });
+          selectedMarksToConsume.push({ itemId: m.itemId, mark: m.mark });
         });
       }
     });
@@ -684,12 +684,12 @@ export default function NewJobPage() {
                             ))}
                           </div>
                           <button 
-                            type="button" 
-                            className="text-accent" 
-                            style={{ fontSize: '0.7rem', textAlign: 'left', background: 'none' , border: 'none', padding: 0}} 
+                            type="button"
+                            className="secondary-btn small-btn"
+                            style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)' }}
                             onClick={() => openStockPicker(item.name)}
                           >
-                            + Link Mark (Multi-Pick)
+                            <Package size={14} /> Link Stock ID
                           </button>
                         </div>
                       )}
@@ -898,7 +898,7 @@ export default function NewJobPage() {
             <div className="stock-list" style={{ maxHeight: '400px', overflowY: 'auto' }}>
               <div className="stock-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '1rem', padding: '1rem' }}>
                 {availableStock.filter(i => i.seriesName === stockPicker.productName).map(item => {
-                  const isSelected = formData.particulars.find(p => p.name === stockPicker.productName)?.selectedMarks?.some((m: any) => m.id === item.id);
+                  const isSelected = formData.particulars.find(p => p.name === stockPicker.productName)?.selectedMarks?.some((m: any) => m.itemId === item.id);
                   return (
                     <div 
                       key={item.id} 

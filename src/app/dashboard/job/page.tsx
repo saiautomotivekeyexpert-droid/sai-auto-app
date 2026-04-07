@@ -34,7 +34,8 @@ function JobDetailPageContent() {
   const [commission, setCommission] = useState<number>(0);
   const [particularsStep, setParticularsStep] = useState(1); // 1: Sub-category, 2: Particulars
   const [tempSubCategories, setTempSubCategories] = useState<string[]>([]);
-  const [selectedStockItem, setSelectedStockItem] = useState<{seriesId: string, itemId: string, mark: string, rawId?: string, rate: number} | null>(null);
+  const [showStockPicker, setShowStockPicker] = useState(false);
+  const [pickingParticular, setPickingParticular] = useState<string | null>(null);
   const [manualItems, setManualItems] = useState<any[]>([]);
   const [showManualAdd, setShowManualAdd] = useState(false);
   const [newManualItem, setNewManualItem] = useState({ serviceType: "", product: "", qty: 1, rate: 0 });
@@ -958,41 +959,29 @@ function JobDetailPageContent() {
                           </label>
 
                           {hasInventory && sel && (
-                            <div style={{ marginLeft: '1rem', padding: '0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Select Marks Used:</div>
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem' }}>
-                                {availableStock.filter(s => s.seriesName === p.name).map(s => {
-                                  const isMarkSelected = d.particulars?.find((x: any) => x.name === p.name)?.selectedMarks?.some((m: any) => m.itemId === s.itemId);
-                                  return (
-                                    <div 
-                                      key={s.itemId} 
-                                      onClick={() => toggleStockMark(p.name, s)}
-                                      style={{ 
-                                        padding: '0.4rem', 
-                                        borderRadius: '6px', 
-                                        border: isMarkSelected ? '2px solid var(--accent-primary)' : '1px solid var(--glass-border)',
-                                        background: isMarkSelected ? 'rgba(59,130,246,0.15)' : 'transparent',
-                                        cursor: 'pointer',
-                                        textAlign: 'center',
-                                        fontSize: '0.75rem',
-                                        fontWeight: isMarkSelected ? 800 : 500,
-                                        position: 'relative'
-                                      }}
-                                    >
-                                      {isMarkSelected && (
-                                        <div style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'var(--accent-primary)', color: 'white', borderRadius: '50%', width: '14px', height: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                          <Check size={8} strokeWidth={4} />
-                                        </div>
-                                      )}
-                                      {s.mark}
-                                    </div>
-                                  );
-                                })}
+                            <div style={{ marginLeft: '2.5rem', marginBottom: '0.5rem' }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                                {d.particulars?.find((x: any) => x.name === p.name)?.selectedMarks?.map((m: any) => (
+                                  <div key={m.itemId} style={{ background: 'rgba(16,185,129,0.1)', color: 'var(--success)', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem', border: '1px solid rgba(16,185,129,0.2)' }}>
+                                    {m.mark}
+                                    <X size={10} style={{ cursor: 'pointer' }} onClick={() => toggleStockMark(p.name, m)} />
+                                  </div>
+                                ))}
                               </div>
-                              {availableStock.filter(s => s.seriesName === p.name).length === 0 && (
-                                <p style={{ color: 'var(--danger)', fontSize: '0.7rem', marginTop: '0.5rem' }}>⚠️ ALL OUT OF STOCK</p>
-                              )}
+                              <button 
+                                className="secondary-btn small-btn" 
+                                style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)' }}
+                                onClick={() => {
+                                  setPickingParticular(p.name);
+                                  setShowStockPicker(true);
+                                }}
+                              >
+                                <Package size={14} /> Link Stock ID
+                              </button>
                             </div>
+                          )}
+                          {inventorySeries.filter(s => s.name === p.name && !s.isExhausted).length === 0 && hasInventory && (
+                            <p style={{ color: 'var(--danger)', fontSize: '0.7rem', marginTop: '0.5rem', marginLeft: '2.5rem' }}>⚠️ ALL OUT OF STOCK</p>
                           )}
                         </div>
                       );
@@ -1198,6 +1187,88 @@ function JobDetailPageContent() {
                   <img src={previewDoc.url} alt={previewDoc.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STOCK PICKER MODAL (CENTRALIZED) */}
+      {showStockPicker && pickingParticular && (
+        <div className="modal-overlay" style={{ zIndex: 2000 }}>
+          <div className="modal-card glass-panel" style={{ maxWidth: '450px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>📦 Link {pickingParticular}</h3>
+              <button 
+                className="secondary-btn small-btn" 
+                onClick={() => setShowStockPicker(false)}
+                style={{ borderRadius: '50%', width: '32px', height: '32px', padding: 0 }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>Select the specific serial numbers/marks used from inventory.</p>
+            
+            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              {(() => {
+                const particularLines = inventorySeries.filter(s => s.name === pickingParticular);
+                const items = particularLines.flatMap(s => 
+                  s.items.filter(i => i.status === 'Available').map(i => ({
+                    seriesId: s.id,
+                    itemId: i.id,
+                    mark: i.mark,
+                    rawId: i.rawId,
+                    rate: s.purchaseRate,
+                    seriesName: s.name
+                  }))
+                );
+
+                if (items.length === 0) {
+                  return <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--danger)' }}>No available stock found for this item.</div>;
+                }
+
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.75rem' }}>
+                    {items.map(item => {
+                      const isSel = d.particulars?.find((x: any) => x.name === pickingParticular)?.selectedMarks?.some((m: any) => m.itemId === item.itemId);
+                      return (
+                        <div 
+                          key={item.itemId}
+                          onClick={() => toggleStockMark(pickingParticular, item)}
+                          style={{
+                            padding: '0.75rem',
+                            borderRadius: '8px',
+                            border: isSel ? '2px solid var(--accent-primary)' : '1px solid var(--glass-border)',
+                            background: isSel ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.03)',
+                            cursor: 'pointer',
+                            textAlign: 'center',
+                            transition: 'all 0.2s',
+                            position: 'relative'
+                          }}
+                        >
+                          {isSel && (
+                            <div style={{ position: 'absolute', top: '-8px', right: '-8px', background: 'var(--accent-primary)', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <Check size={12} strokeWidth={4} />
+                            </div>
+                          )}
+                          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: isSel ? 'var(--accent-primary)' : 'inherit' }}>{item.mark}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{item.rawId || 'No ID'}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: '2rem' }}>
+              <button 
+                className="primary-btn w-full" 
+                onClick={() => setShowStockPicker(false)}
+                style={{ background: 'var(--accent-primary)' }}
+              >
+                Done Selecting
+              </button>
             </div>
           </div>
         </div>
