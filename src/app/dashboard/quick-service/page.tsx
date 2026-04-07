@@ -180,9 +180,14 @@ export default function QuickServicePage() {
 
     const jobId = addJob(jobData, "Completed");
     
-    // Consume stock if applicable
+    // Consume stock for ALL selected marks
     cart.forEach(item => {
-      if (item.inventoryItemId) {
+      if (item.selectedMarks && item.selectedMarks.length > 0) {
+        item.selectedMarks.forEach((m: any) => {
+          consumeInventoryItem(m.id, jobId);
+        });
+      } else if (item.inventoryItemId) {
+        // Fallback for single-item logic
         consumeInventoryItem(item.inventoryItemId, jobId);
       }
     });
