@@ -74,7 +74,8 @@ export default function Dashboard() {
   ];
 
   const filteredJobs = useMemo(() => {
-    let filtered = [...jobs].sort((a, b) => b.createdAt - a.createdAt);
+    let filtered = jobs.filter(j => j.serviceType !== 'Quick Service')
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     
     if (activeTab !== "All") {
       filtered = filtered.filter(j => j.status === activeTab);

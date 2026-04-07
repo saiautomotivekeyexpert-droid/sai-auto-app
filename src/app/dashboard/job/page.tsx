@@ -198,7 +198,7 @@ function JobDetailPageContent() {
     </div>
   );
 
-  const handleParticularToggle = (item: any, stockInfo?: typeof selectedStockItem) => {
+  const handleParticularToggle = (item: any) => {
     if (isReadOnly && !showEndWorkModal) return;
     const isSelected = d.particulars?.some((p: any) => p.name === item.name);
     
@@ -206,17 +206,31 @@ function JobDetailPageContent() {
     if (isSelected) {
       updated = (d.particulars || []).filter((p: any) => p.name !== item.name);
     } else {
-      const newItem = { ...item };
-      if (stockInfo) {
-        newItem.inventoryInfo = stockInfo;
-        newItem.expense = stockInfo.rate; // Override with actual purchase rate
-      }
-      updated = [...(d.particulars || []), newItem];
+      updated = [...(d.particulars || []), { ...item, selectedMarks: [] }];
     }
 
-    const newItemsCharge = updated.reduce((s: number, p: any) => s + Number(p.cost || 0), 0);
-    const baseRate = Number(d.approvedGrade?.rate || d.serviceCharge) || 0;
-    setEditData({ ...d, particulars: updated, particularsCharge: 0, totalCharge: baseRate });
+    setEditData({ ...d, particulars: updated });
+  };
+
+  const toggleStockMark = (particularName: string, stockInfo: any) => {
+    const updated = [...(d.particulars || [])];
+    const pIdx = updated.findIndex(p => p.name === particularName);
+    if (pIdx === -1) return;
+
+    const p = { ...updated[pIdx] };
+    const selectedMarks = p.selectedMarks ? [...p.selectedMarks] : [];
+    
+    const existingIdx = selectedMarks.findIndex((m: any) => m.itemId === stockInfo.itemId);
+    if (existingIdx !== -1) {
+      selectedMarks.splice(existingIdx, 1);
+    } else {
+      selectedMarks.push(stockInfo);
+    }
+
+    p.selectedMarks = selectedMarks;
+    p.quantity = Math.max(1, selectedMarks.length);
+    updated[pIdx] = p;
+    setEditData({ ...d, particulars: updated });
   };
 
   const handleServiceChargeChange = (val: number) => {
@@ -533,17 +547,25 @@ function JobDetailPageContent() {
         )}
         
         {/* INVENTORY / RAW ID DISPLAY */}
-        {(d.particulars || []).some((p: any) => p.inventoryInfo) && (
+        {(d.particulars || []).some((p: any) => (p.selectedMarks && p.selectedMarks.length > 0) || p.inventoryInfo) && (
           <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: 'rgba(16,185,129,0.05)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.2)' }}>
             <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--success)', textTransform: 'uppercase', display: 'block', marginBottom: '0.4rem' }}>Transponder Usage</span>
-            {(d.particulars || []).filter((p: any) => p.inventoryInfo).map((p: any, idx: number) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ fontWeight: 600 }}>{p.inventoryInfo.mark}</span>
-                <code style={{ background: 'rgba(0,0,0,0.2)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.8rem', color: 'var(--accent-primary)' }}>
-                  {p.inventoryInfo.rawId || "NO RAW ID"}
-                </code>
-              </div>
-            ))}
+            {(d.particulars || []).filter((p: any) => (p.selectedMarks && p.selectedMarks.length > 0) || p.inventoryInfo).map((p: any, idx: number) => {
+              const marks = p.selectedMarks || (p.inventoryInfo ? [p.inventoryInfo] : []);
+              return (
+                <div key={idx} style={{ marginBottom: '0.5rem' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>{p.name.toUpperCase()}</div>
+                  {marks.map((m: any, mIdx: number) => (
+                    <div key={mIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginLeft: '0.5rem', marginBottom: '0.1rem' }}>
+                      <span style={{ fontWeight: 600 }}>• {m.mark}</span>
+                      <code style={{ background: 'rgba(0,0,0,0.2)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.75rem', color: 'var(--accent-primary)' }}>
+                        {m.rawId || m.id || "NO RAW ID"}
+                      </code>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -935,35 +957,40 @@ function JobDetailPageContent() {
                             </div>
                           </label>
 
-                          {hasInventory && sel && d.particulars?.find((x: any) => x.name === p.name)?.inventoryInfo && (
-                            <div style={{ marginLeft: '2.5rem', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--success)', fontWeight: 600 }}>
-                              Selected: {d.particulars.find((x: any) => x.name === p.name).inventoryInfo.mark} ({d.particulars.find((x: any) => x.name === p.name).inventoryInfo.rawId || 'No ID'})
-                            </div>
-                          )}
-                  
-                          {hasInventory && !sel && (
-                            <div style={{ marginLeft: '2.5rem', marginBottom: '0.5rem' }}>
-                              <select 
-                                className="display-input" 
-                                style={{ fontSize: '0.8rem', padding: '0.4rem', borderColor: 'var(--accent-primary)' }}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  if (!val) return;
-                                  const stock = availableStock.find(s => s.itemId === val);
-                                  if (stock) handleParticularToggle(p, stock);
-                                }}
-                              >
-                                <option value="">— Select from Stock —</option>
-                                {availableStock
-                                  .filter(s => s.seriesName === p.name)
-                                  .map(s => (
-                                    <option key={s.itemId} value={s.itemId}>
-                                      {s.mark} (Rate: ₹{s.rate}) - {s.rawId || 'No Raw ID'}
-                                    </option>
-                                  ))}
-                              </select>
+                          {hasInventory && sel && (
+                            <div style={{ marginLeft: '1rem', padding: '0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Select Marks Used:</div>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem' }}>
+                                {availableStock.filter(s => s.seriesName === p.name).map(s => {
+                                  const isMarkSelected = d.particulars?.find((x: any) => x.name === p.name)?.selectedMarks?.some((m: any) => m.itemId === s.itemId);
+                                  return (
+                                    <div 
+                                      key={s.itemId} 
+                                      onClick={() => toggleStockMark(p.name, s)}
+                                      style={{ 
+                                        padding: '0.4rem', 
+                                        borderRadius: '6px', 
+                                        border: isMarkSelected ? '2px solid var(--accent-primary)' : '1px solid var(--glass-border)',
+                                        background: isMarkSelected ? 'rgba(59,130,246,0.15)' : 'transparent',
+                                        cursor: 'pointer',
+                                        textAlign: 'center',
+                                        fontSize: '0.75rem',
+                                        fontWeight: isMarkSelected ? 800 : 500,
+                                        position: 'relative'
+                                      }}
+                                    >
+                                      {isMarkSelected && (
+                                        <div style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'var(--accent-primary)', color: 'white', borderRadius: '50%', width: '14px', height: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                          <Check size={8} strokeWidth={4} />
+                                        </div>
+                                      )}
+                                      {s.mark}
+                                    </div>
+                                  );
+                                })}
+                              </div>
                               {availableStock.filter(s => s.seriesName === p.name).length === 0 && (
-                                <p style={{ color: 'var(--danger)', fontSize: '0.7rem', marginTop: '0.2rem' }}>⚠️ Out of stock! Add units in Manage Stock.</p>
+                                <p style={{ color: 'var(--danger)', fontSize: '0.7rem', marginTop: '0.5rem' }}>⚠️ ALL OUT OF STOCK</p>
                               )}
                             </div>
                           )}
@@ -1029,26 +1056,37 @@ function JobDetailPageContent() {
                        background: 'var(--warning)', 
                        color: '#000',
                        opacity: (d.particulars || []).some((p: any) => 
-                         inventorySeries.some(s => s.name === p.name && !s.isExhausted) && !p.inventoryInfo
+                         inventorySeries.some(s => s.name === p.name && !s.isExhausted) && (!p.selectedMarks || p.selectedMarks.length === 0)
                        ) ? 0.5 : 1
                      }} 
                      disabled={ (d.particulars || []).some((p: any) => 
-                        inventorySeries.some(s => s.name === p.name && !s.isExhausted) && !p.inventoryInfo
+                        inventorySeries.some(s => s.name === p.name && !s.isExhausted) && (!p.selectedMarks || p.selectedMarks.length === 0)
                       )}
                      onClick={() => {
-                       updateJobDetails(job.id, { 
-                         subCategories: tempSubCategories,
-                         particulars: d.particulars || [],
-                         manualItems: manualItems,
-                         commission: commission || 0
-                       });
+                       const updatedDetails = { 
+                          ...d,
+                          subCategories: tempSubCategories,
+                          particulars: d.particulars || [],
+                          manualItems: manualItems,
+                          commission: commission || 0,
+                          // Ensure we pass the latest particulars for sync
+                          selectedItems: d.particulars || []
+                       };
+                       
+                       updateJobDetails(job.id, updatedDetails);
+                       
                        if (job.status === "In Progress") {
                          updateJobStatus(job.id, 'Completed');
                          addTimelineEvent(job.id, 'workEndedAt');
                          
-                         // Consume physical stock
+                         // Consume all selected physical stock marks
                          (d.particulars || []).forEach((p: any) => {
-                           if (p.inventoryInfo) {
+                           if (p.selectedMarks && p.selectedMarks.length > 0) {
+                             p.selectedMarks.forEach((m: any) => {
+                               consumeInventoryItem(m.itemId, job.id);
+                             });
+                           } else if (p.inventoryInfo) {
+                             // Legacy fallback
                              consumeInventoryItem(p.inventoryInfo.itemId, job.id);
                            }
                          });
