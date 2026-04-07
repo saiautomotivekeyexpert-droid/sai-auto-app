@@ -27,7 +27,7 @@ interface JobsContextType {
   jobs: Job[];
   isLoaded: boolean;
   addJob: (jobData: any, status?: Job["status"], pregeneratedId?: string) => string;
-  updateJobStatus: (id: string, status: Job["status"]) => void;
+  updateJobStatus: (id: string, status: Job["status"], details?: Partial<Job["details"]>) => void;
   updateJobDetails: (id: string, details: Partial<Job["details"]>) => void;
   addTimelineEvent: (id: string, event: keyof JobTimeline) => void;
   deleteJob: (id: string) => void;
@@ -183,10 +183,17 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
     return newId;
   };
 
-  const updateJobStatus = (id: string, status: Job["status"]) => {
+  const updateJobStatus = (id: string, status: Job["status"], details?: Partial<Job["details"]>) => {
     setJobs(prev => prev.map(j => {
       if (j.id === id) {
-        const updated = { ...j, status };
+        const updatedDetails = details ? { ...j.details, ...details } : j.details;
+        const updated: Job = { 
+          ...j, 
+          status, 
+          details: updatedDetails,
+          customerName: updatedDetails.fullName || j.customerName,
+          vehicleNumber: updatedDetails.regNumber || j.vehicleNumber,
+        };
         syncToCloud(updated);
 
         // Trigger Ledger sync on completion

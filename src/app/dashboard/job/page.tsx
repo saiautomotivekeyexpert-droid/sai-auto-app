@@ -1055,10 +1055,10 @@ function JobDetailPageContent() {
                           selectedItems: d.particulars || []
                        };
                        
-                       updateJobDetails(job.id, updatedDetails);
+                       
                        
                        if (job.status === "In Progress") {
-                         updateJobStatus(job.id, 'Completed');
+                         updateJobStatus(job.id, 'Completed', updatedDetails);
                          addTimelineEvent(job.id, 'workEndedAt');
                          
                          // Consume all selected physical stock marks
