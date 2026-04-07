@@ -215,7 +215,8 @@ function JobDetailPageContent() {
 
   const toggleStockMark = (particularName: string, stockInfo: any) => {
     const updated = [...(d.particulars || [])];
-    const pIdx = updated.findIndex(p => p.name === particularName);
+    const pNameNorm = particularName.trim().toUpperCase();
+    const pIdx = updated.findIndex(p => p.name.trim().toUpperCase() === pNameNorm);
     if (pIdx === -1) return;
 
     const p = { ...updated[pIdx] };
@@ -926,8 +927,9 @@ function JobDetailPageContent() {
                       .map((p: any) => {
                         const sel = d.particulars?.some((x: any) => x.name === p.name);
                         const pOptions = catalogItems || [];
-                        const pDef = pOptions.find((opt: any) => opt.name === p.name);
-                        const stockSeries = inventorySeries.find(s => s.name === p.name);
+                        const pNameNormalized = p.name.trim().toUpperCase();
+                        const pDef = pOptions.find((opt: any) => opt.name.trim().toUpperCase() === pNameNormalized);
+                        const stockSeries = inventorySeries.find(s => s.name.trim().toUpperCase() === pNameNormalized);
                         const hasInventory = pDef?.hasInventory === true || pDef?.hasInventory === "true" || !!stockSeries;
                         
                         return (
@@ -946,7 +948,7 @@ function JobDetailPageContent() {
                             {hasInventory && sel && (
                               <div style={{ marginLeft: '2.5rem', marginBottom: '0.5rem' }}>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.5rem' }}>
-                                  {d.particulars?.find((x: any) => x.name === p.name)?.selectedMarks?.map((m: any) => (
+                                  {d.particulars?.find((x: any) => x.name.trim().toUpperCase() === pNameNormalized)?.selectedMarks?.map((m: any) => (
                                     <div key={m.itemId} style={{ background: 'rgba(16,185,129,0.1)', color: 'var(--success)', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem', border: '1px solid rgba(16,185,129,0.2)' }}>
                                       {m.mark}
                                       <X size={10} style={{ cursor: 'pointer' }} onClick={() => toggleStockMark(p.name, m)} />
@@ -1030,14 +1032,16 @@ function JobDetailPageContent() {
                        background: 'var(--warning)', 
                        color: '#000',
                        opacity: (d.particulars || []).some((p: any) => {
-                         const pDef = (catalogItems || []).find((opt: any) => opt.name === p.name);
-                         const hasInv = pDef?.hasInventory === true || pDef?.hasInventory === "true" || inventorySeries.some(s => s.name === p.name);
+                         const pNameNorm = p.name.trim().toUpperCase();
+                         const pDef = (catalogItems || []).find((opt: any) => opt.name.trim().toUpperCase() === pNameNorm);
+                         const hasInv = pDef?.hasInventory === true || pDef?.hasInventory === "true" || inventorySeries.some(s => s.name.trim().toUpperCase() === pNameNorm);
                          return hasInv && (!p.selectedMarks || p.selectedMarks.length === 0);
                        }) ? 0.5 : 1
                      }} 
                      disabled={(d.particulars || []).some((p: any) => {
-                        const pDef = (catalogItems || []).find((opt: any) => opt.name === p.name);
-                        const hasInv = pDef?.hasInventory === true || pDef?.hasInventory === "true" || inventorySeries.some(s => s.name === p.name);
+                        const pNameNorm = p.name.trim().toUpperCase();
+                        const pDef = (catalogItems || []).find((opt: any) => opt.name.trim().toUpperCase() === pNameNorm);
+                        const hasInv = pDef?.hasInventory === true || pDef?.hasInventory === "true" || inventorySeries.some(s => s.name.trim().toUpperCase() === pNameNorm);
                         return hasInv && (!p.selectedMarks || p.selectedMarks.length === 0);
                       })}
                      onClick={() => {
@@ -1200,7 +1204,8 @@ function JobDetailPageContent() {
             
             <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
               {(() => {
-                const particularLines = inventorySeries.filter(s => s.name === pickingParticular);
+                const pickNorm = pickingParticular.trim().toUpperCase();
+                const particularLines = inventorySeries.filter(s => s.name.trim().toUpperCase() === pickNorm);
                 const items = particularLines.flatMap(s => 
                   s.items.filter(i => i.status === 'Available').map(i => ({
                     seriesId: s.id,
@@ -1219,7 +1224,8 @@ function JobDetailPageContent() {
                 return (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.75rem' }}>
                     {items.map(item => {
-                      const isSel = d.particulars?.find((x: any) => x.name === pickingParticular)?.selectedMarks?.some((m: any) => m.itemId === item.itemId);
+                      const pickNm = pickingParticular.trim().toUpperCase();
+                      const isSel = d.particulars?.find((x: any) => x.name.trim().toUpperCase() === pickNm)?.selectedMarks?.some((m: any) => m.itemId === item.itemId);
                       return (
                         <div 
                           key={item.itemId}
