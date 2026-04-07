@@ -257,8 +257,8 @@ function InvoiceContent({ id }: { id: string }) {
                       {p.stockMark && <div style={{ fontSize: '0.7rem', color: 'rgba(0,0,0,0.4)', fontWeight: 700 }}>MARK: {p.stockMark}</div>}
                     </td>
                     <td className="center">{qty}</td>
-                    <td className="right">₹ {Number(cost).toLocaleString("en-IN")}</td>
-                    <td className="right"><strong>₹ {amount.toLocaleString("en-IN")}</strong></td>
+                    <td className="right">{isQuickService ? `₹ ${Number(cost).toLocaleString("en-IN")}` : "—"}</td>
+                    <td className="right"><strong>{isQuickService ? `₹ ${amount.toLocaleString("en-IN")}` : "FITTED"}</strong></td>
                   </tr>
                 );
               });

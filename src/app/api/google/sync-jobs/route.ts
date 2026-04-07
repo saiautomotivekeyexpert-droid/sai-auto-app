@@ -80,16 +80,7 @@ export async function POST(req: Request) {
         });
       });
 
-      const particulars = Object.entries(groupedItems)
-        .map(([name, marks]) => {
-          if (marks.length > 0) {
-            // Remove duplicates and join
-            const uniqueMarks = Array.from(new Set(marks));
-            return `${name}= ${uniqueMarks.join(', ')}`;
-          }
-          return name;
-        })
-        .join('; ');
+      const particularsJson = JSON.stringify(items);
 
       // Format Documents as =HYPERLINK("url", "name") (Column R)
       let docDetail = '';
@@ -131,7 +122,7 @@ export async function POST(req: Request) {
         j.serviceType || '',                 // N: E-KYC SERVICE
         d.consentType || '',                 // O: CONSENT TYPE
         (d.selectedSubCategories || []).join(', '), // P: SUB-CATEGORIES
-        particulars,                         // Q: JOB PARTICULARS (CSV)
+        particularsJson,                     // Q: JOB PARTICULARS (JSON)
         docDetail,                           // R: DOCUMENT DETAIL (Hyperlinks)
         d.afterSales || d.afterSalesComplaint || '', // S: AFTER SALES SERVICE
         JSON.stringify(j.timeline || {})      // T: JOB TIMELINE

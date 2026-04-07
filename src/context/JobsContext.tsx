@@ -71,10 +71,26 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
             // Robust Particulars Parsing (Handles Cloud-Native Human Readable Format)
             let particulars: any[] = [];
             const rawParticulars = row[16];
-            
+
+            // Priority Parser: Try JSON First (Restores rich metadata)
             if (rawParticulars && typeof rawParticulars === 'string') {
-                if (rawParticulars.includes('=') || rawParticulars.includes(';')) {
-                    // Custom Flat Format Parser (e.g., "Product= #1, #2; Item= #3")
+                if (rawParticulars.startsWith('[') || rawParticulars.startsWith('{')) {
+                    try { 
+                        const parsed = JSON.parse(rawParticulars); 
+                        if (Array.isArray(parsed)) {
+                            particulars = parsed.map((p: any) => {
+                                if (typeof p === 'string') return { name: p, quantity: 1, selectedMarks: [] };
+                                const marks = Array.isArray(p.selectedMarks) ? p.selectedMarks : [];
+                                return { 
+                                    name: p.name || p, 
+                                    quantity: p.quantity || marks.length || 1, 
+                                    selectedMarks: marks 
+                                };
+                            });
+                        }
+                    } catch(e) { particulars = []; }
+                } else if (rawParticulars.includes('=') || rawParticulars.includes(';')) {
+                    // Legacy Human Readable Parser Fallback
                     particulars = rawParticulars.split(';').map(part => {
                         const [name, marksStr] = part.split('=').map(s => s.trim());
                         if (!marksStr) return { name, quantity: 1 };
@@ -82,18 +98,12 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
                             const mark = m.trim().startsWith('#') ? m.trim() : `#${m.trim()}`;
                             return { 
                                 mark, 
-                                itemId: `cloud-${mark}`, // Unique ID for cloud-restored items
+                                itemId: `cloud-${mark}`, 
                                 status: 'Consumed' 
                             };
                         });
-                        return { 
-                            name, 
-                            quantity: marks.length, 
-                            selectedMarks: marks 
-                        };
+                        return { name, quantity: marks.length, selectedMarks: marks };
                     });
-                } else if (rawParticulars.startsWith('[') || rawParticulars.startsWith('{')) {
-                    try { particulars = JSON.parse(rawParticulars); } catch(e) { particulars = []; }
                 } else {
                     // Simple CSV fallback
                     particulars = rawParticulars.split(',').map(name => ({ name: name.trim(), quantity: 1 }));
