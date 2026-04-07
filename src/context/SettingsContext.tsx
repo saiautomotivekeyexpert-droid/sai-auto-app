@@ -10,6 +10,7 @@ interface ParticularItem {
   expense: number;
   isQuickService: boolean;
   category: string;
+  hasInventory?: boolean | string;
 }
 
 export interface Partner {

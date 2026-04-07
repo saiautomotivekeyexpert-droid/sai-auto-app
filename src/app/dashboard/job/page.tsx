@@ -924,68 +924,52 @@ function JobDetailPageContent() {
                     {catalogItems
                       .filter((p: any) => p.category?.toUpperCase() !== "SERVICES")
                       .map((p: any) => {
-                      const sel = d.particulars?.some((x: any) => x.name === p.name);
-                      const hasInventory = inventorySeries.some(s => s.name === p.name && !s.isExhausted);
-                      
-                      // Get all available inventory items across all series
-                      const availableStock = inventorySeries.flatMap(s => 
-                        s.items.filter(i => i.status === 'Available').map(i => ({
-                          seriesId: s.id,
-                          itemId: i.id,
-                          mark: i.mark,
-                          rawId: i.rawId,
-                          rate: s.purchaseRate,
-                          seriesName: s.name
-                        }))
-                      );
-
-                      return (
-                        <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                          <label className={`checkbox-item glass-panel ${sel ? "active" : ""}`} 
-                            onClick={() => {
-                              if (hasInventory && !sel) {
-                                // Don't toggle yet, wait for stock selection
-                              } else {
-                                handleParticularToggle(p);
-                              }
-                            }} 
-                            style={{ cursor: "pointer", padding: '0.75rem', borderRadius: '8px', border: sel ? '1px solid var(--accent-primary)' : '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', gap: '0.75rem', background: sel ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.03)' }}>
-                            <div style={{ width: '20px', height: '20px', borderRadius: '4px', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: sel ? 'var(--accent-primary)' : 'transparent' }}>
-                              {sel && <Check size={14} color="white" />}
-                            </div>
-                            <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{p.name}</span>
-                            </div>
-                          </label>
-
-                          {hasInventory && sel && (
-                            <div style={{ marginLeft: '2.5rem', marginBottom: '0.5rem' }}>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.5rem' }}>
-                                {d.particulars?.find((x: any) => x.name === p.name)?.selectedMarks?.map((m: any) => (
-                                  <div key={m.itemId} style={{ background: 'rgba(16,185,129,0.1)', color: 'var(--success)', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem', border: '1px solid rgba(16,185,129,0.2)' }}>
-                                    {m.mark}
-                                    <X size={10} style={{ cursor: 'pointer' }} onClick={() => toggleStockMark(p.name, m)} />
-                                  </div>
-                                ))}
+                        const sel = d.particulars?.some((x: any) => x.name === p.name);
+                        const pOptions = catalogItems || [];
+                        const pDef = pOptions.find((opt: any) => opt.name === p.name);
+                        const hasInventory = pDef?.hasInventory === true || pDef?.hasInventory === "true";
+                        
+                        return (
+                          <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            <label className={`checkbox-item glass-panel ${sel ? "active" : ""}`} 
+                              onClick={() => handleParticularToggle(p)} 
+                              style={{ cursor: "pointer", padding: '0.75rem', borderRadius: '8px', border: sel ? '1px solid var(--accent-primary)' : '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', gap: '0.75rem', background: sel ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.03)' }}>
+                              <div style={{ width: '20px', height: '20px', borderRadius: '4px', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: sel ? 'var(--accent-primary)' : 'transparent' }}>
+                                {sel && <Check size={14} color="white" />}
                               </div>
-                              <button 
-                                className="secondary-btn small-btn" 
-                                style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)' }}
-                                onClick={() => {
-                                  setPickingParticular(p.name);
-                                  setShowStockPicker(true);
-                                }}
-                              >
-                                <Package size={14} /> Link Stock ID
-                              </button>
-                            </div>
-                          )}
-                          {inventorySeries.filter(s => s.name === p.name && !s.isExhausted).length === 0 && hasInventory && (
-                            <p style={{ color: 'var(--danger)', fontSize: '0.7rem', marginTop: '0.5rem', marginLeft: '2.5rem' }}>⚠️ ALL OUT OF STOCK</p>
-                          )}
-                        </div>
-                      );
-                    })}
+                              <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{p.name}</span>
+                              </div>
+                            </label>
+
+                            {hasInventory && sel && (
+                              <div style={{ marginLeft: '2.5rem', marginBottom: '0.5rem' }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                                  {d.particulars?.find((x: any) => x.name === p.name)?.selectedMarks?.map((m: any) => (
+                                    <div key={m.itemId} style={{ background: 'rgba(16,185,129,0.1)', color: 'var(--success)', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem', border: '1px solid rgba(16,185,129,0.2)' }}>
+                                      {m.mark}
+                                      <X size={10} style={{ cursor: 'pointer' }} onClick={() => toggleStockMark(p.name, m)} />
+                                    </div>
+                                  ))}
+                                </div>
+                                <button 
+                                  className="secondary-btn small-btn" 
+                                  style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)' }}
+                                  onClick={() => {
+                                    setPickingParticular(p.name);
+                                    setShowStockPicker(true);
+                                  }}
+                                >
+                                  <Package size={14} /> Link Stock ID
+                                </button>
+                              </div>
+                            )}
+                            {inventorySeries.filter(s => s.name === p.name && !s.isExhausted).length === 0 && hasInventory && (
+                              <p style={{ color: 'var(--danger)', fontSize: '0.7rem', marginTop: '0.5rem', marginLeft: '2.5rem' }}>⚠️ ALL OUT OF STOCK</p>
+                            )}
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
                 
@@ -1044,13 +1028,17 @@ function JobDetailPageContent() {
                      style={{ 
                        background: 'var(--warning)', 
                        color: '#000',
-                       opacity: (d.particulars || []).some((p: any) => 
-                         inventorySeries.some(s => s.name === p.name && !s.isExhausted) && (!p.selectedMarks || p.selectedMarks.length === 0)
-                       ) ? 0.5 : 1
+                       opacity: (d.particulars || []).some((p: any) => {
+                         const pDef = (catalogItems || []).find((opt: any) => opt.name === p.name);
+                         const hasInv = pDef?.hasInventory === true || pDef?.hasInventory === "true";
+                         return hasInv && (!p.selectedMarks || p.selectedMarks.length === 0);
+                       }) ? 0.5 : 1
                      }} 
-                     disabled={ (d.particulars || []).some((p: any) => 
-                        inventorySeries.some(s => s.name === p.name && !s.isExhausted) && (!p.selectedMarks || p.selectedMarks.length === 0)
-                      )}
+                     disabled={(d.particulars || []).some((p: any) => {
+                        const pDef = (catalogItems || []).find((opt: any) => opt.name === p.name);
+                        const hasInv = pDef?.hasInventory === true || pDef?.hasInventory === "true";
+                        return hasInv && (!p.selectedMarks || p.selectedMarks.length === 0);
+                      })}
                      onClick={() => {
                        const updatedDetails = { 
                           ...d,
