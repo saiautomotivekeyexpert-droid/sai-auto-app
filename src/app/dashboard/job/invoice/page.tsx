@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { Printer, Share2, ArrowLeft, Edit3, Save, X, ChevronDown, ArrowRight, AlertCircle, ZoomIn, ZoomOut, Type, Bold, Italic, Underline } from "lucide-react";
+import { Printer, Share2, ArrowLeft, Edit3, Save, X, ChevronDown, ArrowRight, AlertCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useJobs } from "@/context/JobsContext";
 import { useSettings } from "@/context/SettingsContext";
@@ -17,14 +17,13 @@ function InvoiceContent({ id }: { id: string }) {
 
   // Custom Edit State
   const [isCustomizing, setIsCustomizing] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const [tempDetails, setTempDetails] = useState<any>(null);
   const [tempCustomerName, setTempCustomerName] = useState("");
   const [tempVehicleNumber, setTempVehicleNumber] = useState("");
   const [tempParticulars, setTempParticulars] = useState<any[]>([]);
   const [tempManualItems, setTempManualItems] = useState<any[]>([]);
   const [tempServiceCharge, setTempServiceCharge] = useState(0);
-  const [zoomLevel, setZoomLevel] = useState(100);
-  const [baseFontSize, setBaseFontSize] = useState(12);
   const [colWidths, setColWidths] = useState<Record<string, string>>({
     sno: "5%",
     service: "20%",
@@ -62,7 +61,6 @@ function InvoiceContent({ id }: { id: string }) {
   
   const isQuickService = job.serviceType === "Quick Service";
   const serviceCharge = Number(d.serviceCharge) || 0;
-  // For E-KYC, physical items (particulars) do not add to the price total unless it's Quick Service
   const currentParticulars = isCustomizing ? tempParticulars : particulars;
   const currentManualItems = isCustomizing ? tempManualItems : manualItems;
   const currentServiceCharge = isCustomizing ? tempServiceCharge : serviceCharge;
@@ -110,7 +108,6 @@ function InvoiceContent({ id }: { id: string }) {
     const list = type === 'p' ? [...tempParticulars] : [...tempManualItems];
     const row = list[idx];
     if (colIdx === 0 && (row.colSpan || 1) < 2) {
-      // Merge Service with Product
       row.colSpan = 2;
       row.name = `${row.serviceType || ""}\n${row.name || row.product || ""}`.trim();
       if (type === 'm') row.product = row.name;
@@ -124,27 +121,21 @@ function InvoiceContent({ id }: { id: string }) {
     type === 'p' ? setTempParticulars(list) : setTempManualItems(list);
   };
 
-  const DocsToolbar = () => (
-    <div className="docs-toolbar no-print">
-      <div className="toolbar-group">
-        <button className="toolbar-btn" onClick={() => setZoomLevel(Math.max(50, zoomLevel - 10))} title="Zoom Out"><ZoomOut size={16} /></button>
-        <span className="toolbar-label">{zoomLevel}%</span>
-        <button className="toolbar-btn" onClick={() => setZoomLevel(Math.min(200, zoomLevel + 10))} title="Zoom In"><ZoomIn size={16} /></button>
+  const TextRenderer = ({ text, bold }: { text: string; bold?: boolean }) => {
+    if (!text) return null;
+    return (
+      <div style={{ whiteSpace: 'pre-wrap', fontWeight: bold ? 'bold' : 'normal' }}>
+        {text.split('\n').map((line, i) => {
+          const isDescription = line.trim().startsWith('*') || line.trim().startsWith('-');
+          return (
+            <div key={i} className={isDescription ? "light-desc" : ""}>
+              {line}
+            </div>
+          );
+        })}
       </div>
-      <div className="toolbar-divider" />
-      <div className="toolbar-group">
-        <button className="toolbar-btn" onClick={() => setBaseFontSize(Math.max(8, baseFontSize - 1))} title="Font Smaller"><Type size={14} style={{ transform: 'scale(0.8)' }} /></button>
-        <span className="toolbar-label">{baseFontSize} pt</span>
-        <button className="toolbar-btn" onClick={() => setBaseFontSize(Math.min(32, baseFontSize + 1))} title="Font Larger"><Type size={18} /></button>
-      </div>
-      <div className="toolbar-divider" />
-      <div className="toolbar-group">
-        <button className="toolbar-btn active" title="Bold"><Bold size={16} /></button>
-        <button className="toolbar-btn" title="Italic"><Italic size={16} /></button>
-        <button className="toolbar-btn" title="Underline"><Underline size={16} /></button>
-      </div>
-    </div>
-  );
+    );
+  };
   
   const memoNumber = job.id;
   const dateStr = new Date(job.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -156,9 +147,6 @@ function InvoiceContent({ id }: { id: string }) {
   
   const docTitle = isEstimate ? "ESTIMATE" : "INVOICE";
   const hideTotal = isEstimate && (d.hideEstimateTotal === true || grandTotal === 0);
-
-  const tl = job.timeline || {} as any;
-  const fmtTime = (ts?: number) => ts ? new Date(ts).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
 
   const handleWhatsApp = () => {
     const isQuickService = job.serviceType === "Quick Service";
@@ -183,10 +171,26 @@ function InvoiceContent({ id }: { id: string }) {
 
   return (
     <div className="inv-container">
-      {/* Action bar - hidden when printing */}
       <div className="inv-actions no-print">
         <button className="secondary-btn" onClick={() => router.back()}><ArrowLeft size={16} /> Back</button>
         <div style={{ flex: 1 }} />
+        {isCustomizing && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'white', padding: '0.4rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', marginRight: '1rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', marginRight: '0.5rem' }}>ZOOM:</span>
+            <button onClick={() => setZoom((prev: number) => Math.max(0.6, prev - 0.1))} style={{ padding: '2px 8px', borderRadius: '4px', border: '1px solid #e2e8f0', background: '#f8fafc', cursor: 'pointer' }}>-</button>
+            <span style={{ minWidth: '45px', textAlign: 'center', fontWeight: 'bold', fontSize: '0.85rem' }}>{Math.round(zoom * 100)}%</span>
+            <button onClick={() => setZoom((prev: number) => Math.min(1.5, prev + 0.1))} style={{ padding: '2px 8px', borderRadius: '4px', border: '1px solid #e2e8f0', background: '#f8fafc', cursor: 'pointer' }}>+</button>
+            
+            <div style={{ width: '1px', height: '20px', background: '#e2e8f0', margin: '0 0.75rem' }} />
+            
+            {/* TEXT TOOLS MOCKUP */}
+            <div style={{ display: 'flex', gap: '2px' }}>
+              <button disabled style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #e2e8f0', background: '#f8fafc', opacity: 0.5, cursor: 'not-allowed', fontStyle: 'italic' }}>Arial</button>
+              <button disabled style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #e2e8f0', background: '#f8fafc', opacity: 0.5, cursor: 'not-allowed', fontWeight: 'bold' }}>B</button>
+              <button disabled style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #e2e8f0', background: '#f8fafc', opacity: 0.5, cursor: 'not-allowed', fontStyle: 'italic' }}>I</button>
+            </div>
+          </div>
+        )}
         {!isCustomizing ? (
           <>
             <button className="secondary-btn" style={{ background: 'var(--glass-bg)', borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }} onClick={() => setIsCustomizing(true)}>
@@ -207,123 +211,96 @@ function InvoiceContent({ id }: { id: string }) {
         )}
       </div>
 
-      {/* A4 Paper */}
-      <div className="inv-paper animate-fade-in">
+      <div className="inv-paper-wrapper">
+        <div className="inv-paper animate-fade-in" style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}>
+          <div className="inv-top-bar" />
 
-        {/* TOP ACCENT BAR */}
-        <div className="inv-top-bar" />
-
-        {/* HEADER: Company left, Memo box right */}
-        <div className="inv-header">
-          <div className="inv-company">
-            <h1 className="inv-company-name">{shopName.split(" ")[0]}</h1>
-            <p className="inv-company-full">{shopName}</p>
-            <p className="inv-company-addr">{shopAddress}</p>
-            <p className="inv-company-contact">• {shopPhone} • {shopEmail}</p>
-          </div>
-          <div className="inv-memo-box">
-            <div className="inv-memo-label">{docTitle}</div>
-            <div className="inv-memo-number">{memoNumber}</div>
-            <div className="inv-memo-date">{dateStr}</div>
-          </div>
-        </div>
-
-        <div className="inv-divider" />
-
-        {/* CUSTOMER + VEHICLE - 2 columns */}
-        <div className="inv-two-col">
-          <div className="inv-info-box">
-            <div className="inv-box-title">CUSTOMER DETAILS</div>
-            <div className="inv-field">
-              <div className="inv-field-label">FULL NAME</div>
-              {isCustomizing ? (
-                <input className="edit-input" value={tempCustomerName} onChange={(e) => setTempCustomerName(e.target.value)} />
-              ) : (
-                <div className="inv-field-value">{tempCustomerName}</div>
-              )}
+          {/* HEADER */}
+          <div className="inv-header">
+            <div className="inv-company">
+              <h1 className="inv-company-name">{shopName.split(" ")[0]}</h1>
+              <p className="inv-company-full">{shopName}</p>
+              <p className="inv-company-addr">{shopAddress}</p>
+              <p className="inv-company-contact">• {shopPhone} • {shopEmail}</p>
             </div>
-            <div className="inv-field">
-              <div className="inv-field-label">CONTACT NUMBER</div>
-              {isCustomizing ? (
-                <input className="edit-input" value={d.phone || d.contactNumber || ""} onChange={(e) => setTempDetails({ ...d, phone: e.target.value })} />
-              ) : (
-                <div className="inv-field-value">{d.phone || d.contactNumber || "—"}</div>
-              )}
-            </div>
-            <div className="inv-field">
-              <div className="inv-field-label">ADDRESS</div>
-              {isCustomizing ? (
-                <textarea className="edit-input" value={d.address || ""} onChange={(e) => setTempDetails({ ...d, address: e.target.value })} style={{ height: '40px' }} />
-              ) : (
-                <div className="inv-field-value">{d.address || "—"}</div>
-              )}
+            <div className="inv-memo-box">
+              <div className="inv-memo-label">{docTitle}</div>
+              <div className="inv-memo-number">{memoNumber}</div>
+              <div className="inv-memo-date">{dateStr}</div>
             </div>
           </div>
 
-          <div className="inv-info-box">
-            <div className="inv-box-title">VEHICLE INFORMATION</div>
-            <div className="inv-field">
-              <div className="inv-field-label">REGISTRATION NO.</div>
-              {isCustomizing ? (
-                <input className="edit-input" value={tempVehicleNumber} onChange={(e) => setTempVehicleNumber(e.target.value)} />
-              ) : (
-                <div className="inv-field-value">{tempVehicleNumber}</div>
-              )}
-            </div>
-            <div className="inv-field">
-              <div className="inv-field-label">VEHICLE TYPE</div>
-              {isCustomizing ? (
-                <input className="edit-input" value={d.category || ""} onChange={(e) => setTempDetails({ ...d, category: e.target.value })} />
-              ) : (
-                <div className="inv-field-value">{d.category || "—"}</div>
-              )}
-            </div>
-            {(d.brand || d.vehicleBrand || isCustomizing) && (
+          <div className="inv-divider" />
+
+          {/* CUSTOMER + VEHICLE */}
+          <div className="inv-two-col">
+            <div className="inv-info-box">
+              <div className="inv-box-title">CUSTOMER DETAILS</div>
               <div className="inv-field">
-                <div className="inv-field-label">MAKE &amp; MODEL</div>
+                <div className="inv-field-label">FULL NAME</div>
                 {isCustomizing ? (
-                  <div style={{ display: 'flex', gap: '0.4rem' }}>
-                    <input className="edit-input" value={d.brand || d.vehicleBrand || ""} onChange={(e) => setTempDetails({ ...d, brand: e.target.value })} placeholder="MAKE" />
-                    <input className="edit-input" value={d.model || d.vehicleModel || ""} onChange={(e) => setTempDetails({ ...d, model: e.target.value })} placeholder="MODEL" />
-                  </div>
+                  <input className="edit-input" value={tempCustomerName} onChange={(e) => setTempCustomerName(e.target.value)} />
                 ) : (
-                  <div className="inv-field-value">{(d.brand || d.vehicleBrand || "").toUpperCase()} {(d.model || d.vehicleModel || "").toUpperCase()}</div>
+                  <div className="inv-field-value">{tempCustomerName}</div>
                 )}
               </div>
-            )}
-            <div className="inv-field">
-              <div className="inv-field-label">MANUFACTURE YEAR</div>
-              {isCustomizing ? (
-                <input className="edit-input" value={d.year || d.manufactureYear || ""} onChange={(e) => setTempDetails({ ...d, year: e.target.value })} />
-              ) : (
-                <div className="inv-field-value">{d.year || d.manufactureYear || "—"}</div>
-              )}
-            </div>
-            <div className="inv-field">
-              <div className="inv-field-label">REPORT STATUS</div>
-              <div className="inv-field-value">
-                <span className="inv-status-chip">{job.status.toUpperCase()}</span>
+              <div className="inv-field">
+                <div className="inv-field-label">CONTACT NUMBER</div>
+                {isCustomizing ? (
+                  <input className="edit-input" value={d.phone || d.contactNumber || ""} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, phone: e.target.value }))} />
+                ) : (
+                  <div className="inv-field-value">{d.phone || d.contactNumber || "—"}</div>
+                )}
+              </div>
+              <div className="inv-field">
+                <div className="inv-field-label">ADDRESS</div>
+                {isCustomizing ? (
+                  <textarea className="edit-input" value={d.address || ""} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, address: e.target.value }))} style={{ height: '40px' }} />
+                ) : (
+                  <div className="inv-field-value">{d.address || "—"}</div>
+                )}
               </div>
             </div>
+
+            <div className="inv-info-box">
+              <div className="inv-box-title">VEHICLE INFORMATION</div>
+              <div className="inv-field">
+                <div className="inv-field-label">REGISTRATION NO.</div>
+                {isCustomizing ? (
+                  <input className="edit-input" value={tempVehicleNumber} onChange={(e) => setTempVehicleNumber(e.target.value)} />
+                ) : (
+                  <div className="inv-field-value">{tempVehicleNumber}</div>
+                )}
+              </div>
+              <div className="inv-field">
+                <div className="inv-field-label">VEHICLE TYPE</div>
+                {isCustomizing ? (
+                  <input className="edit-input" value={d.category || ""} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, category: e.target.value }))} />
+                ) : (
+                  <div className="inv-field-value">{d.category || "—"}</div>
+                )}
+              </div>
+              {(d.brand || d.vehicleBrand || isCustomizing) && (
+                <div className="inv-field">
+                  <div className="inv-field-label">MAKE & MODEL</div>
+                  {isCustomizing ? (
+                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <input className="edit-input" value={d.brand || d.vehicleBrand || ""} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, brand: e.target.value }))} placeholder="MAKE" />
+                      <input className="edit-input" value={d.model || d.vehicleModel || ""} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, model: e.target.value }))} placeholder="MODEL" />
+                    </div>
+                  ) : (
+                    <div className="inv-field-value">{(d.brand || d.vehicleBrand || "").toUpperCase()} {(d.model || d.vehicleModel || "").toUpperCase()}</div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
         {/* SERVICE TABLE */}
         <div className="inv-section-title">PRODUCT &amp; SERVICE DETAILS</div>
-        <div className="inv-table-section" style={{ fontSize: `${baseFontSize}pt` }}>
         <table className="inv-table">
-          <thead>
-            {isCustomizing && (
-              <tr className="no-print" style={{ background: 'rgba(59,130,246,0.1)' }}>
-                <th style={{ width: colWidths.sno }}><input className="edit-input center" value={colWidths.sno} onChange={e => setColWidths({...colWidths, sno: e.target.value})} /></th>
-                <th style={{ width: colWidths.service }}><input className="edit-input center" value={colWidths.service} onChange={e => setColWidths({...colWidths, service: e.target.value})} /></th>
-                <th style={{ width: colWidths.product }}><input className="edit-input center" value={colWidths.product} onChange={e => setColWidths({...colWidths, product: e.target.value})} /></th>
-                <th style={{ width: colWidths.qty }}><input className="edit-input center" value={colWidths.qty} onChange={e => setColWidths({...colWidths, qty: e.target.value})} /></th>
-                <th style={{ width: colWidths.rate }}><input className="edit-input center" value={colWidths.rate} onChange={e => setColWidths({...colWidths, rate: e.target.value})} /></th>
-                <th style={{ width: colWidths.amount }}><input className="edit-input center" value={colWidths.amount} onChange={e => setColWidths({...colWidths, amount: e.target.value})} /></th>
-              </tr>
-            )}
-            <tr>
+      <thead>
+        <tr>
               <th style={{ width: colWidths.sno }}>S.NO</th>
               <th style={{ width: colWidths.service }}>SERVICE TYPE</th>
               <th style={{ width: colWidths.product }}>PRODUCT</th>
@@ -360,10 +337,10 @@ function InvoiceContent({ id }: { id: string }) {
                               newP[idx].product = e.target.value;
                               setTempParticulars(newP);
                             }} />
-                            <button onClick={() => handleSplit('p', idx)} title="Split Cells" style={{ position: 'absolute', right: '5px', top: '5px', background: 'rgba(59,130,246,0.1)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}><AlertCircle size={12} /></button>
+                            <button onClick={() => setTempDetails((prev: any) => ({...(prev || {}), colSpan: 1}))} title="Split Cells" style={{ position: 'absolute', right: '5px', top: '5px', background: 'rgba(59,130,246,0.1)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}><AlertCircle size={12} /></button>
                           </div>
                         ) : (
-                          <div style={{ whiteSpace: 'pre-wrap', fontWeight: 'bold' }}>{p.name}</div>
+                          <TextRenderer text={p.name || ""} bold />
                         )}
                       </td>
                     ) : (
@@ -379,7 +356,9 @@ function InvoiceContent({ id }: { id: string }) {
                               <button onClick={() => handleMergeRight('p', idx, 0)} title="Merge Right" style={{ position: 'absolute', right: '5px', top: '5px', background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ArrowRight size={12} /></button>
                             </div>
                           ) : (
-                            <div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900, whiteSpace: 'pre-wrap' }}>{serviceType}</div>
+                            <div style={{ color: '#1e3a8a', fontWeight: 900 }}>
+                               <TextRenderer text={serviceType || ""} />
+                            </div>
                           )}
                         </td>
                         <td>
@@ -390,7 +369,7 @@ function InvoiceContent({ id }: { id: string }) {
                               setTempParticulars(newP);
                             }} />
                           ) : (
-                            <strong style={{ whiteSpace: 'pre-wrap' }}>{productName}</strong>
+                            <TextRenderer text={productName || ""} bold />
                           )}
                         </td>
                       </>
@@ -543,9 +522,9 @@ function InvoiceContent({ id }: { id: string }) {
                              <div style={{ position: 'relative' }}>
                                 <textarea className="edit-input" rows={tempDetails?.product?.split('\n').length || 1} value={tempDetails?.product || "SERVICE CHARGE"} onChange={e => {
                                   const val = e.target.value;
-                                  setTempDetails(prev => ({...(prev || {}), product: val}));
+                                  setTempDetails((prev: any) => ({...(prev || {}), product: val}));
                                 }} />
-                                <button onClick={() => setTempDetails(prev => ({...(prev || {}), colSpan: 1}))} title="Split Cells" style={{ position: 'absolute', right: '5px', top: '5px', background: 'rgba(59,130,246,0.1)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}><AlertCircle size={12} /></button>
+                                <button onClick={() => setTempDetails((prev: any) => ({...(prev || {}), colSpan: 1}))} title="Split Cells" style={{ position: 'absolute', right: '5px', top: '5px', background: 'rgba(59,130,246,0.1)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}><AlertCircle size={12} /></button>
                              </div>
                           ) : (
                              <div style={{ whiteSpace: 'pre-wrap', fontWeight: 'bold' }}>{d.product || "SERVICE CHARGE"}</div>
@@ -558,9 +537,9 @@ function InvoiceContent({ id }: { id: string }) {
                             <div style={{ position: 'relative' }}>
                               <textarea className="edit-input" rows={sType?.split('\n').length || 1} value={sType || ""} onChange={e => {
                                 const val = e.target.value;
-                                setTempDetails(prev => ({...(prev || {}), serviceType: val}));
+                                setTempDetails((prev: any) => ({...(prev || {}), serviceType: val}));
                               }} />
-                              <button onClick={() => setTempDetails(prev => ({...(prev || {}), colSpan: 2, product: `${sType}\nSERVICE CHARGE`}))} title="Merge Right" style={{ position: 'absolute', right: '5px', top: '5px', background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ArrowRight size={12} /></button>
+                              <button onClick={() => setTempDetails((prev: any) => ({...(prev || {}), colSpan: 2, product: `${sType}\nSERVICE CHARGE`}))} title="Merge Right" style={{ position: 'absolute', right: '5px', top: '5px', background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ArrowRight size={12} /></button>
                             </div>
                           ) : (
                             <div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900, whiteSpace: 'pre-wrap' }}>{sType?.toUpperCase()}</div>
@@ -570,7 +549,7 @@ function InvoiceContent({ id }: { id: string }) {
                           {isCustomizing ? (
                             <textarea className="edit-input" rows={1} value={tempDetails?.product || "SERVICE CHARGE"} onChange={e => {
                               const val = e.target.value;
-                              setTempDetails(prev => ({...(prev || {}), product: val}));
+                              setTempDetails((prev: any) => ({...(prev || {}), product: val}));
                             }} />
                           ) : (
                             <strong>SERVICE CHARGE</strong>
@@ -592,7 +571,7 @@ function InvoiceContent({ id }: { id: string }) {
                          <button 
                            onClick={() => {
                              setTempServiceCharge(0);
-                             setTempDetails(prev => ({...(prev || {}), hideServiceRow: true}));
+                             setTempDetails((prev: any) => ({...(prev || {}), hideServiceRow: true}));
                            }}
                            style={{ position: 'absolute', right: '-30px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
                          >
@@ -701,7 +680,6 @@ function InvoiceContent({ id }: { id: string }) {
             )}
           </tbody>
         </table>
-        </div>
 
         <div className="inv-auth-box">
           <div className="inv-auth-stamp">AUTHORIZED</div>
@@ -721,19 +699,19 @@ function InvoiceContent({ id }: { id: string }) {
           </div>
         </div>
 
-        {/* FOOTER */}
-        <div className="inv-footer">
-          This document serves as official authorization for key programming services. {shopName} is not liable for inaccuracies in customer-provided information.
-        </div>
-
-      </div>
+          <div className="inv-footer">
+            This document serves as official authorization for key programming services. {shopName} is not liable for inaccuracies in customer-provided information.
+          </div>
+        </div> {/* close inv-paper */}
+      </div> {/* close inv-paper-wrapper */}
 
       <style jsx>{`
         .inv-container { max-width: 900px; margin: 0 auto; padding: 2rem; }
         .inv-actions { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 2rem; }
-        .inv-paper { background: #ffffff; color: #1e293b; box-shadow: 0 8px 40px rgba(0,0,0,0.45); border-radius: 4px; overflow: hidden; font-family: 'Arial', 'Helvetica', sans-serif; }
-        .edit-input { width: 100%; background: #f8fafc; border: 1px solid #1e3a8a50; border-radius: 4px; padding: 0.2rem 0.4rem; font-size: 0.9rem; font-family: inherit; font-weight: 700; color: #1e3a8a; }
-        .edit-input:focus { outline: none; border-color: #1e3a8a; background: #fff; }
+        .inv-paper { background: #ffffff; color: #1e293b; box-shadow: 0 8px 40px rgba(0,0,0,0.45); border-radius: 4px; overflow: hidden; font-family: 'Arial', 'Helvetica', sans-serif; height: fit-content; margin: 0 auto; }
+        .edit-input { width: 100%; border: 1px solid transparent; background: transparent; padding: 2px 5px; border-radius: 4px; font-family: inherit; font-size: inherit; color: inherit; outline: none; transition: background 0.2s, border-color 0.2s; }
+        .edit-input:hover { background: rgba(59,130,246,0.03); border-color: rgba(59,130,246,0.1); }
+        .edit-input:focus { border-color: #3b82f6; background: white; box-shadow: 0 0 0 2px rgba(59,130,246,0.1); }
         .inv-top-bar { height: 6px; background: linear-gradient(90deg, #1e3a8a 60%, #dc2626 60%); }
         .inv-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 2rem 2.5rem 1.5rem; gap: 1rem; }
         .inv-company-name { font-size: 2rem; font-weight: 900; color: #1e3a8a; margin: 0 0 0.1rem; letter-spacing: -0.02em; }
@@ -746,39 +724,7 @@ function InvoiceContent({ id }: { id: string }) {
         .inv-memo-date { font-size: 0.85rem; font-weight: 600; }
         .inv-divider { height: 1px; background: #e2e8f0; margin: 0 2.5rem; }
         .inv-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1.5rem 2.5rem; }
-        .inv-info-box { border: 1px solid #e2e8f0;        textarea.edit-input { resize: none; overflow: hidden; }
-        
-        .docs-toolbar {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          background: white;
-          padding: 0.5rem 1rem;
-          border-radius: 50px;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-          margin-bottom: 2rem;
-          border: 1px solid var(--glass-border);
-          position: sticky;
-          top: 1rem;
-          z-index: 100;
-        }
-        .toolbar-group { display: flex; align-items: center; gap: 0.5rem; }
-        .toolbar-btn {
-          background: transparent;
-          border: none;
-          padding: 6px;
-          border-radius: 4px;
-          cursor: pointer;
-          color: #4b5563;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: 0.2s;
-        }
-        .toolbar-btn:hover { background: #f3f4f6; color: var(--accent-primary); }
-        .toolbar-btn.active { background: rgba(59,130,246,0.1); color: var(--accent-primary); }
-        .toolbar-label { font-size: 0.85rem; font-weight: 600; min-width: 45px; text-align: center; }
-        .toolbar-divider { width: 1px; height: 24px; background: #e5e7eb; margin: 0 0.25rem; }
+        .inv-info-box { border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
         .inv-box-title { background: #e9f0ff; color: #1e3a8a; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; padding: 0.5rem 1rem; border-bottom: 1px solid #c7d8ff; }
         .inv-field { padding: 0.6rem 1rem; border-bottom: 1px dashed #e2e8f0; }
         .inv-field:last-child { border-bottom: none; }
@@ -786,13 +732,13 @@ function InvoiceContent({ id }: { id: string }) {
         .inv-field-value { font-size: 0.95rem; font-weight: 700; color: #0f172a; }
         .inv-status-chip { background: #fefce8; border: 1px solid #fbbf24; color: #92400e; font-size: 0.7rem; font-weight: 800; padding: 0.15rem 0.5rem; border-radius: 4px; letter-spacing: 0.05em; }
         .inv-section-title { font-size: 0.75rem; font-weight: 800; color: #1e3a8a; letter-spacing: 0.08em; padding: 0.5rem 2.5rem; border-left: 4px solid #dc2626; margin: 0.5rem 0; background: #f8fafc; }
-        .inv-table { width: calc(100% - 5rem); margin: 0 2.5rem 1.5rem; border-collapse: collapse; font-size: 0.875rem; }
+        .inv-table { width: calc(100% - 5rem); margin: 0 2.5rem 1.5rem; border-collapse: collapse; font-size: 0.875rem; border: 1.5px solid #1e3a8a; }
         .inv-table thead tr { background: #1e3a8a; color: white; }
-        .inv-table th { padding: 0.6rem 1rem; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-align: left; }
+        .inv-table th { padding: 0.6rem 1rem; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-align: left; border: 1px solid rgba(255,255,255,0.2); }
         .inv-table th.center, .inv-table td.center { text-align: center; }
         .inv-table th.right, .inv-table td.right { text-align: right; }
-        .inv-table td { padding: 0.65rem 1rem; border-bottom: 1px solid #e2e8f0; color: #334155; }
-        .inv-total-row td { background: #f8fafc; border-top: 2px solid #1e3a8a; font-size: 0.95rem; color: #0f172a; }
+        .inv-table td { padding: 0.65rem 1rem; border: 1px solid #cbd5e1; color: #334155; }
+        .inv-total-row td { background: #f8fafc; border-top: 2.5px solid #1e3a8a; font-weight: 700; }
         .inv-auth-box { margin: 0 2.5rem 1.5rem; border: 1.5px solid #dc2626; border-radius: 6px; padding: 1.25rem 1.5rem; position: relative; background: #fff9f9; }
         .inv-auth-stamp { position: absolute; top: 12px; right: 16px; transform: rotate(15deg); border: 2px solid #dc2626; color: #dc2626; font-size: 0.65rem; font-weight: 900; letter-spacing: 0.12em; padding: 0.2rem 0.5rem; border-radius: 4px; opacity: 0.7; }
         .inv-auth-title { font-size: 0.72rem; font-weight: 900; color: #dc2626; letter-spacing: 0.07em; margin-bottom: 0.75rem; }
@@ -801,49 +747,25 @@ function InvoiceContent({ id }: { id: string }) {
         .inv-sig-block { text-align: center; }
         .inv-sig-line { width: 180px; height: 1px; background: #1e3a8a; margin: 0 auto 0.4rem; }
         .inv-sig-label { font-size: 0.72rem; font-weight: 700; color: #1e3a8a; letter-spacing: 0.05em; margin: 0; }
-        .inv-footer { background: #f1f5f9; border-top: 1px solid #e2e8f0; font-size: 0.72rem; color: #64748b; text-align: center; padding: 0.75rem 2.5rem; line-height: 1.5; }
+        .inv-footer { background: #f1f5f9; border-top: 1px solid #e2e8f0; font-size: 0.72rem; color: #64748b; text-align: center; padding: 1rem 2.5rem; line-height: 1.5; }
+        .light-desc { font-weight: 300; opacity: 0.7; font-size: 0.9em; }
+        .inv-paper-wrapper { overflow: auto; display: flex; justify-content: center; padding: 2rem; background: #f1f5f9; min-height: 100vh; }
+        .edit-input.center { text-align: center; }
+        .edit-input.right { text-align: right; }
         @media (max-width: 768px) {
           .inv-container { padding: 0.5rem; }
           .inv-actions { flex-wrap: wrap; padding: 0 1rem; }
           .inv-header { flex-direction: column; padding: 1.5rem 1rem; align-items: center; text-align: center; }
-          .inv-company-addr { max-width: none; }
           .inv-memo-box { width: 100%; margin-top: 1rem; }
-          .inv-divider { margin: 0 1rem; }
-          .inv-two-col { grid-template-columns: repeat(2, 1fr); padding: 1rem; gap: 0.5rem; }
-          .inv-field-value { font-size: 0.8rem; }
-          .inv-field-label { font-size: 0.55rem; }
-          .inv-section-title { padding: 0.5rem 1rem; }
-          .inv-table { width: calc(100% - 2rem); margin: 0 1rem 1.5rem; }
-          .inv-table th, .inv-table td { padding: 0.5rem 0.4rem; font-size: 0.75rem; }
-          .inv-auth-box { margin: 0 1rem 1.5rem; padding: 1rem; }
-          .inv-signatures { flex-direction: column; gap: 2rem; padding: 1.5rem 1rem; align-items: center; }
-          .inv-sig-line { width: 100%; max-width: 200px; }
-          .inv-footer { padding: 0.75rem 1rem; }
+          .inv-two-col { grid-template-columns: 1fr; }
         }
-        @media print { .no-print { display: none !important; } .inv-container { padding: 0; max-width: 100%; } .inv-paper { box-shadow: none; } body { background: white !important; } }
-        .edit-input {
-          width: 100%;
-          border: 1px solid transparent;
-          background: transparent;
-          padding: 2px 5px;
-          border-radius: 4px;
-          font-family: inherit;
-          font-size: inherit;
-          color: inherit;
-          outline: none;
-          transition: background 0.2s, border-color 0.2s;
+        @media print { 
+          .no-print { display: none !important; } 
+          .inv-container { padding: 0; max-width: 100%; } 
+          .inv-paper { box-shadow: none; border: none; transform: none !important; } 
+          body { background: white !important; } 
+          .inv-paper-wrapper { padding: 0; background: white; } 
         }
-        .edit-input:hover {
-          background: rgba(59,130,246,0.03);
-          border-color: rgba(59,130,246,0.1);
-        }
-        .edit-input:focus {
-          border-color: var(--accent-primary);
-          background: white;
-          box-shadow: 0 0 0 2px rgba(59,130,246,0.1);
-        }
-        .edit-input.center { text-align: center; }
-        .edit-input.right { text-align: right; }
       `}</style>
     </div>
   );
