@@ -2,47 +2,35 @@
 
 import { useState, useEffect } from "react";
 import { useSettings } from "@/context/SettingsContext";
-import { Calculator, Plus, Minus, ArrowRight, Share2, Download, Check } from "lucide-react";
+import { Calculator, Plus, Minus, ArrowRight, Share2, Download, Check, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function EstimatorPage() {
   const { serviceTypes, particulars } = useSettings();
   const router = useRouter();
 
-  const [selectedService, setSelectedService] = useState(serviceTypes[0] || "Add Key");
-  const [selectedItems, setSelectedItems] = useState<{ id: string, name: string, cost: number, quantity: number }[]>([]);
-  const [serviceCharge, setServiceCharge] = useState(0);
-  const [total, setTotal] = useState(0);
+  const [tempManualItems, setTempManualItems] = useState<any[]>([{ serviceType: 'ADD KEY', product: 'XT27A-SC', qty: 1, rate: 0, colSpan: 1 }]);
+  const [colWidths, setColWidths] = useState<Record<string, string>>({
+    sno: "5%",
+    service: "25%",
+    product: "40%",
+    qty: "8%",
+    rate: "12%",
+    amount: "10%"
+  });
 
-  // Auto-calculate total
-  useEffect(() => {
-    const itemsTotal = selectedItems.reduce((acc, item) => acc + (item.cost * item.quantity), 0);
-    setTotal(serviceCharge + itemsTotal);
-  }, [serviceCharge, selectedItems]);
-
-  const toggleItem = (item: any) => {
-    const exists = selectedItems.find(i => i.id === item.id);
-    if (exists) {
-      setSelectedItems(selectedItems.filter(i => i.id !== item.id));
-    } else {
-      setSelectedItems([...selectedItems, { ...item, quantity: 1 }]);
-    }
+  const handleMergeRight = (idx: number) => {
+    const list = [...tempManualItems];
+    const row = list[idx];
+    row.colSpan = 2;
+    row.product = `${row.serviceType}\n${row.product}`.trim();
+    setTempManualItems(list);
   };
 
-  const updateQuantity = (id: string, delta: number) => {
-    setSelectedItems(selectedItems.map(item => {
-      if (item.id === id) {
-        const newQty = Math.max(1, item.quantity + delta);
-        return { ...item, quantity: newQty };
-      }
-      return item;
-    }));
-  };
-
-  const handleProceed = () => {
-    // In a real app, we'd pass this via state or URL params
-    // For now, we'll just navigate to the new job page
-    router.push("/new-job");
+  const handleSplit = (idx: number) => {
+    const list = [...tempManualItems];
+    list[idx].colSpan = 1;
+    setTempManualItems(list);
   };
 
   return (
@@ -52,278 +40,144 @@ export default function EstimatorPage() {
         <p className="text-muted">Calculate project costs instantly for the client</p>
       </div>
 
-      <div className="estimator-grid">
-        {/* CONFIGURATION */}
-        <div className="config-section glass-panel animate-fade-in">
+      <div className="estimator-grid" style={{ gridTemplateColumns: '1fr' }}>
+        {/* ADVANCED DOCS-STYLE EDITOR */}
+        <div className="glass-panel animate-fade-in" style={{ padding: '2rem' }}>
           <div className="section-header">
-            <h3><Calculator size={20} /> Build Estimate</h3>
-          </div>
-
-          <div className="form-group">
-            <label className="label">Service Type</label>
-            <div className="chips-container">
-              {serviceTypes.map(s => (
-                <button 
-                  key={s} className={`chip ${selectedService === s ? 'active' : ''}`}
-                  onClick={() => setSelectedService(s)}
-                >
-                  {s}
-                </button>
-              ))}
+            <h3><Calculator size={20} /> Build Custom Estimate</h3>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: '1rem' }}>
+               <button className="secondary-btn small-btn" onClick={() => setTempManualItems([...tempManualItems, { serviceType: '', product: '', qty: 1, rate: 0 }])}>+ Add Row</button>
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="label">Service Charge (₹)</label>
-            <input 
-              type="number" className="input-field" placeholder="Enter base charge" 
-              value={serviceCharge || ""} onChange={e => setServiceCharge(Number(e.target.value))}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="label">Select Particulars</label>
-            <div className="items-grid">
-              {particulars.map(item => {
-                const isSelected = selectedItems.find(i => i.id === item.id);
-                return (
-                  <button 
-                    key={item.id} 
-                    className={`item-card ${isSelected ? 'selected' : ''}`}
-                    onClick={() => toggleItem(item)}
-                  >
-                    <span className="name">{item.name}</span>
-                    <span className="price">₹{item.cost}</span>
-                    {isSelected && <div className="check-badge"><Check size={12} /></div>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* SUMMARY */}
-        <div className="summary-section">
-          <div className="summary-card glass-panel animate-fade-in" style={{ animationDelay: "0.2s" }}>
-            <h3>Estimate Summary</h3>
-            <div className="summary-details">
-              <div className="summary-row">
-                <span>Service: {selectedService}</span>
-                <span>₹{serviceCharge}</span>
-              </div>
-              
-              <div className="items-summary-list">
-                {selectedItems.map(item => (
-                  <div key={item.id} className="summary-row item-row">
-                    <div className="item-name-qty">
-                      <span>{item.name}</span>
-                      <div className="qty-controls">
-                        <button onClick={() => updateQuantity(item.id, -1)}><Minus size={12} /></button>
-                        <span>{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.id, 1)}><Plus size={12} /></button>
-                      </div>
+          <table className="inv-table" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem' }}>
+            <thead>
+              <tr style={{ background: 'rgba(59,130,246,0.1)' }}>
+                <th style={{ width: colWidths.sno }}><input className="edit-input center" value={colWidths.sno} onChange={e => setColWidths({...colWidths, sno: e.target.value})} /></th>
+                <th style={{ width: colWidths.service }}><input className="edit-input center" value={colWidths.service} onChange={e => setColWidths({...colWidths, service: e.target.value})} /></th>
+                <th style={{ width: colWidths.product }}><input className="edit-input center" value={colWidths.product} onChange={e => setColWidths({...colWidths, product: e.target.value})} /></th>
+                <th style={{ width: colWidths.qty }}><input className="edit-input center" value={colWidths.qty} onChange={e => setColWidths({...colWidths, qty: e.target.value})} /></th>
+                <th style={{ width: colWidths.rate }}><input className="edit-input center" value={colWidths.rate} onChange={e => setColWidths({...colWidths, rate: e.target.value})} /></th>
+                <th style={{ width: colWidths.amount }}><input className="edit-input center" value={colWidths.amount} onChange={e => setColWidths({...colWidths, amount: e.target.value})} /></th>
+              </tr>
+              <tr>
+                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>S.NO</th>
+                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>SERVICE TYPE</th>
+                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>PRODUCT</th>
+                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>QTY</th>
+                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>RATE</th>
+                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>AMOUNT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tempManualItems.map((m, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                  <td className="center" style={{ padding: '0.5rem' }}>{idx + 1}</td>
+                  {(m.colSpan || 1) >= 2 ? (
+                    <td colSpan={2} style={{ padding: '0.5rem' }}>
+                       <div style={{ position: 'relative' }}>
+                          <textarea className="edit-input" rows={m.product?.split('\n').length || 1} value={m.product} onChange={e => {
+                            const newM = [...tempManualItems];
+                            newM[idx].product = e.target.value;
+                            newM[idx].serviceType = e.target.value;
+                            setTempManualItems(newM);
+                          }} />
+                          <button onClick={() => handleSplit(idx)} title="Split Cells" style={{ position: 'absolute', right: '5px', top: '5px', background: 'rgba(59,130,246,0.1)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}><AlertCircle size={12} /></button>
+                       </div>
+                    </td>
+                  ) : (
+                    <>
+                      <td style={{ padding: '0.5rem' }}>
+                        <div style={{ position: 'relative' }}>
+                          <textarea className="edit-input" rows={m.serviceType?.split('\n').length || 1} value={m.serviceType} onChange={e => {
+                            const newM = [...tempManualItems];
+                            newM[idx].serviceType = e.target.value;
+                            setTempManualItems(newM);
+                          }} />
+                          <button onClick={() => handleMergeRight(idx)} title="Merge Right" style={{ position: 'absolute', right: '5px', top: '5px', background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ArrowRight size={12} /></button>
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.5rem' }}>
+                        <textarea className="edit-input" rows={m.product?.split('\n').length || 1} value={m.product} onChange={e => {
+                          const newM = [...tempManualItems];
+                          newM[idx].product = e.target.value;
+                          setTempManualItems(newM);
+                        }} />
+                      </td>
+                    </>
+                  )}
+                  <td style={{ padding: '0.5rem' }}>
+                    <input className="edit-input center" type="number" value={m.qty} onChange={e => {
+                      const newM = [...tempManualItems];
+                      newM[idx].qty = Number(e.target.value);
+                      setTempManualItems(newM);
+                    }} />
+                  </td>
+                  <td style={{ padding: '0.5rem' }}>
+                    <input className="edit-input right" type="number" value={m.rate} onChange={e => {
+                      const newM = [...tempManualItems];
+                      newM[idx].rate = Number(e.target.value);
+                      setTempManualItems(newM);
+                    }} />
+                  </td>
+                  <td style={{ padding: '0.5rem', textAlign: 'right', position: 'relative' }}>
+                    <strong>₹{(m.qty * m.rate).toLocaleString("en-IN")}</strong>
+                    <div style={{ position: 'absolute', right: '-45px', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '4px' }}>
+                       {idx < tempManualItems.length - 1 && (
+                         <button onClick={() => {
+                           const newM = [...tempManualItems];
+                           newM[idx].serviceType = `${newM[idx].serviceType}\n${newM[idx+1].serviceType}`.trim();
+                           newM[idx].product = `${newM[idx].product}\n${newM[idx+1].product}`.trim();
+                           newM.splice(idx+1, 1);
+                           setTempManualItems(newM);
+                         }} title="Merge Down" style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ChevronDown size={14} /></button>
+                       )}
+                       <button onClick={() => setTempManualItems(tempManualItems.filter((_, i) => i !== idx))} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Plus size={14} style={{ transform: 'rotate(45deg)' }} /></button>
                     </div>
-                    <span>₹{item.cost * item.quantity}</span>
-                  </div>
-                ))}
-              </div>
+                  </td>
+                </tr>
+              ))}
+              <tr style={{ background: 'rgba(59,130,246,0.05)', fontWeight: 'bold' }}>
+                <td colSpan={5} style={{ padding: '1rem', textAlign: 'right' }}>SUMMARY TOTAL</td>
+                <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--accent-primary)', fontSize: '1.25rem' }}>
+                  ₹{tempManualItems.reduce((sum, m) => sum + (m.qty * m.rate), 0).toLocaleString("en-IN")}
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
-              <div className="total-row">
-                <span>Total Amount</span>
-                <span className="total-value">₹{total}</span>
-              </div>
-            </div>
-
-            <div className="summary-actions">
-              <button className="secondary-btn"><Share2 size={18} /> Share</button>
-              <button className="primary-btn" onClick={handleProceed}>
-                Proceed to E-KYC <ArrowRight size={18} />
-              </button>
-            </div>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+             <button className="secondary-btn" onClick={() => router.back()}>Cancel</button>
+             <button className="primary-btn" onClick={() => {
+                // Persistent save simulation or share
+                alert("Estimate Prepared! Ready to Share.");
+             }}>Prepare for Share <Share2 size={18} /></button>
           </div>
-          
-          <p className="disclaimer">
-            * This is an approximate estimate. Final billing may vary based on actual work performed.
-          </p>
         </div>
       </div>
 
       <style jsx>{`
-        .estimator-container {
-          max-width: 1200px;
-          margin: 0 auto;
+        .estimator-container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .section-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--glass-border); }
+        .edit-input { 
+          width: 100%; 
+          border: 1px solid transparent; 
+          background: transparent; 
+          padding: 5px; 
+          border-radius: 4px; 
+          font-family: inherit; 
+          outline: none; 
+          transition: background 0.2s, border-color 0.2s; 
         }
-        .estimator-header {
-          margin-bottom: 2.5rem;
+        .edit-input:hover {
+          background: rgba(59,130,246,0.03);
+          border-color: rgba(59,130,246,0.1);
         }
-        .estimator-grid {
-          display: grid;
-          grid-template-columns: 1fr 400px;
-          gap: 2rem;
-        }
-        .config-section {
-          padding: 2rem;
-        }
-        .section-header {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          margin-bottom: 2rem;
-          padding-bottom: 1rem;
-          border-bottom: 1px solid var(--glass-border);
-        }
-        .section-header h3 {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        .form-group {
-          margin-bottom: 2rem;
-        }
-        .items-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-          gap: 1rem;
-          margin-top: 1rem;
-        }
-        .item-card {
-          padding: 1rem;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid var(--glass-border);
-          border-radius: var(--radius-md);
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-          text-align: left;
-          cursor: pointer;
-          transition: var(--transition);
-          position: relative;
-        }
-        .item-card:hover {
-          background: rgba(255, 255, 255, 0.08);
-          border-color: rgba(255, 255, 255, 0.2);
-        }
-        .item-card.selected {
-          background: rgba(59, 130, 246, 0.1);
-          border-color: var(--accent-primary);
-        }
-        .item-card .name {
-          font-size: 0.9rem;
-          font-weight: 500;
-          color: var(--text-primary);
-        }
-        .item-card .price {
-          font-size: 0.85rem;
-          color: var(--success);
-          font-weight: 600;
-        }
-        .check-badge {
-          position: absolute;
-          top: -8px;
-          right: -8px;
-          background: var(--accent-primary);
-          color: white;
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: 2px solid var(--bg-primary);
-        }
-
-        /* Summary styles */
-        .summary-card {
-          padding: 2rem;
-          position: sticky;
-          top: 2rem;
-        }
-        .summary-card h3 {
-          margin-bottom: 1.5rem;
-          font-size: 1.25rem;
-        }
-        .summary-details {
-          display: flex;
-          flex-direction: column;
-          gap: 1.25rem;
-        }
-        .summary-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          font-size: 0.95rem;
-          color: var(--text-secondary);
-        }
-        .item-row {
-          padding-top: 0.75rem;
-          border-top: 1px solid var(--glass-border);
-        }
-        .item-name-qty {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-        }
-        .qty-controls {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          background: rgba(15, 23, 42, 0.4);
-          padding: 0.25rem 0.5rem;
-          border-radius: 1rem;
-          width: fit-content;
-        }
-        .qty-controls button {
-          background: transparent;
-          border: none;
-          color: var(--text-muted);
-          cursor: pointer;
-        }
-        .qty-controls span {
-          font-size: 0.8rem;
-          font-weight: 600;
-          color: var(--text-primary);
-          min-width: 15px;
-          text-align: center;
-        }
-        .total-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding-top: 1.5rem;
-          border-top: 2px solid var(--glass-border);
-          margin-top: 1rem;
-        }
-        .total-row span {
-          font-weight: 700;
-          font-size: 1.1rem;
-          color: var(--text-primary);
-        }
-        .total-value {
-          color: var(--accent-primary) !important;
-          font-size: 1.5rem !important;
-        }
-        .summary-actions {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-          margin-top: 2rem;
-        }
-        .disclaimer {
-          font-size: 0.8rem;
-          color: var(--text-muted);
-          margin-top: 1.5rem;
-          line-height: 1.4;
-        }
-
-        @media (max-width: 1024px) {
-          .estimator-grid {
-            grid-template-columns: 1fr;
-          }
-          .summary-card {
-            position: relative;
-            top: 0;
-          }
-        }
+        .edit-input:focus { border-color: var(--accent-primary); background: white; }
+        .edit-input.center { text-align: center; }
+        .edit-input.right { text-align: right; }
+        .center { text-align: center; }
+        textarea.edit-input { resize: none; overflow: hidden; }
       `}</style>
     </div>
   );

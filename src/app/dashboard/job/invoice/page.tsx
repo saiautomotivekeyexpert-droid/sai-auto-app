@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { Printer, Share2, ArrowLeft, Edit3, Save, X } from "lucide-react";
+import { Printer, Share2, ArrowLeft, Edit3, Save, X, ChevronDown, ArrowRight, AlertCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useJobs } from "@/context/JobsContext";
 import { useSettings } from "@/context/SettingsContext";
@@ -23,6 +23,14 @@ function InvoiceContent({ id }: { id: string }) {
   const [tempParticulars, setTempParticulars] = useState<any[]>([]);
   const [tempManualItems, setTempManualItems] = useState<any[]>([]);
   const [tempServiceCharge, setTempServiceCharge] = useState(0);
+  const [colWidths, setColWidths] = useState<Record<string, string>>({
+    sno: "5%",
+    service: "25%",
+    product: "40%",
+    qty: "8%",
+    rate: "12%",
+    amount: "10%"
+  });
 
   useEffect(() => {
     if (job) {
@@ -32,6 +40,7 @@ function InvoiceContent({ id }: { id: string }) {
       setTempParticulars(JSON.parse(JSON.stringify(job.details?.particulars || job.details?.selectedItems || [])));
       setTempManualItems(JSON.parse(JSON.stringify(job.details?.manualItems || [])));
       setTempServiceCharge(Number(job.details?.serviceCharge) || 0);
+      if (job.details?.colWidths) setColWidths(job.details.colWidths);
     }
   }, [job?.id, isCustomizing]);
 
@@ -67,9 +76,50 @@ function InvoiceContent({ id }: { id: string }) {
       regNumber: tempVehicleNumber,
       particulars: tempParticulars,
       manualItems: tempManualItems,
-      serviceCharge: tempServiceCharge
+      serviceCharge: tempServiceCharge,
+      colWidths: colWidths
     });
     setIsCustomizing(false);
+  };
+
+  const handleMergeDown = (type: 'p' | 'm', idx: number) => {
+    if (type === 'p') {
+      if (idx >= tempParticulars.length - 1) return;
+      const newP = [...tempParticulars];
+      const current = newP[idx];
+      const next = newP[idx + 1];
+      current.serviceType = `${current.serviceType || ""}\n${next.serviceType || ""}`.trim();
+      current.name = `${current.name || ""}\n${next.name || ""}`.trim();
+      newP.splice(idx + 1, 1);
+      setTempParticulars(newP);
+    } else {
+      if (idx >= tempManualItems.length - 1) return;
+      const newM = [...tempManualItems];
+      const current = newM[idx];
+      const next = newM[idx + 1];
+      current.serviceType = `${current.serviceType || ""}\n${next.serviceType || ""}`.trim();
+      current.product = `${current.product || ""}\n${next.product || ""}`.trim();
+      newM.splice(idx + 1, 1);
+      setTempManualItems(newM);
+    }
+  };
+
+  const handleMergeRight = (type: 'p' | 'm', idx: number, colIdx: number) => {
+    const list = type === 'p' ? [...tempParticulars] : [...tempManualItems];
+    const row = list[idx];
+    if (colIdx === 0 && (row.colSpan || 1) < 2) {
+      // Merge Service with Product
+      row.colSpan = 2;
+      row.name = `${row.serviceType || ""}\n${row.name || row.product || ""}`.trim();
+      if (type === 'm') row.product = row.name;
+    }
+    type === 'p' ? setTempParticulars(list) : setTempManualItems(list);
+  };
+
+  const handleSplit = (type: 'p' | 'm', idx: number) => {
+    const list = type === 'p' ? [...tempParticulars] : [...tempManualItems];
+    list[idx].colSpan = 1;
+    type === 'p' ? setTempParticulars(list) : setTempManualItems(list);
   };
   
   const memoNumber = job.id;
@@ -238,13 +288,23 @@ function InvoiceContent({ id }: { id: string }) {
         <div className="inv-section-title">PRODUCT &amp; SERVICE DETAILS</div>
         <table className="inv-table">
           <thead>
+            {isCustomizing && (
+              <tr className="no-print" style={{ background: 'rgba(59,130,246,0.1)' }}>
+                <th style={{ width: colWidths.sno }}><input className="edit-input center" value={colWidths.sno} onChange={e => setColWidths({...colWidths, sno: e.target.value})} /></th>
+                <th style={{ width: colWidths.service }}><input className="edit-input center" value={colWidths.service} onChange={e => setColWidths({...colWidths, service: e.target.value})} /></th>
+                <th style={{ width: colWidths.product }}><input className="edit-input center" value={colWidths.product} onChange={e => setColWidths({...colWidths, product: e.target.value})} /></th>
+                <th style={{ width: colWidths.qty }}><input className="edit-input center" value={colWidths.qty} onChange={e => setColWidths({...colWidths, qty: e.target.value})} /></th>
+                <th style={{ width: colWidths.rate }}><input className="edit-input center" value={colWidths.rate} onChange={e => setColWidths({...colWidths, rate: e.target.value})} /></th>
+                <th style={{ width: colWidths.amount }}><input className="edit-input center" value={colWidths.amount} onChange={e => setColWidths({...colWidths, amount: e.target.value})} /></th>
+              </tr>
+            )}
             <tr>
-              <th className="center">S.NO</th>
-              <th>SERVICE TYPE</th>
-              <th>PRODUCT</th>
-              <th className="center">QTY</th>
-              <th className="right">RATE</th>
-              <th className="right">AMOUNT</th>
+              <th style={{ width: colWidths.sno }}>S.NO</th>
+              <th style={{ width: colWidths.service }}>SERVICE TYPE</th>
+              <th style={{ width: colWidths.product }}>PRODUCT</th>
+              <th style={{ width: colWidths.qty }}>QTY</th>
+              <th style={{ width: colWidths.rate }}>RATE</th>
+              <th style={{ width: colWidths.amount }}>AMOUNT</th>
             </tr>
           </thead>
           <tbody>
@@ -265,29 +325,51 @@ function InvoiceContent({ id }: { id: string }) {
                 rows.push(
                   <tr key={`p-${idx}`}>
                     <td className="center">{sno++}</td>
-                    <td>
-                      {isCustomizing ? (
-                        <input className="edit-input" value={p.serviceType || ""} onChange={e => {
-                          const newP = [...tempParticulars];
-                          newP[idx].serviceType = e.target.value;
-                          setTempParticulars(newP);
-                        }} />
-                      ) : (
-                        <div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900 }}>{serviceType}</div>
-                      )}
-                    </td>
-                    <td>
-                      {isCustomizing ? (
-                        <input className="edit-input" value={p.name || ""} onChange={e => {
-                          const newP = [...tempParticulars];
-                          newP[idx].name = e.target.value;
-                          setTempParticulars(newP);
-                        }} />
-                      ) : (
-                        <strong>{productName}</strong>
-                      )}
-                      {p.stockMark && <div style={{ fontSize: '0.7rem', color: 'rgba(0,0,0,0.4)', fontWeight: 700 }}>MARK: {p.stockMark}</div>}
-                    </td>
+                    {(p.colSpan || 1) >= 2 ? (
+                      <td colSpan={2}>
+                        {isCustomizing ? (
+                          <div style={{ position: 'relative' }}>
+                            <textarea className="edit-input" rows={p.name?.split('\n').length || 1} value={p.name || ""} onChange={e => {
+                              const newP = [...tempParticulars];
+                              newP[idx].name = e.target.value;
+                              newP[idx].product = e.target.value;
+                              setTempParticulars(newP);
+                            }} />
+                            <button onClick={() => handleSplit('p', idx)} title="Split Cells" style={{ position: 'absolute', right: '5px', top: '5px', background: 'rgba(59,130,246,0.1)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}><AlertCircle size={12} /></button>
+                          </div>
+                        ) : (
+                          <div style={{ whiteSpace: 'pre-wrap', fontWeight: 'bold' }}>{p.name}</div>
+                        )}
+                      </td>
+                    ) : (
+                      <>
+                        <td>
+                          {isCustomizing ? (
+                            <div style={{ position: 'relative' }}>
+                              <textarea className="edit-input" rows={p.serviceType?.split('\n').length || 1} value={p.serviceType || ""} onChange={e => {
+                                const newP = [...tempParticulars];
+                                newP[idx].serviceType = e.target.value;
+                                setTempParticulars(newP);
+                              }} />
+                              <button onClick={() => handleMergeRight('p', idx, 0)} title="Merge Right" style={{ position: 'absolute', right: '5px', top: '5px', background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ArrowRight size={12} /></button>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900, whiteSpace: 'pre-wrap' }}>{serviceType}</div>
+                          )}
+                        </td>
+                        <td>
+                          {isCustomizing ? (
+                            <textarea className="edit-input" rows={p.name?.split('\n').length || 1} value={p.name || ""} onChange={e => {
+                              const newP = [...tempParticulars];
+                              newP[idx].name = e.target.value;
+                              setTempParticulars(newP);
+                            }} />
+                          ) : (
+                            <strong style={{ whiteSpace: 'pre-wrap' }}>{productName}</strong>
+                          )}
+                        </td>
+                      </>
+                    )}
                     <td className="center">
                       {isCustomizing ? (
                         <input className="edit-input center" type="number" value={p.quantity || 1} onChange={e => {
@@ -313,12 +395,17 @@ function InvoiceContent({ id }: { id: string }) {
                     <td className="right" style={{ position: 'relative' }}>
                       <strong>{isQuickService || isCustomizing ? `₹ ${amount.toLocaleString("en-IN")}` : "FITTED"}</strong>
                       {isCustomizing && (
-                         <button 
-                           onClick={() => setTempParticulars(tempParticulars.filter((_, i) => i !== idx))}
-                           style={{ position: 'absolute', right: '-30px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
-                         >
-                           <X size={14} />
-                         </button>
+                         <div style={{ position: 'absolute', right: '-45px', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '4px' }}>
+                           {idx < activeParticulars.length - 1 && (
+                             <button onClick={() => handleMergeDown('p', idx)} title="Merge Down" style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ChevronDown size={14} /></button>
+                           )}
+                           <button 
+                             onClick={() => setTempParticulars(tempParticulars.filter((_, i) => i !== idx))}
+                             style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
+                           >
+                             <X size={14} />
+                           </button>
+                         </div>
                       )}
                     </td>
                   </tr>
@@ -332,28 +419,51 @@ function InvoiceContent({ id }: { id: string }) {
                 rows.push(
                   <tr key={`m-${idx}`}>
                     <td className="center">{sno++}</td>
-                    <td>
-                      {isCustomizing ? (
-                        <input className="edit-input" value={m.serviceType || ""} onChange={e => {
-                          const newM = [...tempManualItems];
-                          newM[idx].serviceType = e.target.value;
-                          setTempManualItems(newM);
-                        }} />
-                      ) : (
-                        <div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900 }}>{(m.serviceType || "-").toUpperCase()}</div>
-                      )}
-                    </td>
-                    <td>
-                      {isCustomizing ? (
-                        <input className="edit-input" value={m.product || ""} onChange={e => {
-                          const newM = [...tempManualItems];
-                          newM[idx].product = e.target.value;
-                          setTempManualItems(newM);
-                        }} />
-                      ) : (
-                        <strong>{(m.product || "-").toUpperCase()}</strong>
-                      )}
-                    </td>
+                    {(m.colSpan || 1) >= 2 ? (
+                      <td colSpan={2}>
+                        {isCustomizing ? (
+                          <div style={{ position: 'relative' }}>
+                            <textarea className="edit-input" rows={m.product?.split('\n').length || 1} value={m.product || ""} onChange={e => {
+                              const newM = [...tempManualItems];
+                              newM[idx].product = e.target.value;
+                              newM[idx].serviceType = e.target.value;
+                              setTempManualItems(newM);
+                            }} />
+                            <button onClick={() => handleSplit('m', idx)} title="Split Cells" style={{ position: 'absolute', right: '5px', top: '5px', background: 'rgba(59,130,246,0.1)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}><AlertCircle size={12} /></button>
+                          </div>
+                        ) : (
+                          <div style={{ whiteSpace: 'pre-wrap', fontWeight: 'bold' }}>{(m.product || "").toUpperCase()}</div>
+                        )}
+                      </td>
+                    ) : (
+                      <>
+                        <td>
+                          {isCustomizing ? (
+                            <div style={{ position: 'relative' }}>
+                              <textarea className="edit-input" rows={m.serviceType?.split('\n').length || 1} value={m.serviceType || ""} onChange={e => {
+                                const newM = [...tempManualItems];
+                                newM[idx].serviceType = e.target.value;
+                                setTempManualItems(newM);
+                              }} />
+                              <button onClick={() => handleMergeRight('m', idx, 0)} title="Merge Right" style={{ position: 'absolute', right: '5px', top: '5px', background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ArrowRight size={12} /></button>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900, whiteSpace: 'pre-wrap' }}>{(m.serviceType || "-").toUpperCase()}</div>
+                          )}
+                        </td>
+                        <td>
+                          {isCustomizing ? (
+                            <textarea className="edit-input" rows={m.product?.split('\n').length || 1} value={m.product || ""} onChange={e => {
+                              const newM = [...tempManualItems];
+                              newM[idx].product = e.target.value;
+                              setTempManualItems(newM);
+                            }} />
+                          ) : (
+                            <strong style={{ whiteSpace: 'pre-wrap' }}>{(m.product || "-").toUpperCase()}</strong>
+                          )}
+                        </td>
+                      </>
+                    )}
                     <td className="center">
                       {isCustomizing ? (
                         <input className="edit-input center" type="number" value={m.qty || 1} onChange={e => {
@@ -379,32 +489,61 @@ function InvoiceContent({ id }: { id: string }) {
                     <td className="right" style={{ position: 'relative' }}>
                       <strong>₹ {amount.toLocaleString("en-IN")}</strong>
                       {isCustomizing && (
-                         <button 
-                           onClick={() => setTempManualItems(tempManualItems.filter((_, i) => i !== idx))}
-                           style={{ position: 'absolute', right: '-30px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
-                         >
-                           <X size={14} />
-                         </button>
+                         <div style={{ position: 'absolute', right: '-45px', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '4px' }}>
+                           {idx < activeManual.length - 1 && (
+                             <button onClick={() => handleMergeDown('m', idx)} title="Merge Down" style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ChevronDown size={14} /></button>
+                           )}
+                           <button 
+                             onClick={() => setTempManualItems(tempManualItems.filter((_, i) => i !== idx))}
+                             style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
+                           >
+                             <X size={14} />
+                           </button>
+                         </div>
                       )}
                     </td>
                   </tr>
                 );
               });
               
-              // If no items, show default service charge row for E-KYC
+              // If customized, the service charge row is just another manual row or tempDetails edit
               if (rows.length === 0 || isCustomizing) {
-                const sType = (isCustomizing ? (d.serviceType || job.serviceType) : (d.serviceType || job.serviceType)).toUpperCase();
+                const sType = (isCustomizing ? (tempDetails?.serviceType || job.serviceType) : (d.serviceType || job.serviceType));
                 rows.push(
                   <tr key="default">
                     <td className="center">{rows.length === 0 ? 1 : sno++}</td>
-                    <td>
-                      {isCustomizing ? (
-                        <input className="edit-input" value={d.serviceType || job.serviceType || ""} onChange={e => setTempDetails({...tempDetails, serviceType: e.target.value})} />
-                      ) : (
-                        <div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900 }}>{sType}</div>
-                      )}
-                    </td>
-                    <td><strong>SERVICE CHARGE</strong></td>
+                    {(d.colSpan || 1) >= 2 ? (
+                       <td colSpan={2}>
+                          {isCustomizing ? (
+                             <div style={{ position: 'relative' }}>
+                                <textarea className="edit-input" rows={tempDetails?.product?.split('\n').length || 1} value={tempDetails?.product || "SERVICE CHARGE"} onChange={e => setTempDetails({...tempDetails, product: e.target.value})} />
+                                <button onClick={() => setTempDetails({...tempDetails, colSpan: 1})} title="Split Cells" style={{ position: 'absolute', right: '5px', top: '5px', background: 'rgba(59,130,246,0.1)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}><AlertCircle size={12} /></button>
+                             </div>
+                          ) : (
+                             <div style={{ whiteSpace: 'pre-wrap', fontWeight: 'bold' }}>{d.product || "SERVICE CHARGE"}</div>
+                          )}
+                       </td>
+                    ) : (
+                      <>
+                        <td>
+                          {isCustomizing ? (
+                            <div style={{ position: 'relative' }}>
+                              <textarea className="edit-input" rows={sType?.split('\n').length || 1} value={sType || ""} onChange={e => setTempDetails({...tempDetails, serviceType: e.target.value, serviceCharge: tempServiceCharge})} />
+                              <button onClick={() => setTempDetails({...tempDetails, colSpan: 2, product: `${sType}\nSERVICE CHARGE`})} title="Merge Right" style={{ position: 'absolute', right: '5px', top: '5px', background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ArrowRight size={12} /></button>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900, whiteSpace: 'pre-wrap' }}>{sType.toUpperCase()}</div>
+                          )}
+                        </td>
+                        <td>
+                          {isCustomizing ? (
+                            <textarea className="edit-input" rows={1} value={tempDetails?.product || "SERVICE CHARGE"} onChange={e => setTempDetails({...tempDetails, product: e.target.value})} />
+                          ) : (
+                            <strong>SERVICE CHARGE</strong>
+                          )}
+                        </td>
+                      </>
+                    )}
                     <td className="center">{d.serviceQty || 1}</td>
                     <td className="right">
                       {isCustomizing ? (
@@ -413,12 +552,29 @@ function InvoiceContent({ id }: { id: string }) {
                         `₹ ${Number(serviceCharge).toLocaleString("en-IN")}`
                       )}
                     </td>
-                    <td className="right"><strong>₹ {(isCustomizing ? tempServiceCharge : serviceCharge).toLocaleString("en-IN")}</strong></td>
+                    <td className="right" style={{ position: 'relative' }}>
+                      <strong>₹ {(isCustomizing ? tempServiceCharge : serviceCharge).toLocaleString("en-IN")}</strong>
+                      {isCustomizing && (
+                         <button 
+                           onClick={() => {
+                             // "Delete" the service charge by setting it to 0 or removing from view
+                             setTempServiceCharge(0);
+                             setTempDetails({...tempDetails, hideServiceRow: true});
+                           }}
+                           style={{ position: 'absolute', right: '-30px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
+                         >
+                           <X size={14} />
+                         </button>
+                      )}
+                    </td>
                   </tr>
                 );
               }
 
-              return rows;
+              // Final check to hide service row if user "deleted" it
+              const finalRows = rows.filter(r => !(r.key === 'default' && d.hideServiceRow && !isCustomizing));
+
+              return finalRows;
             })()}
 
             {isCustomizing && (
@@ -604,14 +760,19 @@ function InvoiceContent({ id }: { id: string }) {
         @media print { .no-print { display: none !important; } .inv-container { padding: 0; max-width: 100%; } .inv-paper { box-shadow: none; } body { background: white !important; } }
         .edit-input {
           width: 100%;
-          border: 1px solid rgba(59,130,246,0.3);
-          background: rgba(59,130,246,0.05);
+          border: 1px solid transparent;
+          background: transparent;
           padding: 2px 5px;
           border-radius: 4px;
           font-family: inherit;
           font-size: inherit;
           color: inherit;
           outline: none;
+          transition: background 0.2s, border-color 0.2s;
+        }
+        .edit-input:hover {
+          background: rgba(59,130,246,0.03);
+          border-color: rgba(59,130,246,0.1);
         }
         .edit-input:focus {
           border-color: var(--accent-primary);
