@@ -507,7 +507,7 @@ function InvoiceContent({ id }: { id: string }) {
               });
               
               // If customized, the service charge row is just another manual row or tempDetails edit
-              if (rows.length === 0 || isCustomizing) {
+              if (!d.hideServiceRow && (rows.length === 0 || isCustomizing)) {
                 const sType = (isCustomizing ? (tempDetails?.serviceType || job.serviceType) : (d.serviceType || job.serviceType));
                 rows.push(
                   <tr key="default">
@@ -516,8 +516,11 @@ function InvoiceContent({ id }: { id: string }) {
                        <td colSpan={2}>
                           {isCustomizing ? (
                              <div style={{ position: 'relative' }}>
-                                <textarea className="edit-input" rows={tempDetails?.product?.split('\n').length || 1} value={tempDetails?.product || "SERVICE CHARGE"} onChange={e => setTempDetails({...tempDetails, product: e.target.value})} />
-                                <button onClick={() => setTempDetails({...tempDetails, colSpan: 1})} title="Split Cells" style={{ position: 'absolute', right: '5px', top: '5px', background: 'rgba(59,130,246,0.1)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}><AlertCircle size={12} /></button>
+                                <textarea className="edit-input" rows={tempDetails?.product?.split('\n').length || 1} value={tempDetails?.product || "SERVICE CHARGE"} onChange={e => {
+                                  const val = e.target.value;
+                                  setTempDetails(prev => ({...(prev || {}), product: val}));
+                                }} />
+                                <button onClick={() => setTempDetails(prev => ({...(prev || {}), colSpan: 1}))} title="Split Cells" style={{ position: 'absolute', right: '5px', top: '5px', background: 'rgba(59,130,246,0.1)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}><AlertCircle size={12} /></button>
                              </div>
                           ) : (
                              <div style={{ whiteSpace: 'pre-wrap', fontWeight: 'bold' }}>{d.product || "SERVICE CHARGE"}</div>
@@ -528,16 +531,22 @@ function InvoiceContent({ id }: { id: string }) {
                         <td>
                           {isCustomizing ? (
                             <div style={{ position: 'relative' }}>
-                              <textarea className="edit-input" rows={sType?.split('\n').length || 1} value={sType || ""} onChange={e => setTempDetails({...tempDetails, serviceType: e.target.value, serviceCharge: tempServiceCharge})} />
-                              <button onClick={() => setTempDetails({...tempDetails, colSpan: 2, product: `${sType}\nSERVICE CHARGE`})} title="Merge Right" style={{ position: 'absolute', right: '5px', top: '5px', background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ArrowRight size={12} /></button>
+                              <textarea className="edit-input" rows={sType?.split('\n').length || 1} value={sType || ""} onChange={e => {
+                                const val = e.target.value;
+                                setTempDetails(prev => ({...(prev || {}), serviceType: val}));
+                              }} />
+                              <button onClick={() => setTempDetails(prev => ({...(prev || {}), colSpan: 2, product: `${sType}\nSERVICE CHARGE`}))} title="Merge Right" style={{ position: 'absolute', right: '5px', top: '5px', background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ArrowRight size={12} /></button>
                             </div>
                           ) : (
-                            <div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900, whiteSpace: 'pre-wrap' }}>{sType.toUpperCase()}</div>
+                            <div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900, whiteSpace: 'pre-wrap' }}>{sType?.toUpperCase()}</div>
                           )}
                         </td>
                         <td>
                           {isCustomizing ? (
-                            <textarea className="edit-input" rows={1} value={tempDetails?.product || "SERVICE CHARGE"} onChange={e => setTempDetails({...tempDetails, product: e.target.value})} />
+                            <textarea className="edit-input" rows={1} value={tempDetails?.product || "SERVICE CHARGE"} onChange={e => {
+                              const val = e.target.value;
+                              setTempDetails(prev => ({...(prev || {}), product: val}));
+                            }} />
                           ) : (
                             <strong>SERVICE CHARGE</strong>
                           )}
@@ -557,9 +566,8 @@ function InvoiceContent({ id }: { id: string }) {
                       {isCustomizing && (
                          <button 
                            onClick={() => {
-                             // "Delete" the service charge by setting it to 0 or removing from view
                              setTempServiceCharge(0);
-                             setTempDetails({...tempDetails, hideServiceRow: true});
+                             setTempDetails(prev => ({...(prev || {}), hideServiceRow: true}));
                            }}
                            style={{ position: 'absolute', right: '-30px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
                          >
@@ -571,10 +579,7 @@ function InvoiceContent({ id }: { id: string }) {
                 );
               }
 
-              // Final check to hide service row if user "deleted" it
-              const finalRows = rows.filter(r => !(r.key === 'default' && d.hideServiceRow && !isCustomizing));
-
-              return finalRows;
+              return rows;
             })()}
 
             {isCustomizing && (

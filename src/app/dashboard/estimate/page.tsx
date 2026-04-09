@@ -10,6 +10,7 @@ export default function EstimatorPage() {
   const router = useRouter();
 
   const [tempManualItems, setTempManualItems] = useState<any[]>([{ serviceType: 'ADD KEY', product: 'XT27A-SC', qty: 1, rate: 0, colSpan: 1 }]);
+  const [tempDetails, setTempDetails] = useState<any>({});
   const [colWidths, setColWidths] = useState<Record<string, string>>({
     sno: "5%",
     service: "25%",
@@ -20,17 +21,21 @@ export default function EstimatorPage() {
   });
 
   const handleMergeRight = (idx: number) => {
-    const list = [...tempManualItems];
-    const row = list[idx];
-    row.colSpan = 2;
-    row.product = `${row.serviceType}\n${row.product}`.trim();
-    setTempManualItems(list);
+    setTempManualItems(prev => {
+      const list = [...prev];
+      const row = list[idx];
+      row.colSpan = 2;
+      row.product = `${row.serviceType}\n${row.product}`.trim();
+      return list;
+    });
   };
 
   const handleSplit = (idx: number) => {
-    const list = [...tempManualItems];
-    list[idx].colSpan = 1;
-    setTempManualItems(list);
+    setTempManualItems(prev => {
+      const list = [...prev];
+      list[idx].colSpan = 1;
+      return list;
+    });
   };
 
   return (
@@ -46,7 +51,7 @@ export default function EstimatorPage() {
           <div className="section-header">
             <h3><Calculator size={20} /> Build Custom Estimate</h3>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: '1rem' }}>
-               <button className="secondary-btn small-btn" onClick={() => setTempManualItems([...tempManualItems, { serviceType: '', product: '', qty: 1, rate: 0 }])}>+ Add Row</button>
+               <button className="secondary-btn small-btn" onClick={() => setTempManualItems(prev => [...prev, { serviceType: '', product: '', qty: 1, rate: 0 }])}>+ Add Row</button>
             </div>
           </div>
 
@@ -77,10 +82,12 @@ export default function EstimatorPage() {
                     <td colSpan={2} style={{ padding: '0.5rem' }}>
                        <div style={{ position: 'relative' }}>
                           <textarea className="edit-input" rows={m.product?.split('\n').length || 1} value={m.product} onChange={e => {
-                            const newM = [...tempManualItems];
-                            newM[idx].product = e.target.value;
-                            newM[idx].serviceType = e.target.value;
-                            setTempManualItems(newM);
+                            setTempManualItems(prev => {
+                              const newM = [...prev];
+                              newM[idx].product = e.target.value;
+                              newM[idx].serviceType = e.target.value;
+                              return newM;
+                            });
                           }} />
                           <button onClick={() => handleSplit(idx)} title="Split Cells" style={{ position: 'absolute', right: '5px', top: '5px', background: 'rgba(59,130,246,0.1)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}><AlertCircle size={12} /></button>
                        </div>
@@ -90,34 +97,42 @@ export default function EstimatorPage() {
                       <td style={{ padding: '0.5rem' }}>
                         <div style={{ position: 'relative' }}>
                           <textarea className="edit-input" rows={m.serviceType?.split('\n').length || 1} value={m.serviceType} onChange={e => {
-                            const newM = [...tempManualItems];
-                            newM[idx].serviceType = e.target.value;
-                            setTempManualItems(newM);
+                            setTempManualItems(prev => {
+                              const newM = [...prev];
+                              newM[idx].serviceType = e.target.value;
+                              return newM;
+                            });
                           }} />
                           <button onClick={() => handleMergeRight(idx)} title="Merge Right" style={{ position: 'absolute', right: '5px', top: '5px', background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ArrowRight size={12} /></button>
                         </div>
                       </td>
                       <td style={{ padding: '0.5rem' }}>
                         <textarea className="edit-input" rows={m.product?.split('\n').length || 1} value={m.product} onChange={e => {
-                          const newM = [...tempManualItems];
-                          newM[idx].product = e.target.value;
-                          setTempManualItems(newM);
+                          setTempManualItems(prev => {
+                            const newM = [...prev];
+                            newM[idx].product = e.target.value;
+                            return newM;
+                          });
                         }} />
                       </td>
                     </>
                   )}
                   <td style={{ padding: '0.5rem' }}>
                     <input className="edit-input center" type="number" value={m.qty} onChange={e => {
-                      const newM = [...tempManualItems];
-                      newM[idx].qty = Number(e.target.value);
-                      setTempManualItems(newM);
+                      setTempManualItems(prev => {
+                        const newM = [...prev];
+                        newM[idx].qty = Number(e.target.value);
+                        return newM;
+                      });
                     }} />
                   </td>
                   <td style={{ padding: '0.5rem' }}>
                     <input className="edit-input right" type="number" value={m.rate} onChange={e => {
-                      const newM = [...tempManualItems];
-                      newM[idx].rate = Number(e.target.value);
-                      setTempManualItems(newM);
+                      setTempManualItems(prev => {
+                        const newM = [...prev];
+                        newM[idx].rate = Number(e.target.value);
+                        return newM;
+                      });
                     }} />
                   </td>
                   <td style={{ padding: '0.5rem', textAlign: 'right', position: 'relative' }}>
@@ -125,14 +140,16 @@ export default function EstimatorPage() {
                     <div style={{ position: 'absolute', right: '-45px', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '4px' }}>
                        {idx < tempManualItems.length - 1 && (
                          <button onClick={() => {
-                           const newM = [...tempManualItems];
-                           newM[idx].serviceType = `${newM[idx].serviceType}\n${newM[idx+1].serviceType}`.trim();
-                           newM[idx].product = `${newM[idx].product}\n${newM[idx+1].product}`.trim();
-                           newM.splice(idx+1, 1);
-                           setTempManualItems(newM);
+                           setTempManualItems(prev => {
+                             const newM = [...prev];
+                             newM[idx].serviceType = `${newM[idx].serviceType}\n${newM[idx+1].serviceType}`.trim();
+                             newM[idx].product = `${newM[idx].product}\n${newM[idx+1].product}`.trim();
+                             newM.splice(idx+1, 1);
+                             return newM;
+                           });
                          }} title="Merge Down" style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ChevronDown size={14} /></button>
                        )}
-                       <button onClick={() => setTempManualItems(tempManualItems.filter((_, i) => i !== idx))} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Plus size={14} style={{ transform: 'rotate(45deg)' }} /></button>
+                       <button onClick={() => setTempManualItems(prev => prev.filter((_, i) => i !== idx))} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Plus size={14} style={{ transform: 'rotate(45deg)' }} /></button>
                     </div>
                   </td>
                 </tr>
@@ -149,7 +166,6 @@ export default function EstimatorPage() {
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
              <button className="secondary-btn" onClick={() => router.back()}>Cancel</button>
              <button className="primary-btn" onClick={() => {
-                // Persistent save simulation or share
                 alert("Estimate Prepared! Ready to Share.");
              }}>Prepare for Share <Share2 size={18} /></button>
           </div>
