@@ -9,6 +9,7 @@ export default function EstimatorPage() {
   const { serviceTypes, particulars } = useSettings();
   const router = useRouter();
 
+  const [isCustomizing, setIsCustomizing] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [baseFontSize, setBaseFontSize] = useState(12);
   const [tempManualItems, setTempManualItems] = useState<any[]>([{ serviceType: 'ADD KEY', product: 'XT27A-SC', qty: 1, rate: 0, colSpan: 1 }]);
@@ -80,27 +81,30 @@ export default function EstimatorPage() {
           <div className="section-header">
             <h3><Calculator size={20} /> Build Custom Estimate</h3>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: '1rem' }}>
-               <button className="secondary-btn small-btn" onClick={() => setTempManualItems(prev => [...prev, { serviceType: '', product: '', qty: 1, rate: 0 }])}>+ Add Row</button>
+               <button className={`secondary-btn small-btn ${isCustomizing ? 'active' : ''}`} onClick={() => setIsCustomizing(!isCustomizing)}>{isCustomizing ? 'Finish Customizing' : 'Customize Table'}</button>
+               {isCustomizing && <button className="secondary-btn small-btn" onClick={() => setTempManualItems(prev => [...prev, { serviceType: '', product: '', qty: 1, rate: 0 }])}>+ Add Row</button>}
             </div>
           </div>
 
-          <table className="inv-table" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem', fontSize: `${baseFontSize}pt` }}>
+          <table className="inv-table animate-fade-in" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem', fontSize: `${baseFontSize}pt` }}>
             <thead>
-              <tr style={{ background: 'rgba(59,130,246,0.1)' }}>
-                <th style={{ width: colWidths.sno }}><input className="edit-input center" value={colWidths.sno} onChange={e => setColWidths({...colWidths, sno: e.target.value})} /></th>
-                <th style={{ width: colWidths.service }}><input className="edit-input center" value={colWidths.service} onChange={e => setColWidths({...colWidths, service: e.target.value})} /></th>
-                <th style={{ width: colWidths.product }}><input className="edit-input center" value={colWidths.product} onChange={e => setColWidths({...colWidths, product: e.target.value})} /></th>
-                <th style={{ width: colWidths.qty }}><input className="edit-input center" value={colWidths.qty} onChange={e => setColWidths({...colWidths, qty: e.target.value})} /></th>
-                <th style={{ width: colWidths.rate }}><input className="edit-input center" value={colWidths.rate} onChange={e => setColWidths({...colWidths, rate: e.target.value})} /></th>
-                <th style={{ width: colWidths.amount }}><input className="edit-input center" value={colWidths.amount} onChange={e => setColWidths({...colWidths, amount: e.target.value})} /></th>
-              </tr>
+              {isCustomizing && (
+                <tr className="no-print" style={{ background: 'rgba(59,130,246,0.05)' }}>
+                  <th style={{ width: colWidths.sno }}><input className="edit-input center" value={colWidths.sno} onChange={e => setColWidths({...colWidths, sno: e.target.value})} /></th>
+                  <th style={{ width: colWidths.service }}><input className="edit-input center" value={colWidths.service} onChange={e => setColWidths({...colWidths, service: e.target.value})} /></th>
+                  <th style={{ width: colWidths.product }}><input className="edit-input center" value={colWidths.product} onChange={e => setColWidths({...colWidths, product: e.target.value})} /></th>
+                  <th style={{ width: colWidths.qty }}><input className="edit-input center" value={colWidths.qty} onChange={e => setColWidths({...colWidths, qty: e.target.value})} /></th>
+                  <th style={{ width: colWidths.rate }}><input className="edit-input center" value={colWidths.rate} onChange={e => setColWidths({...colWidths, rate: e.target.value})} /></th>
+                  <th style={{ width: colWidths.amount }}><input className="edit-input center" value={colWidths.amount} onChange={e => setColWidths({...colWidths, amount: e.target.value})} /></th>
+                </tr>
+              )}
               <tr>
-                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>S.NO</th>
-                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>SERVICE TYPE</th>
-                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>PRODUCT</th>
-                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>QTY</th>
-                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>RATE</th>
-                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>AMOUNT</th>
+                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem', width: colWidths.sno }}>S.NO</th>
+                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem', width: colWidths.service }}>SERVICE TYPE</th>
+                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem', width: colWidths.product }}>PRODUCT</th>
+                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem', width: colWidths.qty }}>QTY</th>
+                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem', width: colWidths.rate }}>RATE</th>
+                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem', width: colWidths.amount }}>AMOUNT</th>
               </tr>
             </thead>
             <tbody>
@@ -118,7 +122,7 @@ export default function EstimatorPage() {
                               return newM;
                             });
                           }} />
-                          <button onClick={() => handleSplit(idx)} title="Split Cells" style={{ position: 'absolute', right: '5px', top: '5px', background: 'rgba(59,130,246,0.1)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}><AlertCircle size={12} /></button>
+                          {isCustomizing && <button onClick={() => handleSplit(idx)} title="Split Cells" style={{ position: 'absolute', right: '5px', top: '5px', background: 'rgba(59,130,246,0.1)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}><AlertCircle size={12} /></button>}
                        </div>
                     </td>
                   ) : (
@@ -132,7 +136,7 @@ export default function EstimatorPage() {
                               return newM;
                             });
                           }} />
-                          <button onClick={() => handleMergeRight(idx)} title="Merge Right" style={{ position: 'absolute', right: '5px', top: '5px', background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ArrowRight size={12} /></button>
+                          {isCustomizing && <button onClick={() => handleMergeRight(idx)} title="Merge Right" style={{ position: 'absolute', right: '5px', top: '5px', background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ArrowRight size={12} /></button>}
                         </div>
                       </td>
                       <td style={{ padding: '0.5rem' }}>
@@ -165,21 +169,23 @@ export default function EstimatorPage() {
                     }} />
                   </td>
                   <td style={{ padding: '0.5rem', textAlign: 'right', position: 'relative' }}>
-                    <strong>₹{(m.qty * m.rate).toLocaleString("en-IN")}</strong>
-                    <div style={{ position: 'absolute', right: '-45px', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '4px' }}>
-                       {idx < tempManualItems.length - 1 && (
-                         <button onClick={() => {
-                           setTempManualItems(prev => {
-                             const newM = [...prev];
-                             newM[idx].serviceType = `${newM[idx].serviceType}\n${newM[idx+1].serviceType}`.trim();
-                             newM[idx].product = `${newM[idx].product}\n${newM[idx+1].product}`.trim();
-                             newM.splice(idx+1, 1);
-                             return newM;
-                           });
-                         }} title="Merge Down" style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ChevronDown size={14} /></button>
-                       )}
-                       <button onClick={() => setTempManualItems(prev => prev.filter((_, i) => i !== idx))} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Plus size={14} style={{ transform: 'rotate(45deg)' }} /></button>
-                    </div>
+                    <div style={{ padding: '5px', fontWeight: 'bold' }}>₹{(m.qty * m.rate).toLocaleString("en-IN")}</div>
+                    {isCustomizing && (
+                      <div style={{ position: 'absolute', right: '-45px', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '4px' }}>
+                        {idx < tempManualItems.length - 1 && (
+                          <button onClick={() => {
+                            setTempManualItems(prev => {
+                              const newM = [...prev];
+                              newM[idx].serviceType = `${newM[idx].serviceType}\n${newM[idx+1].serviceType}`.trim();
+                              newM[idx].product = `${newM[idx].product}\n${newM[idx+1].product}`.trim();
+                              newM.splice(idx+1, 1);
+                              return newM;
+                            });
+                          }} title="Merge Down" style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ChevronDown size={14} /></button>
+                        )}
+                        <button onClick={() => setTempManualItems(prev => prev.filter((_, i) => i !== idx))} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Plus size={14} style={{ transform: 'rotate(45deg)' }} /></button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
