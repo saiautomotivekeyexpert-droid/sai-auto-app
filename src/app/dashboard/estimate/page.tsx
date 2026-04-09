@@ -13,11 +13,11 @@ export default function EstimatorPage() {
   const [tempDetails, setTempDetails] = useState<any>({});
   const [colWidths, setColWidths] = useState<Record<string, string>>({
     sno: "5%",
-    service: "25%",
-    product: "40%",
-    qty: "8%",
-    rate: "12%",
-    amount: "10%"
+    service: "20%",
+    product: "35%",
+    qty: "10%",
+    rate: "15%",
+    amount: "15%"
   });
 
   const handleMergeRight = (idx: number) => {

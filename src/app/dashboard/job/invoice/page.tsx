@@ -25,11 +25,11 @@ function InvoiceContent({ id }: { id: string }) {
   const [tempServiceCharge, setTempServiceCharge] = useState(0);
   const [colWidths, setColWidths] = useState<Record<string, string>>({
     sno: "5%",
-    service: "25%",
-    product: "40%",
-    qty: "8%",
-    rate: "12%",
-    amount: "10%"
+    service: "20%",
+    product: "35%",
+    qty: "10%",
+    rate: "15%",
+    amount: "15%"
   });
 
   useEffect(() => {
@@ -483,7 +483,7 @@ function InvoiceContent({ id }: { id: string }) {
                           setTempManualItems(newM);
                         }} />
                       ) : (
-                        `₹ ${Number(m.rate).toLocaleString("en-IN")}`
+                        `₹ ${Number(m.rate || 0).toLocaleString("en-IN")}`
                       )}
                     </td>
                     <td className="right" style={{ position: 'relative' }}>
