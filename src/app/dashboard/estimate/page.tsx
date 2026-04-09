@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useSettings } from "@/context/SettingsContext";
-import { Calculator, Plus, Minus, ArrowRight, Share2, Download, Check, ChevronDown } from "lucide-react";
+import { Calculator, Plus, Minus, ArrowRight, Share2, Download, Check, ChevronDown, AlertCircle, ZoomIn, ZoomOut, Type, Bold, Italic, Underline } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function EstimatorPage() {
   const { serviceTypes, particulars } = useSettings();
   const router = useRouter();
 
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const [baseFontSize, setBaseFontSize] = useState(12);
   const [tempManualItems, setTempManualItems] = useState<any[]>([{ serviceType: 'ADD KEY', product: 'XT27A-SC', qty: 1, rate: 0, colSpan: 1 }]);
-  const [tempDetails, setTempDetails] = useState<any>({});
   const [colWidths, setColWidths] = useState<Record<string, string>>({
     sno: "5%",
     service: "20%",
@@ -23,9 +24,8 @@ export default function EstimatorPage() {
   const handleMergeRight = (idx: number) => {
     setTempManualItems(prev => {
       const list = [...prev];
-      const row = list[idx];
-      row.colSpan = 2;
-      row.product = `${row.serviceType}\n${row.product}`.trim();
+      list[idx].colSpan = 2;
+      list[idx].product = `${list[idx].serviceType}\n${list[idx].product}`.trim();
       return list;
     });
   };
@@ -38,6 +38,28 @@ export default function EstimatorPage() {
     });
   };
 
+  const DocsToolbar = () => (
+    <div className="docs-toolbar no-print">
+      <div className="toolbar-group">
+        <button className="toolbar-btn" onClick={() => setZoomLevel(Math.max(50, zoomLevel - 10))} title="Zoom Out"><ZoomOut size={16} /></button>
+        <span className="toolbar-label">{zoomLevel}%</span>
+        <button className="toolbar-btn" onClick={() => setZoomLevel(Math.min(200, zoomLevel + 10))} title="Zoom In"><ZoomIn size={16} /></button>
+      </div>
+      <div className="toolbar-divider" />
+      <div className="toolbar-group">
+        <button className="toolbar-btn" onClick={() => setBaseFontSize(Math.max(8, baseFontSize - 1))} title="Font Smaller"><Type size={14} style={{ transform: 'scale(0.8)' }} /></button>
+        <span className="toolbar-label">{baseFontSize} pt</span>
+        <button className="toolbar-btn" onClick={() => setBaseFontSize(Math.min(32, baseFontSize + 1))} title="Font Larger"><Type size={18} /></button>
+      </div>
+      <div className="toolbar-divider" />
+      <div className="toolbar-group">
+        <button className="toolbar-btn active" title="Bold"><Bold size={16} /></button>
+        <button className="toolbar-btn" title="Italic"><Italic size={16} /></button>
+        <button className="toolbar-btn" title="Underline"><Underline size={16} /></button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="estimator-container">
       <div className="estimator-header">
@@ -45,7 +67,14 @@ export default function EstimatorPage() {
         <p className="text-muted">Calculate project costs instantly for the client</p>
       </div>
 
-      <div className="estimator-grid" style={{ gridTemplateColumns: '1fr' }}>
+      <DocsToolbar />
+
+      <div className="estimator-grid" style={{ 
+        gridTemplateColumns: '1fr',
+        transform: `scale(${zoomLevel / 100})`,
+        transformOrigin: 'top center',
+        transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+      }}>
         {/* ADVANCED DOCS-STYLE EDITOR */}
         <div className="glass-panel animate-fade-in" style={{ padding: '2rem' }}>
           <div className="section-header">
@@ -55,7 +84,7 @@ export default function EstimatorPage() {
             </div>
           </div>
 
-          <table className="inv-table" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem' }}>
+          <table className="inv-table" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem', fontSize: `${baseFontSize}pt` }}>
             <thead>
               <tr style={{ background: 'rgba(59,130,246,0.1)' }}>
                 <th style={{ width: colWidths.sno }}><input className="edit-input center" value={colWidths.sno} onChange={e => setColWidths({...colWidths, sno: e.target.value})} /></th>
@@ -194,6 +223,38 @@ export default function EstimatorPage() {
         .edit-input.right { text-align: right; }
         .center { text-align: center; }
         textarea.edit-input { resize: none; overflow: hidden; }
+        
+        .docs-toolbar {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          background: white;
+          padding: 0.5rem 1rem;
+          border-radius: 50px;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+          margin-bottom: 2rem;
+          border: 1px solid var(--glass-border);
+          position: sticky;
+          top: 1rem;
+          z-index: 100;
+        }
+        .toolbar-group { display: flex; align-items: center; gap: 0.5rem; }
+        .toolbar-btn {
+          background: transparent;
+          border: none;
+          padding: 6px;
+          border-radius: 4px;
+          cursor: pointer;
+          color: #4b5563;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: 0.2s;
+        }
+        .toolbar-btn:hover { background: #f3f4f6; color: var(--accent-primary); }
+        .toolbar-btn.active { background: rgba(59,130,246,0.1); color: var(--accent-primary); }
+        .toolbar-label { font-size: 0.85rem; font-weight: 600; min-width: 45px; text-align: center; }
+        .toolbar-divider { width: 1px; height: 24px; background: #e5e7eb; margin: 0 0.25rem; }
       `}</style>
     </div>
   );
