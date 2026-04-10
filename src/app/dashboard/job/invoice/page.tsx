@@ -40,7 +40,7 @@ function InvoiceContent({ id }: { id: string }) {
       setTempVehicleNumber(job.vehicleNumber);
       setTempParticulars(JSON.parse(JSON.stringify(job.details?.particulars || job.details?.selectedItems || [])));
       setTempManualItems(JSON.parse(JSON.stringify(job.details?.manualItems || [])));
-      setTempServiceCharge(Number(job.details?.serviceCharge) || 0);
+      setTempServiceCharge(Number(job.details?.serviceCharge) || Number(job.details?.approvedGrade?.rate) || Number(job.details?.selectedTotal) || 0);
       if (job.details?.colWidths) setColWidths(job.details.colWidths);
     }
   }, [job?.id, isCustomizing]);
@@ -67,7 +67,8 @@ function InvoiceContent({ id }: { id: string }) {
 
   const realItemsTotal = currentParticulars.reduce((sum: number, p: any) => sum + (Number(p.cost || 0) * (p.quantity || 1)), 0);
   const manualItemsTotal = currentManualItems.reduce((sum: number, p: any) => sum + (Number(p.rate || 0) * (p.qty || 1)), 0);
-  const grandTotal = Number(d.totalCharge) || (currentServiceCharge + manualItemsTotal + (isQuickService ? realItemsTotal : 0));
+  const calculatedTotal = currentServiceCharge + manualItemsTotal + (isQuickService ? realItemsTotal : 0);
+  const grandTotal = isCustomizing ? calculatedTotal : (Number(d.totalCharge) || calculatedTotal);
   
   const handleToggleStyle = (style: 'bold' | 'italic') => {
     // For now, toggle globally for the entire document as a quick fix for "tools not working"
@@ -85,7 +86,8 @@ function InvoiceContent({ id }: { id: string }) {
       particulars: tempParticulars,
       manualItems: tempManualItems,
       serviceCharge: tempServiceCharge,
-      colWidths: colWidths
+      colWidths: colWidths,
+      totalCharge: calculatedTotal
     });
     setIsCustomizing(false);
   };
