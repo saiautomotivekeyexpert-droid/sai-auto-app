@@ -60,7 +60,7 @@ function InvoiceContent({ id }: { id: string }) {
   const isEstimate = forceType === "estimate" || job.status === "Waiting Approval" || job.status === "Approved" || job.status === "Rejected";
   
   const isQuickService = job.serviceType === "Quick Service";
-  const serviceCharge = Number(d.serviceCharge) || 0;
+  const serviceCharge = Number(d.serviceCharge) || Number(d.approvedGrade?.rate || d.selectedTotal || 0);
   const currentParticulars = isCustomizing ? tempParticulars : particulars;
   const currentManualItems = isCustomizing ? tempManualItems : manualItems;
   const currentServiceCharge = isCustomizing ? tempServiceCharge : serviceCharge;
@@ -68,6 +68,14 @@ function InvoiceContent({ id }: { id: string }) {
   const realItemsTotal = currentParticulars.reduce((sum: number, p: any) => sum + (Number(p.cost || 0) * (p.quantity || 1)), 0);
   const manualItemsTotal = currentManualItems.reduce((sum: number, p: any) => sum + (Number(p.rate || 0) * (p.qty || 1)), 0);
   const grandTotal = Number(d.totalCharge) || (currentServiceCharge + manualItemsTotal + (isQuickService ? realItemsTotal : 0));
+  
+  const handleToggleStyle = (style: 'bold' | 'italic') => {
+    // For now, toggle globally for the entire document as a quick fix for "tools not working"
+    setTempDetails((prev: any) => ({
+      ...prev,
+      [style]: !prev?.[style]
+    }));
+  };
   
   const handleSaveCustom = () => {
     updateJobDetails(job.id, {
@@ -124,7 +132,7 @@ function InvoiceContent({ id }: { id: string }) {
   const TextRenderer = ({ text, bold }: { text: string; bold?: boolean }) => {
     if (!text) return null;
     return (
-      <div style={{ whiteSpace: 'pre-wrap', fontWeight: bold ? 'bold' : 'normal' }}>
+      <div style={{ whiteSpace: 'pre-wrap', fontWeight: (bold || d?.bold) ? 'bold' : 'normal', fontStyle: d?.italic ? 'italic' : 'normal' }}>
         {text.split('\n').map((line, i) => {
           const isDescription = line.trim().startsWith('*') || line.trim().startsWith('-');
           return (
@@ -183,11 +191,11 @@ function InvoiceContent({ id }: { id: string }) {
             
             <div style={{ width: '1px', height: '20px', background: '#e2e8f0', margin: '0 0.75rem' }} />
             
-            {/* TEXT TOOLS MOCKUP */}
+            {/* TEXT TOOLS */}
             <div style={{ display: 'flex', gap: '2px' }}>
               <button disabled style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #e2e8f0', background: '#f8fafc', opacity: 0.5, cursor: 'not-allowed', fontStyle: 'italic' }}>Arial</button>
-              <button disabled style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #e2e8f0', background: '#f8fafc', opacity: 0.5, cursor: 'not-allowed', fontWeight: 'bold' }}>B</button>
-              <button disabled style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #e2e8f0', background: '#f8fafc', opacity: 0.5, cursor: 'not-allowed', fontStyle: 'italic' }}>I</button>
+              <button onClick={() => handleToggleStyle('bold')} style={{ padding: '4px 8px', borderRadius: '4px', border: tempDetails?.bold ? '1.5px solid #3b82f6' : '1px solid #e2e8f0', background: tempDetails?.bold ? '#eff6ff' : '#f8fafc', fontWeight: 'bold' }}>B</button>
+              <button onClick={() => handleToggleStyle('italic')} style={{ padding: '4px 8px', borderRadius: '4px', border: tempDetails?.italic ? '1.5px solid #3b82f6' : '1px solid #e2e8f0', background: tempDetails?.italic ? '#eff6ff' : '#f8fafc', fontStyle: 'italic' }}>I</button>
             </div>
           </div>
         )}
@@ -309,7 +317,7 @@ function InvoiceContent({ id }: { id: string }) {
               <th style={{ width: colWidths.amount }}>AMOUNT</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody style={{ fontWeight: d?.bold ? 'bold' : 'normal', fontStyle: d?.italic ? 'italic' : 'normal' }}>
             {/* RENDER ALL ITEMS: Particulars + Manual Items */}
             {(() => {
               let rows = [];
@@ -663,7 +671,7 @@ function InvoiceContent({ id }: { id: string }) {
               </tr>
             )}
 
-            {(!hideTotal && !isEstimate) && (
+            {!hideTotal && (
               <tr className="inv-total-row">
                 <td colSpan={5}><strong>SUMMARY TOTAL</strong></td>
                 <td className="right">
