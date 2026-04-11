@@ -58,12 +58,12 @@ export default function EstimatorPage() {
           <table className="inv-table" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem' }}>
             <thead>
               <tr>
-                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>S.NO</th>
-                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>SERVICE TYPE</th>
-                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>PRODUCT</th>
-                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>QTY</th>
-                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>RATE</th>
-                <th style={{ background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>AMOUNT</th>
+                <th style={{ width: colWidths.sno, background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>S.NO</th>
+                <th style={{ width: colWidths.service, background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>SERVICE TYPE</th>
+                <th style={{ width: colWidths.product, background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>PRODUCT</th>
+                <th style={{ width: colWidths.qty, background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>QTY</th>
+                <th style={{ width: colWidths.rate, background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>RATE</th>
+                <th style={{ width: colWidths.amount, background: 'var(--accent-primary)', color: 'white', padding: '0.75rem' }}>AMOUNT</th>
               </tr>
             </thead>
             <tbody>
@@ -110,25 +110,25 @@ export default function EstimatorPage() {
                     </>
                   )}
                   <td style={{ padding: '0.5rem' }}>
-                    <input className="edit-input center" type="number" value={m.qty} onChange={e => {
+                    <input className="edit-input center" type="number" value={m.qty || ""} onChange={e => {
                       setTempManualItems((prev: any[]) => {
                         const newM = [...prev];
-                        newM[idx].qty = Number(e.target.value);
+                        newM[idx].qty = e.target.value === "" ? 0 : Number(e.target.value);
                         return newM;
                       });
                     }} />
                   </td>
                   <td style={{ padding: '0.5rem' }}>
-                    <input className="edit-input right" type="number" value={m.rate} onChange={e => {
+                    <input className="edit-input right" type="number" value={m.rate || ""} onChange={e => {
                       setTempManualItems((prev: any[]) => {
                         const newM = [...prev];
-                        newM[idx].rate = Number(e.target.value);
+                        newM[idx].rate = e.target.value === "" ? 0 : Number(e.target.value);
                         return newM;
                       });
                     }} />
                   </td>
                   <td style={{ padding: '0.5rem', textAlign: 'right', position: 'relative' }}>
-                    <strong>₹{(m.qty * m.rate).toLocaleString("en-IN")}</strong>
+                    <strong>₹{(Number(m.qty || 0) * Number(m.rate || 0)).toLocaleString("en-IN")}</strong>
                     <div style={{ position: 'absolute', right: '-45px', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '4px' }}>
                        {idx < tempManualItems.length - 1 && (
                          <button onClick={() => {
@@ -149,7 +149,7 @@ export default function EstimatorPage() {
               <tr style={{ background: 'rgba(59,130,246,0.05)', fontWeight: 'bold' }}>
                 <td colSpan={5} style={{ padding: '1rem', textAlign: 'right' }}>SUMMARY TOTAL</td>
                 <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--accent-primary)', fontSize: '1.25rem' }}>
-                  ₹{tempManualItems.reduce((sum, m) => sum + (m.qty * m.rate), 0).toLocaleString("en-IN")}
+                  ₹{tempManualItems.reduce((sum, m) => sum + (Number(m.qty || 0) * Number(m.rate || 0)), 0).toLocaleString("en-IN")}
                 </td>
               </tr>
             </tbody>

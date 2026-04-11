@@ -24,6 +24,7 @@ function InvoiceContent({ id }: { id: string }) {
   const [tempParticulars, setTempParticulars] = useState<any[]>([]);
   const [tempManualItems, setTempManualItems] = useState<any[]>([]);
   const [tempServiceCharge, setTempServiceCharge] = useState(0);
+  const [tempDate, setTempDate] = useState("");
   const [colWidths, setColWidths] = useState<Record<string, string>>({
     sno: "5%",
     service: "20%",
@@ -41,6 +42,7 @@ function InvoiceContent({ id }: { id: string }) {
       setTempParticulars(JSON.parse(JSON.stringify(job.details?.particulars || job.details?.selectedItems || [])));
       setTempManualItems(JSON.parse(JSON.stringify(job.details?.manualItems || [])));
       setTempServiceCharge(Number(job.details?.serviceCharge) || Number(job.details?.approvedGrade?.rate) || Number(job.details?.selectedTotal) || 0);
+      setTempDate(job.details?.customDate || new Date(job.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }));
       if (job.details?.colWidths) setColWidths(job.details.colWidths);
     }
   }, [job?.id, isCustomizing]);
@@ -86,6 +88,7 @@ function InvoiceContent({ id }: { id: string }) {
       particulars: tempParticulars,
       manualItems: tempManualItems,
       serviceCharge: tempServiceCharge,
+      customDate: tempDate,
       colWidths: colWidths,
       totalCharge: calculatedTotal
     });
@@ -148,7 +151,7 @@ function InvoiceContent({ id }: { id: string }) {
   };
   
   const memoNumber = job.id;
-  const dateStr = new Date(job.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const dateStr = tempDate || new Date(job.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
   
   const shopName = shopProfile.name;
   const shopAddress = shopProfile.address;
@@ -161,8 +164,8 @@ function InvoiceContent({ id }: { id: string }) {
   const handleWhatsApp = () => {
     const isQuickService = job.serviceType === "Quick Service";
     const particularsLines = currentParticulars.map((p: any) => {
-      const productName = p.category === "Services" ? "SERVICE" : p.name;
-      const sType = (p.serviceType || "-").toUpperCase();
+      const productName = (p.category === "Services" ? "SERVICE" : p.name).replace(/\n/g, ' / ');
+      const sType = (p.serviceType || "-").toUpperCase().replace(/\n/g, ' / ');
       if (!isQuickService) return `  - ${productName} [${sType}]`;
       const isZero = Number(p.cost) === 0 && Number(p.originalPrice) > 0;
       const amountStr = isZero ? `~~₹${Number(p.originalPrice) * (p.quantity || 1)}~~ ₹0` : `₹${Number(p.cost) * (p.quantity || 1)}`;
@@ -170,7 +173,9 @@ function InvoiceContent({ id }: { id: string }) {
     }).join("\n");
 
     const manualLines = currentManualItems.map((m: any) => {
-      return `  - ${m.product?.toUpperCase()} [${m.serviceType?.toUpperCase()}] (${m.qty} x ₹${m.rate})`;
+      const prod = (m.product || "-").replace(/\n/g, ' / ');
+      const sType = (m.serviceType || "-").replace(/\n/g, ' / ');
+      return `  - ${prod.toUpperCase()} [${sType.toUpperCase()}] (${m.qty} x ₹${m.rate})`;
     }).join("\n");
 
     const allLines = [particularsLines, manualLines].filter(x => x).join("\n");
@@ -236,7 +241,11 @@ function InvoiceContent({ id }: { id: string }) {
             <div className="inv-memo-box">
               <div className="inv-memo-label">{docTitle}</div>
               <div className="inv-memo-number">{memoNumber}</div>
-              <div className="inv-memo-date">{dateStr}</div>
+              {isCustomizing ? (
+                <input className="edit-input center" value={tempDate} onChange={e => setTempDate(e.target.value)} style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', fontSize: '0.85rem' }} />
+              ) : (
+                <div className="inv-memo-date">{dateStr}</div>
+              )}
             </div>
           </div>
 
@@ -386,9 +395,9 @@ function InvoiceContent({ id }: { id: string }) {
                     )}
                     <td className="center">
                       {isCustomizing ? (
-                        <input className="edit-input center" type="number" value={p.quantity || 1} onChange={e => {
+                        <input className="edit-input center" type="number" value={p.quantity || ""} onChange={e => {
                           const newP = [...tempParticulars];
-                          newP[idx].quantity = Number(e.target.value);
+                          newP[idx].quantity = e.target.value === "" ? 0 : Number(e.target.value);
                           setTempParticulars(newP);
                         }} />
                       ) : (
@@ -397,9 +406,9 @@ function InvoiceContent({ id }: { id: string }) {
                     </td>
                     <td className="right">
                       {isCustomizing ? (
-                        <input className="edit-input right" type="number" value={p.cost || 0} onChange={e => {
+                        <input className="edit-input right" type="number" value={p.cost || ""} onChange={e => {
                           const newP = [...tempParticulars];
-                          newP[idx].cost = Number(e.target.value);
+                          newP[idx].cost = e.target.value === "" ? 0 : Number(e.target.value);
                           setTempParticulars(newP);
                         }} />
                       ) : (
@@ -480,9 +489,9 @@ function InvoiceContent({ id }: { id: string }) {
                     )}
                     <td className="center">
                       {isCustomizing ? (
-                        <input className="edit-input center" type="number" value={m.qty || 1} onChange={e => {
+                        <input className="edit-input center" type="number" value={m.qty || ""} onChange={e => {
                           const newM = [...tempManualItems];
-                          newM[idx].qty = Number(e.target.value);
+                          newM[idx].qty = e.target.value === "" ? 0 : Number(e.target.value);
                           setTempManualItems(newM);
                         }} />
                       ) : (
@@ -491,9 +500,9 @@ function InvoiceContent({ id }: { id: string }) {
                     </td>
                     <td className="right">
                       {isCustomizing ? (
-                        <input className="edit-input right" type="number" value={m.rate || 0} onChange={e => {
+                        <input className="edit-input right" type="number" value={m.rate || ""} onChange={e => {
                           const newM = [...tempManualItems];
-                          newM[idx].rate = Number(e.target.value);
+                          newM[idx].rate = e.target.value === "" ? 0 : Number(e.target.value);
                           setTempManualItems(newM);
                         }} />
                       ) : (
@@ -570,7 +579,7 @@ function InvoiceContent({ id }: { id: string }) {
                     <td className="center">{d.serviceQty || 1}</td>
                     <td className="right">
                       {isCustomizing ? (
-                        <input className="edit-input right" type="number" value={tempServiceCharge} onChange={e => setTempServiceCharge(Number(e.target.value))} />
+                        <input className="edit-input right" type="number" value={tempServiceCharge || ""} onChange={e => setTempServiceCharge(e.target.value === "" ? 0 : Number(e.target.value))} />
                       ) : (
                         `₹ ${Number(serviceCharge).toLocaleString("en-IN")}`
                       )}
@@ -748,6 +757,7 @@ function InvoiceContent({ id }: { id: string }) {
         .inv-table th.center, .inv-table td.center { text-align: center; }
         .inv-table th.right, .inv-table td.right { text-align: right; }
         .inv-table td { padding: 0.65rem 1rem; border: 1px solid #cbd5e1; color: #334155; }
+        .inv-table textarea.edit-input { overflow: auto; min-width: 100px; }
         .inv-total-row td { background: #f8fafc; border-top: 2.5px solid #1e3a8a; font-weight: 700; }
         .inv-auth-box { margin: 0 2.5rem 1.5rem; border: 1.5px solid #dc2626; border-radius: 6px; padding: 1.25rem 1.5rem; position: relative; background: #fff9f9; }
         .inv-auth-stamp { position: absolute; top: 12px; right: 16px; transform: rotate(15deg); border: 2px solid #dc2626; color: #dc2626; font-size: 0.65rem; font-weight: 900; letter-spacing: 0.12em; padding: 0.2rem 0.5rem; border-radius: 4px; opacity: 0.7; }
