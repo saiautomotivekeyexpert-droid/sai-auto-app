@@ -161,27 +161,59 @@ function InvoiceContent({ id }: { id: string }) {
   const docTitle = isEstimate ? "ESTIMATE" : "INVOICE";
   const hideTotal = isEstimate && (d.hideEstimateTotal === true || grandTotal === 0);
 
-  const handleWhatsApp = () => {
-    const isQuickService = job.serviceType === "Quick Service";
-    const particularsLines = currentParticulars.map((p: any) => {
-      const productName = (p.category === "Services" ? "SERVICE" : p.name).replace(/\n/g, ' / ');
-      const sType = (p.serviceType || "-").toUpperCase().replace(/\n/g, ' / ');
-      if (!isQuickService) return `  - ${productName} [${sType}]`;
-      const isZero = Number(p.cost) === 0 && Number(p.originalPrice) > 0;
-      const amountStr = isZero ? `~~₹${Number(p.originalPrice) * (p.quantity || 1)}~~ ₹0` : `₹${Number(p.cost) * (p.quantity || 1)}`;
-      return `  - ${productName} [${sType}] (${p.quantity || 1} x ${amountStr})`;
-    }).join("\n");
+  const handleWhatsApp = async () => {
+    // 1. Show a quick "Preparing PDF" loading state or just proceed
+    const paper = document.querySelector(".inv-paper") as HTMLElement;
+    if (!paper) return;
 
-    const manualLines = currentManualItems.map((m: any) => {
-      const prod = (m.product || "-").replace(/\n/g, ' / ');
-      const sType = (m.serviceType || "-").replace(/\n/g, ' / ');
-      return `  - ${prod.toUpperCase()} [${sType.toUpperCase()}] (${m.qty} x ₹${m.rate})`;
-    }).join("\n");
+    try {
+      // 2. Hide things that shouldn't be in the PDF (though .no-print should handle it, we want best quality)
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
 
-    const allLines = [particularsLines, manualLines].filter(x => x).join("\n");
+      const canvas = await html2canvas(paper, {
+        scale: 2, // High resolution
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff"
+      });
 
-    const text = `*${isEstimate ? "Estimate" : "Invoice"} from ${shopName}*\n\n*${isEstimate ? "Estimate" : "Memo"} #:* ${memoNumber}\n*Date:* ${dateStr}\n\n*Customer:* ${job.customerName}\n*Vehicle:* ${job.vehicleNumber}\n\n*Service:* ${d.serviceType} – ${hideTotal ? 'TBD' : '₹' + serviceCharge}\n*Items & Extras:*\n${allLines || "  - None"}\n\n*${hideTotal ? 'TOTAL TBD' : 'Summary Total: ₹' + grandTotal}*\n\nThank you for your business!`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      
+      const fileName = `${docTitle}_${memoNumber}.pdf`;
+      const pdfBlob = pdf.output("blob");
+      const file = new File([pdfBlob], fileName, { type: "application/pdf" });
+
+      // 3. Try Sharing via Web Share API (Active on Mac/iOS/Android)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: fileName,
+          text: `Here is your ${docTitle.toLowerCase()} from ${shopName}.`
+        });
+      } else {
+        // Fallback: Download and open WhatsApp Web
+        const url = URL.createObjectURL(pdfBlob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(url);
+        
+        const waText = `Sending your ${docTitle.toLowerCase()} as a PDF. Please attach the downloaded file.`;
+        window.open(`https://wa.me/?text=${encodeURIComponent(waText)}`, "_blank");
+      }
+    } catch (err) {
+      console.error("PDF generation failed", err);
+      alert("Failed to generate PDF. Please try again.");
+    }
   };
 
   return (
