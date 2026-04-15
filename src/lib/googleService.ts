@@ -233,7 +233,7 @@ export class GoogleService {
 
     const response = await this.sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Jobs!A:T',
+      range: 'Jobs!A:U',
     });
     return response.data.values;
   }
@@ -279,9 +279,15 @@ export class GoogleService {
 
     await this.sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'Jobs!A1:T1',
+      range: 'Jobs!A1:U1',
       valueInputOption: 'USER_ENTERED',
-      requestBody: { values: headers },
+      requestBody: { values: [[
+        "NAME", "ADDRESS", "MOBILE NO.", "REFERENCE NAME", "COMPLAINT HISTORY",
+        "VEHICLE NO.", "VEHICLE BRAND", "VEHICLE MODEL", "MANUFACTURE YEAR", "VEHICLE TYPE",
+        "ESTIMATE MEMO NO.", "VEHICLE ESTIMATE", "STATUS", "E-KYC SERVICE", "CONSENT TYPE",
+        "SUB-CATEGORIES", "JOB PARTICULARS", "DOCUMENT DETAIL", "AFTER SALES SERVICE", "JOB TIMELINE",
+        "INVOICE SNAPSHOT"
+      ]] },
     });
 
     // Initialize Stock Sheet
