@@ -125,7 +125,8 @@ export async function POST(req: Request) {
         particularsJson,                     // Q: JOB PARTICULARS (JSON)
         docDetail,                           // R: DOCUMENT DETAIL (Hyperlinks)
         d.afterSales || d.afterSalesComplaint || '', // S: AFTER SALES SERVICE
-        JSON.stringify(j.timeline || {})      // T: JOB TIMELINE
+        JSON.stringify(j.timeline || {}),     // T: JOB TIMELINE
+        d.invoiceSnapshot ? JSON.stringify(d.invoiceSnapshot) : '', // U: INVOICE SNAPSHOT (custom table data)
       ];
     };
 

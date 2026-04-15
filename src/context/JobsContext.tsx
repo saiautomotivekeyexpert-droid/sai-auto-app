@@ -66,6 +66,12 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
             }
             
             const timeline = typeof row[19] === 'string' ? JSON.parse(row[19]) : {};
+            
+            // Parse invoiceSnapshot from column U (index 20) if present
+            let invoiceSnapshot: any = undefined;
+            if (row[20] && typeof row[20] === 'string' && row[20].startsWith('{')) {
+              try { invoiceSnapshot = JSON.parse(row[20]); } catch(e) { invoiceSnapshot = undefined; }
+            }
             const createdAt = timeline.estimatedAt || Date.now();
             
             // Robust Particulars Parsing (Handles Cloud-Native Human Readable Format)
@@ -138,7 +144,8 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
                 particulars: particulars,
                 docsFolderLink: row[17] || '',
                 afterSales: row[18] || '',
-                timeline: timeline
+                timeline: timeline,
+                ...(invoiceSnapshot ? { invoiceSnapshot } : {})
               }
             };
           });
