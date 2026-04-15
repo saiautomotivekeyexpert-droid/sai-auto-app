@@ -36,14 +36,17 @@ function InvoiceContent({ id }: { id: string }) {
 
   useEffect(() => {
     if (job) {
-      setTempDetails(JSON.parse(JSON.stringify(job.details || {})));
-      setTempCustomerName(job.customerName);
-      setTempVehicleNumber(job.vehicleNumber);
-      setTempParticulars(JSON.parse(JSON.stringify(job.details?.particulars || job.details?.selectedItems || [])));
-      setTempManualItems(JSON.parse(JSON.stringify(job.details?.manualItems || [])));
-      setTempServiceCharge(Number(job.details?.serviceCharge) || Number(job.details?.approvedGrade?.rate) || Number(job.details?.selectedTotal) || 0);
-      setTempDate(job.details?.customDate || new Date(job.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }));
-      if (job.details?.colWidths) setColWidths(job.details.colWidths);
+      // When entering customize mode, seed from invoiceSnapshot if it exists (so edits start from last saved custom state)
+      const snap = job.details?.invoiceSnapshot;
+      const base = snap || job.details || {};
+      setTempDetails(JSON.parse(JSON.stringify(base)));
+      setTempCustomerName(job.details?.fullName || job.customerName);
+      setTempVehicleNumber(job.details?.regNumber || job.vehicleNumber);
+      setTempParticulars(JSON.parse(JSON.stringify(base.particulars || base.selectedItems || [])));
+      setTempManualItems(JSON.parse(JSON.stringify(base.manualItems || [])));
+      setTempServiceCharge(Number(base.serviceCharge) || Number(base.approvedGrade?.rate) || Number(base.selectedTotal) || 0);
+      setTempDate(base.customDate || new Date(job.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }));
+      if (base.colWidths) setColWidths(base.colWidths);
     }
   }, [job?.id, isCustomizing]);
 
@@ -56,13 +59,23 @@ function InvoiceContent({ id }: { id: string }) {
     );
   }
 
-  const d = isCustomizing ? tempDetails : (job.details || {});
-  const particulars: any[] = d.particulars || [];
-  const manualItems: any[] = d.manualItems || [];
+  // In view mode: table data comes from invoiceSnapshot (frozen at save time) if it exists;
+  // personal/vehicle details always come from live job.details (never frozen).
+  const liveDetails = job.details || {};
+  const snap = liveDetails.invoiceSnapshot;
+  // dTable = source for table-related fields (items, rates, totals, layout)
+  const dTable = isCustomizing ? tempDetails : (snap || liveDetails);
+  // dPerson = source for personal/vehicle fields (always live)
+  const dPerson = liveDetails;
+  // d keeps the old API for template areas that use both (safe to be dTable since personal fields are overridden below)
+  const d = dTable;
+
+  const particulars: any[] = dTable.particulars || [];
+  const manualItems: any[] = dTable.manualItems || [];
   const isEstimate = forceType === "estimate" || job.status === "Waiting Approval" || job.status === "Approved" || job.status === "Rejected";
   
   const isQuickService = job.serviceType === "Quick Service";
-  const serviceCharge = Number(d.serviceCharge) || Number(d.approvedGrade?.rate || d.selectedTotal || 0);
+  const serviceCharge = Number(dTable.serviceCharge) || Number(dTable.approvedGrade?.rate || dTable.selectedTotal || 0);
   const currentParticulars = isCustomizing ? tempParticulars : particulars;
   const currentManualItems = isCustomizing ? tempManualItems : manualItems;
   const currentServiceCharge = isCustomizing ? tempServiceCharge : serviceCharge;
@@ -70,7 +83,7 @@ function InvoiceContent({ id }: { id: string }) {
   const realItemsTotal = currentParticulars.reduce((sum: number, p: any) => sum + (Number(p.cost || 0) * (p.quantity || 1)), 0);
   const manualItemsTotal = currentManualItems.reduce((sum: number, p: any) => sum + (Number(p.rate || 0) * (p.qty || 1)), 0);
   const calculatedTotal = currentServiceCharge + manualItemsTotal + (isQuickService ? realItemsTotal : 0);
-  const grandTotal = isCustomizing ? calculatedTotal : (Number(d.totalCharge) || calculatedTotal);
+  const grandTotal = isCustomizing ? calculatedTotal : (Number(dTable.totalCharge) || calculatedTotal);
   
   const handleToggleStyle = (style: 'bold' | 'italic') => {
     // For now, toggle globally for the entire document as a quick fix for "tools not working"
@@ -81,19 +94,38 @@ function InvoiceContent({ id }: { id: string }) {
   };
   
   const handleSaveCustom = () => {
-    updateJobDetails(job.id, {
+    // Any personal/vehicle edits made in customize mode are in tempDetails — extract them
+    const personalUpdates: any = {};
+    if (tempDetails) {
+      ['phone', 'contactNumber', 'address', 'consentType', 'brand', 'model', 'year', 'manufactureYear', 'category'].forEach(k => {
+        if (tempDetails[k] !== undefined) personalUpdates[k] = tempDetails[k];
+      });
+    }
+    // Also capture name/regNumber from their dedicated temp state
+    if (tempCustomerName) personalUpdates.fullName = tempCustomerName;
+    if (tempVehicleNumber) personalUpdates.regNumber = tempVehicleNumber;
+
+    // Build the frozen snapshot of all TABLE-related fields only
+    const invoiceSnapshot = {
       ...tempDetails,
-      fullName: tempCustomerName,
-      regNumber: tempVehicleNumber,
       particulars: tempParticulars,
       manualItems: tempManualItems,
       serviceCharge: tempServiceCharge,
       customDate: tempDate,
       colWidths: colWidths,
-      totalCharge: calculatedTotal
+      totalCharge: calculatedTotal,
+    };
+
+    updateJobDetails(job.id, {
+      // Preserve live details, then apply personal edits (so job details stay accurate)
+      ...liveDetails,
+      ...personalUpdates,
+      // Store the frozen snapshot - invoice/estimate renders from this
+      invoiceSnapshot,
     });
     setIsCustomizing(false);
   };
+
 
   const handleMergeDown = (type: 'p' | 'm', idx: number) => {
     if (type === 'p') {
@@ -292,23 +324,31 @@ function InvoiceContent({ id }: { id: string }) {
                 {isCustomizing ? (
                   <input className="edit-input" value={tempCustomerName} onChange={(e) => setTempCustomerName(e.target.value)} />
                 ) : (
-                  <div className="inv-field-value">{tempCustomerName}</div>
+                  <div className="inv-field-value">{dPerson.fullName || job.customerName || "—"}</div>
                 )}
               </div>
               <div className="inv-field">
                 <div className="inv-field-label">CONTACT NUMBER</div>
                 {isCustomizing ? (
-                  <input className="edit-input" value={d.phone || d.contactNumber || ""} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, phone: e.target.value }))} />
+                  <input className="edit-input" value={tempDetails?.phone ?? (dPerson.phone || dPerson.contactNumber || "")} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, phone: e.target.value }))} />
                 ) : (
-                  <div className="inv-field-value">{d.phone || d.contactNumber || "—"}</div>
+                  <div className="inv-field-value">{dPerson.phone || dPerson.contactNumber || "—"}</div>
                 )}
               </div>
               <div className="inv-field">
                 <div className="inv-field-label">ADDRESS</div>
                 {isCustomizing ? (
-                  <textarea className="edit-input" value={d.address || ""} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, address: e.target.value }))} style={{ height: '40px' }} />
+                  <textarea className="edit-input" value={tempDetails?.address ?? (dPerson.address || "")} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, address: e.target.value }))} style={{ height: '40px' }} />
                 ) : (
-                  <div className="inv-field-value">{d.address || "—"}</div>
+                  <div className="inv-field-value">{dPerson.address || "—"}</div>
+                )}
+              </div>
+              <div className="inv-field">
+                <div className="inv-field-label">CONSENT TYPE</div>
+                {isCustomizing ? (
+                  <input className="edit-input" value={tempDetails?.consentType ?? (dPerson.consentType || "")} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, consentType: e.target.value }))} />
+                ) : (
+                  <div className="inv-field-value">{(dPerson.consentType || "—").toUpperCase()}</div>
                 )}
               </div>
             </div>
@@ -320,30 +360,36 @@ function InvoiceContent({ id }: { id: string }) {
                 {isCustomizing ? (
                   <input className="edit-input" value={tempVehicleNumber} onChange={(e) => setTempVehicleNumber(e.target.value)} />
                 ) : (
-                  <div className="inv-field-value">{tempVehicleNumber}</div>
+                  <div className="inv-field-value">{dPerson.regNumber || job.vehicleNumber || "—"}</div>
                 )}
               </div>
               <div className="inv-field">
                 <div className="inv-field-label">VEHICLE TYPE</div>
                 {isCustomizing ? (
-                  <input className="edit-input" value={d.category || ""} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, category: e.target.value }))} />
+                  <input className="edit-input" value={tempDetails?.category ?? (dPerson.category || "")} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, category: e.target.value }))} />
                 ) : (
-                  <div className="inv-field-value">{d.category || "—"}</div>
+                  <div className="inv-field-value">{dPerson.category || "—"}</div>
                 )}
               </div>
-              {(d.brand || d.vehicleBrand || isCustomizing) && (
-                <div className="inv-field">
-                  <div className="inv-field-label">MAKE & MODEL</div>
-                  {isCustomizing ? (
-                    <div style={{ display: 'flex', gap: '0.4rem' }}>
-                      <input className="edit-input" value={d.brand || d.vehicleBrand || ""} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, brand: e.target.value }))} placeholder="MAKE" />
-                      <input className="edit-input" value={d.model || d.vehicleModel || ""} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, model: e.target.value }))} placeholder="MODEL" />
-                    </div>
-                  ) : (
-                    <div className="inv-field-value">{(d.brand || d.vehicleBrand || "").toUpperCase()} {(d.model || d.vehicleModel || "").toUpperCase()}</div>
-                  )}
-                </div>
-              )}
+              <div className="inv-field">
+                <div className="inv-field-label">MAKE &amp; MODEL</div>
+                {isCustomizing ? (
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <input className="edit-input" value={tempDetails?.brand ?? (dPerson.brand || "")} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, brand: e.target.value }))} placeholder="MAKE" />
+                    <input className="edit-input" value={tempDetails?.model ?? (dPerson.model || "")} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, model: e.target.value }))} placeholder="MODEL" />
+                  </div>
+                ) : (
+                  <div className="inv-field-value">{[dPerson.brand, dPerson.model].filter(Boolean).map(s => s.toUpperCase()).join(" ") || "—"}</div>
+                )}
+              </div>
+              <div className="inv-field">
+                <div className="inv-field-label">MANUFACTURE YEAR</div>
+                {isCustomizing ? (
+                  <input className="edit-input" value={tempDetails?.year ?? (dPerson.year || dPerson.manufactureYear || "")} onChange={(e) => setTempDetails((prev: any) => ({ ...prev, year: e.target.value }))} />
+                ) : (
+                  <div className="inv-field-value">{dPerson.year || dPerson.manufactureYear || "—"}</div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -561,8 +607,8 @@ function InvoiceContent({ id }: { id: string }) {
                 );
               });
               
-              // If customized, the service charge row is just another manual row or tempDetails edit
-              if (!d.hideServiceRow && (rows.length === 0 || isCustomizing)) {
+              // Show the default service charge row ONLY when no other items exist at all (not saved as custom)
+              if (!dTable.hideServiceRow && rows.length === 0) {
                 const sType = (isCustomizing ? (tempDetails?.serviceType || job.serviceType) : (d.serviceType || job.serviceType));
                 rows.push(
                   <tr key="default">

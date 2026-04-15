@@ -16,7 +16,8 @@ import {
   Check,
   Package,
   Search,
-  List
+  List,
+  Calendar
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -41,7 +42,9 @@ export default function QuickServicePage() {
     phone: "",
     brand: "",
     customerType: "Retail" as "Retail" | "Partner",
-    partnerName: ""
+    partnerName: "",
+    consentType: "OWNER",
+    year: ""
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
@@ -235,7 +238,8 @@ export default function QuickServicePage() {
         ...customerData, 
         customerType: 'Partner', 
         partnerName: partner.name,
-        fullName: partner.name
+        fullName: partner.name,
+        consentType: 'PARTNER'
       });
       setCart(prev => prev.map(item => ({...item, price: item.partnerPrice || item.cost})));
       setSelectionMade(true);
@@ -666,6 +670,33 @@ export default function QuickServicePage() {
                 >
                   <option value="">Select Brand</option>
                   {carBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+              
+              <div className="input-group">
+                <label><List size={14} /> Consent Type</label>
+                <select 
+                  className="input-field"
+                  value={customerData.consentType}
+                  onChange={(e) => setCustomerData({...customerData, consentType: e.target.value})}
+                >
+                  {useSettings().consentTypes.map(ct => (
+                    <option key={ct} value={ct}>{ct}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="input-group">
+                <label><Calendar size={14} /> Manufacture Year</label>
+                <select 
+                  className="input-field"
+                  value={customerData.year}
+                  onChange={(e) => setCustomerData({...customerData, year: e.target.value})}
+                >
+                  <option value="">Select Year</option>
+                  {Array.from({ length: new Date().getFullYear() - 1994 + 1 }, (_, i) => (1994 + i).toString()).reverse().map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
                 </select>
               </div>
 
