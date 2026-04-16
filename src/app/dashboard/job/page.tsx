@@ -486,29 +486,36 @@ function JobDetailPageContent() {
               {job.status === 'Completed' ? 'VIEW' : 'GENERATE'}<br />INVOICE
             </button>
 
-            {/* JOB PARTICULARS — always available */}
-            <button
-              style={{
-                padding: '0.6rem 0.4rem',
-                background: '#7c3aed',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 700,
-                fontSize: '0.72rem',
-                cursor: 'pointer',
-                letterSpacing: '0.02em',
-                textAlign: 'center'
-              }}
-              onClick={() => {
-                setParticularsStep(1);
-                setTempSubCategories(Array.isArray(d.subCategories) ? [...d.subCategories] : []);
-                setCommission(d.commission || 0);
-                setShowEndWorkModal(true);
-              }}
-            >
-              JOB<br />PARTICULARS
-            </button>
+            {/* JOB PARTICULARS — only after invoice generated */}
+            {(() => {
+              const invoiceGenerated = !!job.timeline?.invoiceGeneratedAt;
+              return (
+                <button
+                  style={{
+                    padding: '0.6rem 0.4rem',
+                    background: invoiceGenerated ? '#7c3aed' : 'rgba(124,58,237,0.25)',
+                    color: invoiceGenerated ? '#fff' : 'rgba(255,255,255,0.35)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    fontSize: '0.72rem',
+                    cursor: invoiceGenerated ? 'pointer' : 'not-allowed',
+                    letterSpacing: '0.02em',
+                    textAlign: 'center'
+                  }}
+                  disabled={!invoiceGenerated}
+                  onClick={() => {
+                    if (!invoiceGenerated) return;
+                    setParticularsStep(1);
+                    setTempSubCategories(Array.isArray(d.subCategories) ? [...d.subCategories] : []);
+                    setCommission(d.commission || 0);
+                    setShowEndWorkModal(true);
+                  }}
+                >
+                  JOB<br />PARTICULARS
+                </button>
+              );
+            })()}
           </div>
 
           {job.status === "Completed" && !job.timeline?.paymentReceivedAt && (
