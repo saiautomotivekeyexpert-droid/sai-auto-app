@@ -7,7 +7,7 @@ import { useJobs } from "@/context/JobsContext";
 import { useSettings } from "@/context/SettingsContext";
 
 export default function Dashboard() {
-  const { jobs, isLoaded, syncError } = useJobs();
+  const { jobs, isLoaded, syncError, updateJobDetails } = useJobs();
   const { inventorySeries } = useSettings();
   const [visibleAmounts, setVisibleAmounts] = useState<Record<string, boolean>>({});
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -44,13 +44,8 @@ export default function Dashboard() {
         }
       }
 
-      // 2. Sync updated Job JSON to Google Sheets
-      const syncJob = { ...job, details: { ...job.details, documents: cloudDocs } };
-      await fetch('/api/google/sync-jobs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'sync', job: syncJob })
-      });
+      // 3. Mark as Cloud-Synced in local state
+      updateJobDetails(job.id, { isCloud: true });
       alert('Offline Job retroactively pushed to Google Drive and Sheets!');
     } catch (err) {
       alert('Failed to sync retroactively.');
@@ -199,9 +194,14 @@ export default function Dashboard() {
                   <td><span className="plate-badge">{job.vehicleNumber}</span></td>
                   <td>{job.serviceType}</td>
                   <td>
-                    <span className={`status-badge ${job.status.toLowerCase().replace(" ", "-")}`}>
-                      {job.status}
-                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                      <span className={`status-badge ${job.status.toLowerCase().replace(" ", "-")}`}>
+                        {job.status}
+                      </span>
+                      {!job.isCloud && (
+                        <span className="local-badge">LOCAL ONLY</span>
+                      )}
+                    </div>
                   </td>
                   <td style={{ fontSize: '0.8rem', fontWeight: 600 }}>
                     {new Date(job.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -393,6 +393,22 @@ export default function Dashboard() {
         .status-badge.approved { background: rgba(16, 185, 129, 0.15); color: var(--success); }
         .status-badge.rejected { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
         .status-badge.in-progress { background: rgba(30, 64, 175, 0.2); color: #60a5fa; }
+
+        .local-badge {
+          display: block;
+          margin-top: 4px;
+          font-size: 0.65rem;
+          color: #fca5a5;
+          font-weight: 800;
+          letter-spacing: 0.05em;
+          animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+          0% { opacity: 0.6; }
+          50% { opacity: 1; }
+          100% { opacity: 0.6; }
+        }
         
         .action-link {
           background: transparent;

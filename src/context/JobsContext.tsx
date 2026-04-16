@@ -21,6 +21,7 @@ export interface Job {
   createdAt: number;
   details: any;
   timeline: JobTimeline;
+  isCloud?: boolean;
 }
 
 interface JobsContextType {
@@ -143,7 +144,8 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
                 timeline: timeline,
                 ...(invoiceSnapshot ? { invoiceSnapshot } : {}),
                 ...(estimateSnapshot ? { estimateSnapshot } : {})
-              }
+              },
+              isCloud: true
             };
           });
 
@@ -201,6 +203,7 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
       createdAt: now,
       details: formData,
       timeline: { ...formData.timeline, estimatedAt: now },
+      isCloud: false,
     };
     setJobs(prev => [newJob, ...prev]);
     syncToCloud(newJob);
