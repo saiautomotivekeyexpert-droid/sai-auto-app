@@ -59,21 +59,25 @@ function InvoiceContent({ id }: { id: string }) {
     );
   }
 
-  // In view mode: table data comes from invoiceSnapshot (frozen at save time) if it exists;
+  // In view mode: table data comes from the correct frozen snapshot (if it exists);
   // personal/vehicle details always come from live job.details (never frozen).
   const liveDetails = job.details || {};
-  const snap = liveDetails.invoiceSnapshot;
+
+  // Determine doc type FIRST so we pick the right snapshot
+  const isEstimate = forceType === "estimate" || job.status === "Waiting Approval" || job.status === "Approved" || job.status === "Rejected";
+  const snapshotKey = isEstimate ? 'estimateSnapshot' : 'invoiceSnapshot';
+  const snap = liveDetails[snapshotKey];
+
   // dTable = source for table-related fields (items, rates, totals, layout)
   const dTable = isCustomizing ? tempDetails : (snap || liveDetails);
   // dPerson = source for personal/vehicle fields (always live)
   const dPerson = liveDetails;
-  // d keeps the old API for template areas that use both (safe to be dTable since personal fields are overridden below)
+  // d keeps the old API for template areas that use both
   const d = dTable;
 
   const particulars: any[] = dTable.particulars || [];
   const manualItems: any[] = dTable.manualItems || [];
-  const isEstimate = forceType === "estimate" || job.status === "Waiting Approval" || job.status === "Approved" || job.status === "Rejected";
-  
+
   const isQuickService = job.serviceType === "Quick Service";
   const serviceCharge = Number(dTable.serviceCharge) || Number(dTable.approvedGrade?.rate || dTable.selectedTotal || 0);
   const currentParticulars = isCustomizing ? tempParticulars : particulars;
@@ -101,12 +105,11 @@ function InvoiceContent({ id }: { id: string }) {
         if (tempDetails[k] !== undefined) personalUpdates[k] = tempDetails[k];
       });
     }
-    // Also capture name/regNumber from their dedicated temp state
     if (tempCustomerName) personalUpdates.fullName = tempCustomerName;
     if (tempVehicleNumber) personalUpdates.regNumber = tempVehicleNumber;
 
     // Build the frozen snapshot of all TABLE-related fields only
-    const invoiceSnapshot = {
+    const snapshot = {
       ...tempDetails,
       particulars: tempParticulars,
       manualItems: tempManualItems,
@@ -116,16 +119,14 @@ function InvoiceContent({ id }: { id: string }) {
       totalCharge: calculatedTotal,
     };
 
+    // Save to the correct snapshot key — estimate and invoice are fully independent
     updateJobDetails(job.id, {
-      // Preserve live details, then apply personal edits (so job details stay accurate)
       ...liveDetails,
       ...personalUpdates,
-      // Store the frozen snapshot - invoice/estimate renders from this
-      invoiceSnapshot,
+      [snapshotKey]: snapshot,
     });
     setIsCustomizing(false);
   };
-
 
   const handleMergeDown = (type: 'p' | 'm', idx: number) => {
     if (type === 'p') {

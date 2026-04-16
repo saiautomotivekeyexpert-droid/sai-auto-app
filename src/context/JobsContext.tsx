@@ -67,10 +67,21 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
             
             const timeline = typeof row[19] === 'string' ? JSON.parse(row[19]) : {};
             
-            // Parse invoiceSnapshot from column U (index 20) if present
+            // Parse snapshots from column U (index 20) — stored as {e: estimateSnapshot, i: invoiceSnapshot}
+            let estimateSnapshot: any = undefined;
             let invoiceSnapshot: any = undefined;
             if (row[20] && typeof row[20] === 'string' && row[20].startsWith('{')) {
-              try { invoiceSnapshot = JSON.parse(row[20]); } catch(e) { invoiceSnapshot = undefined; }
+              try {
+                const parsed = JSON.parse(row[20]);
+                // New format: {e, i}
+                if (parsed.e !== undefined || parsed.i !== undefined) {
+                  estimateSnapshot = parsed.e || undefined;
+                  invoiceSnapshot = parsed.i || undefined;
+                } else {
+                  // Legacy format: was just invoiceSnapshot directly
+                  invoiceSnapshot = parsed;
+                }
+              } catch(e) { /* ignore */ }
             }
             const createdAt = timeline.estimatedAt || Date.now();
             
@@ -145,7 +156,8 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
                 docsFolderLink: row[17] || '',
                 afterSales: row[18] || '',
                 timeline: timeline,
-                ...(invoiceSnapshot ? { invoiceSnapshot } : {})
+                ...(invoiceSnapshot ? { invoiceSnapshot } : {}),
+                ...(estimateSnapshot ? { estimateSnapshot } : {})
               }
             };
           });

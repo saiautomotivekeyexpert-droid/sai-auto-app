@@ -126,7 +126,7 @@ export async function POST(req: Request) {
         docDetail,                           // R: DOCUMENT DETAIL (Hyperlinks)
         d.afterSales || d.afterSalesComplaint || '', // S: AFTER SALES SERVICE
         JSON.stringify(j.timeline || {}),     // T: JOB TIMELINE
-        d.invoiceSnapshot ? JSON.stringify(d.invoiceSnapshot) : '', // U: INVOICE SNAPSHOT (custom table data)
+        d.invoiceSnapshot || d.estimateSnapshot ? JSON.stringify({ e: d.estimateSnapshot || null, i: d.invoiceSnapshot || null }) : '', // U: SNAPSHOTS
       ];
     };
 
