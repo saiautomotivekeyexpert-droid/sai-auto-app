@@ -28,6 +28,7 @@ function JobDetailPageContent() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pin, setPin] = useState("");
+  const [pinAction, setPinAction] = useState<"details" | "particulars">("details");
   const [editData, setEditData] = useState<any>(null);
   const [previewDoc, setPreviewDoc] = useState<{url: string, type: string, name: string} | null>(null);
   const [selectedGradeIdx, setSelectedGradeIdx] = useState<number | null>(null);
@@ -327,13 +328,24 @@ function JobDetailPageContent() {
   };
 
   const handleEditClick = () => {
-    if (isReadOnly) { setShowPinModal(true); }
+    if (isReadOnly) { 
+      setPinAction("details");
+      setShowPinModal(true); 
+    }
     else { handleSaveChanges(); }
   };
 
   const verifyPin = () => {
     if (pin === "1234") {
-      setIsReadOnly(false);
+      if (pinAction === "details") {
+        setIsReadOnly(false);
+      } else {
+        // Unlock Particulars Modal
+        setParticularsStep(1);
+        setTempSubCategories(Array.isArray(d.subCategories) ? [...d.subCategories] : []);
+        setCommission(d.commission || 0);
+        setShowEndWorkModal(true);
+      }
       setShowPinModal(false);
       setPin("");
     } else {
@@ -504,10 +516,18 @@ function JobDetailPageContent() {
                   disabled={!invoiceGenerated}
                   onClick={() => {
                     if (!invoiceGenerated) return;
-                    setParticularsStep(1);
-                    setTempSubCategories(Array.isArray(d.subCategories) ? [...d.subCategories] : []);
-                    setCommission(d.commission || 0);
-                    setShowEndWorkModal(true);
+                    
+                    const hasParticulars = (d.particulars && d.particulars.length > 0) || (d.subCategories && d.subCategories.length > 0);
+                    
+                    if (hasParticulars) {
+                      setPinAction("particulars");
+                      setShowPinModal(true);
+                    } else {
+                      setParticularsStep(1);
+                      setTempSubCategories(Array.isArray(d.subCategories) ? [...d.subCategories] : []);
+                      setCommission(d.commission || 0);
+                      setShowEndWorkModal(true);
+                    }
                   }}
                 >
                   JOB<br />PARTICULARS
