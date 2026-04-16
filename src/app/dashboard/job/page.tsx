@@ -571,9 +571,19 @@ function JobDetailPageContent() {
         </div>
         <div className="ref-info-row">
           <span className="ref-label">Vehicle Estimate</span>
-          <span className="ref-value" style={{ color: d.hideEstimateTotal ? 'var(--accent-primary)' : 'inherit', fontWeight: d.hideEstimateTotal ? 700 : 'normal' }}>
-            {d.hideEstimateTotal ? "MULTI-TIER QUOTE" : `₹ ${total}`}
-          </span>
+          {isReadOnly || d.hideEstimateTotal ? (
+            <span className="ref-value" style={{ color: d.hideEstimateTotal ? 'var(--accent-primary)' : 'inherit', fontWeight: d.hideEstimateTotal ? 700 : 'normal' }}>
+              {d.hideEstimateTotal ? "MULTI-TIER QUOTE" : `₹ ${total}`}
+            </span>
+          ) : (
+            <input
+              type="number"
+              className="display-input editable"
+              style={{ textAlign: 'right', maxWidth: '140px' }}
+              value={d.totalCharge ?? total}
+              onChange={e => setEditData({ ...d, totalCharge: Number(e.target.value) })}
+            />
+          )}
         </div>
         {d.hideEstimateTotal && d.qualityOptions && d.qualityOptions.length > 0 && (
           <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: 'rgba(59,130,246,0.05)', borderRadius: '6px', border: '1px solid rgba(59,130,246,0.1)' }}>
