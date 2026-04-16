@@ -454,10 +454,8 @@ function JobDetailPageContent() {
               disabled={job.status !== 'In Progress'}
               onClick={() => {
                 if (job.status !== 'In Progress') return;
-                setParticularsStep(1);
-                setTempSubCategories(Array.isArray(d.subCategories) ? [...d.subCategories] : []);
-                setCommission(d.commission || 0);
-                setShowEndWorkModal(true);
+                updateJobStatus(job.id, 'Completed');
+                addTimelineEvent(job.id, 'workEndedAt');
               }}
             >
               MARK AS<br />WORK DONE
