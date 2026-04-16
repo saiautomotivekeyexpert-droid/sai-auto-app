@@ -536,6 +536,7 @@ function JobDetailPageContent() {
         {refField("Address", customerAddress, "address")}
         {refField("Mobile No.", customerPhone, "phone", "tel")}
         {refField("Reference Name", d.referenceName, "referenceName")}
+        {refField("Consent Type", d.consentType, "consentType")}
         <div className="ref-info-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.4rem', marginTop: '0.5rem' }}>
           <span className="ref-label">Complaint History</span>
           {isReadOnly 
@@ -598,7 +599,6 @@ function JobDetailPageContent() {
           <span className="ref-value" style={{ color: job.status === "Pending" ? "var(--warning)" : job.status === "Approved" ? "var(--success)" : "#334155" }}>{job.status}</span>
         </div>
         {refField("E-KYC Service", serviceType, "serviceType", "select", serviceTypes)}
-        {refField("Consent Type", d.consentType, "consentType")}
         <div className="ref-info-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.4rem', marginTop: '0.5rem' }}>
           <span className="ref-label">Sub-categories</span>
           <span className="ref-value" style={{ width: '100%', textAlign: 'left' }}>
