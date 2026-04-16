@@ -204,10 +204,18 @@ function InvoiceContent({ id }: { id: string }) {
       const { jsPDF } = await import("jspdf");
 
       const canvas = await html2canvas(paper, {
-        scale: 2,
+        scale: 3, // Even higher quality
         useCORS: true,
         logging: false,
-        backgroundColor: "#ffffff"
+        backgroundColor: "#ffffff",
+        onclone: (clonedDoc) => {
+          const clonedPaper = clonedDoc.querySelector(".inv-paper") as HTMLElement;
+          if (clonedPaper) {
+            clonedPaper.style.transform = "none";
+            clonedPaper.style.opacity = "1";
+            clonedPaper.style.animation = "none";
+          }
+        }
       });
 
       const imgData = canvas.toDataURL("image/png");
@@ -296,7 +304,7 @@ function InvoiceContent({ id }: { id: string }) {
       </div>
 
       <div className="inv-paper-wrapper">
-        <div className="inv-paper animate-fade-in" style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}>
+        <div className="inv-paper" style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}>
           <div className="inv-top-bar" />
 
           {/* HEADER */}
