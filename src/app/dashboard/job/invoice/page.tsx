@@ -701,11 +701,22 @@ function InvoiceContent({ id }: { id: string }) {
           .inv-two-col { grid-template-columns: 1fr; }
         }
         @media print { 
+          @page { size: A4; margin: 0; }
           .no-print { display: none !important; } 
-          .inv-container { padding: 0; max-width: 100%; } 
-          .inv-paper { box-shadow: none; border: none; transform: none !important; } 
-          body { background: white !important; } 
-          .inv-paper-wrapper { padding: 0; background: white; } 
+          .inv-container { padding: 0 !important; margin: 0 !important; max-width: 100% !important; } 
+          .inv-paper { 
+            box-shadow: none !important; 
+            border: none !important; 
+            transform: none !important; 
+            width: 100% !important;
+            min-height: 100% !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          } 
+          .inv-paper-wrapper { padding: 0 !important; background: white !important; display: block !important; overflow: visible !important; } 
+          body { background: white !important; margin: 0 !important; padding: 0 !important; } 
         }
       `}</style>
     </div>

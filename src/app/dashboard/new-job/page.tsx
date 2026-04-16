@@ -73,6 +73,7 @@ export default function NewJobPage() {
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpInput, setOtpInput] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+  const [skipOtp, setSkipOtp] = useState(false);
 
   const [stockPicker, setStockPicker] = useState<{ productName: string } | null>(null);
   const [files, setFiles] = useState<{ documents: { file: File | null, preview: string | null, name?: string, type?: string }[] }>({
@@ -306,6 +307,14 @@ export default function NewJobPage() {
       return;
     }
 
+    if (skipOtp) {
+      setOtpSent(true);
+      setShowOtpModal(true);
+      // Skip the API call entirely
+      console.log("Admin Bypass: Skipped OTP SMS send.");
+      return;
+    }
+
     setOtpSent(true);
     setShowOtpModal(true);
     
@@ -449,6 +458,18 @@ export default function NewJobPage() {
                       </button>
                     )}
                   </div>
+                  {!otpVerified && (
+                    <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <input 
+                        type="checkbox" id="skipOtpCheck" 
+                        checked={skipOtp} onChange={e => setSkipOtp(e.target.checked)}
+                        style={{ width: 'auto', outline: 'none' }}
+                      />
+                      <label htmlFor="skipOtpCheck" style={{ fontSize: '0.7rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                        Skip SMS (Recovery Mode - Use Code 1234)
+                      </label>
+                    </div>
+                  )}
                 </div>
                 <div className="form-group full-width">
                   <label className="label">Complete Address</label>

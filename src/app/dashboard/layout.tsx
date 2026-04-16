@@ -202,6 +202,21 @@ export default function DashboardLayout({
             padding: 0 0.75rem 1rem;
           }
         }
+
+        @media print {
+          .sidebar-wrapper, .top-bar, .mobile-overlay {
+            display: none !important;
+          }
+          .main-content {
+            display: block !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .content-inner {
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+        }
       `}</style>
     </div>
   );
