@@ -585,6 +585,14 @@ function JobDetailPageContent() {
             />
           )}
         </div>
+        {job.details?.invoiceSnapshot?.totalCharge !== undefined && (
+          <div className="ref-info-row">
+            <span className="ref-label">Invoice Amount</span>
+            <span className="ref-value" style={{ color: 'var(--success)', fontWeight: 700 }}>
+              ₹ {job.details.invoiceSnapshot.totalCharge}
+            </span>
+          </div>
+        )}
         {d.hideEstimateTotal && d.qualityOptions && d.qualityOptions.length > 0 && (
           <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: 'rgba(59,130,246,0.05)', borderRadius: '6px', border: '1px solid rgba(59,130,246,0.1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.2rem' }}>
