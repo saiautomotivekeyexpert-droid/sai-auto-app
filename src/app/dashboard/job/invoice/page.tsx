@@ -701,22 +701,29 @@ function InvoiceContent({ id }: { id: string }) {
           .inv-two-col { grid-template-columns: 1fr; }
         }
         @media print { 
-          @page { size: A4; margin: 0; }
+          @page { size: A4; margin: 10mm; }
           .no-print { display: none !important; } 
-          .inv-container { padding: 0 !important; margin: 0 !important; max-width: 100% !important; } 
+          .inv-container { padding: 0 !important; margin: 0 !important; max-width: 100% !important; border: none !important; } 
           .inv-paper { 
             box-shadow: none !important; 
             border: none !important; 
             transform: none !important; 
             width: 100% !important;
-            min-height: 100% !important;
             margin: 0 !important;
+            padding: 0 !important;
             border-radius: 0 !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
           } 
           .inv-paper-wrapper { padding: 0 !important; background: white !important; display: block !important; overflow: visible !important; } 
-          body { background: white !important; margin: 0 !important; padding: 0 !important; } 
+          body { background: white !important; margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact; }
+          
+          .inv-header, .inv-two-col, .inv-auth-box, .inv-signatures { break-inside: avoid; }
+          .inv-table tr { break-inside: auto; }
+          .inv-table th, .inv-table td { break-inside: avoid; }
+          
+          /* Ensure footer stays at bottom if short, or flows naturally */
+          .inv-footer { break-inside: avoid; }
         }
       `}</style>
     </div>
