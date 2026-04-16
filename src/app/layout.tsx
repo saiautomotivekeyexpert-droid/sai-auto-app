@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 
 export const metadata: Metadata = {
-  title: "Sai Auto Key Works | E-KYC Registry",
+  title: "SILCA Locksmith Record Book",
   description: "Secure Digital Registry & Locksmithing Compliance",
   manifest: "/manifest.json",
 };

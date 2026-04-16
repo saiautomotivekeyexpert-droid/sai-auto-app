@@ -462,7 +462,7 @@ export default function NewJobPage() {
                       onChange={e => setFormData({...formData, legalConsent: e.target.checked})}
                     />
                     <span className="checkmark"></span>
-                    <span className="consent-text">I hereby authorize Sai Auto Key Works to perform locksmithing services and confirm I am the legal owner of this vehicle.</span>
+                    <span className="consent-text">I hereby authorize SILCA Locksmith Record Book to perform locksmithing services and confirm I am the legal owner of this vehicle.</span>
                   </label>
                 </div>
               </div>
@@ -684,7 +684,7 @@ export default function NewJobPage() {
               
               <div className="estimate-summary-box glass-panel">
                 <div className="print-only-header" style={{ display: 'none' }}>
-                  <h2>SAI AUTO KEY WORKS - OFFICIAL ESTIMATE</h2>
+                  <h2>SILCA LOCKSMITH RECORD BOOK - OFFICIAL ESTIMATE</h2>
                   <div className="print-info-grid">
                     <div><strong>Customer Name:</strong> {formData.fullName || "N/A"}</div>
                     <div><strong>Vehicle Reg:</strong> {formData.regNumber || "N/A"}</div>
@@ -929,7 +929,7 @@ export default function NewJobPage() {
             </div>
             
             <div style={{ marginTop: '1.5rem', fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>
-              SAI AUTO • SECURE VERIFICATION
+              SILCA • SECURE VERIFICATION
             </div>
           </div>
         </div>

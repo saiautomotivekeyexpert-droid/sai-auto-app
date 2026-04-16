@@ -43,7 +43,7 @@ export default function LoginPage() {
           <div className="logo-icon">
             <Key size={32} color="var(--accent-primary)" />
           </div>
-          <h1>Sai Auto Key Works</h1>
+          <h1>SILCA Locksmith Record Book</h1>
           <p className="text-muted">Digital Registry & E-KYC System</p>
         </div>
 

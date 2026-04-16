@@ -50,7 +50,7 @@ export default function DashboardLayout({
               <Bell size={20} />
             </button>
             <div className="user-profile">
-              <span className="user-name hide-mobile">Sai Auto Key Expert</span>
+              <span className="user-name hide-mobile">SILCA Locksmith Record Book</span>
               <div className="avatar">
                 <UserIcon size={16} />
               </div>

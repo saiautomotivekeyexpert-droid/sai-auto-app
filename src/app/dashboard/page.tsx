@@ -120,7 +120,7 @@ export default function Dashboard() {
         <div className="flex-row">
           <div>
             <h1 className="text-gradient">Shop Dashboard</h1>
-            <p className="text-muted">Welcome back! Here's what's happening today at Sai Auto Key Works.</p>
+            <p className="text-muted">Welcome back! Here's what's happening today at SILCA Locksmith Record Book.</p>
           </div>
           <button className="primary-btn" onClick={exportToCSV}>
             <Download size={18} /> Export CSV

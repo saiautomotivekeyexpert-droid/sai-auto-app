@@ -369,7 +369,7 @@ function JobDetailPageContent() {
         <h1 className="no-print">E-KYC Details</h1>
         {/* PRINT ONLY HEADER */}
         <div style={{ display: 'none' }} className="print-header">
-           <h1 style={{ color: '#1e3a8a', margin: 0, fontSize: '24px' }}>SAI AUTO KEY WORKS</h1>
+           <h1 style={{ color: '#1e3a8a', margin: 0, fontSize: '24px' }}>SILCA LOCKSMITH RECORD BOOK</h1>
            <div style={{ fontSize: '10px', color: '#666', fontWeight: 700 }}>E-KYC TECHNICAL REGISTRY • JOB ID: #{job.id}</div>
         </div>
       </header>
