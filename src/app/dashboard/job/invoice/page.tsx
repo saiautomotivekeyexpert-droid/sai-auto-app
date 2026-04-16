@@ -400,7 +400,7 @@ function InvoiceContent({ id }: { id: string }) {
       <thead>
         <tr>
               <th style={{ width: colWidths.sno }}>S.NO</th>
-              <th style={{ width: colWidths.service }}>SERVICE TYPE</th>
+              <th style={{ width: colWidths.service }}>SERVICE</th>
               <th style={{ width: colWidths.product }}>PRODUCT</th>
               <th style={{ width: colWidths.qty }}>QTY</th>
               <th style={{ width: colWidths.rate }}>RATE</th>

@@ -694,34 +694,57 @@ export default function NewJobPage() {
                   <hr style={{ margin: '1rem 0', borderColor: '#e2e8f0' }} />
                 </div>
                 
-                <div className="summary-item">
-                  <span>Service ({formData.serviceType})</span>
-                  <input 
-                    type="number" className="inline-input no-print" 
-                    value={formData.serviceCharge} onChange={e => setFormData({...formData, serviceCharge: Number(e.target.value)})}
-                  />
-                </div>
-                
-                <div className="summary-items-list">
-                  {formData.subCategories.length > 0 && (
-                    <div className="summary-item sub-item" style={{ borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.5rem' }}>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--accent-primary)', fontWeight: 600 }}>{formData.subCategories.join(' + ')}</span>
-                    </div>
-                  )}
-                  {formData.particulars.length > 0 ? (
-                    formData.particulars.map((p: any) => (
-                      <div key={p.name} className="summary-item sub-item">
-                        <span>• {p.name} {p.quantity > 1 ? `(x${p.quantity})` : ''}</span>
-                        {p.selectedMarks?.length > 0 && (
-                          <div style={{ fontSize: '0.7rem', opacity: 0.7, paddingLeft: '1.2rem' }}>
-                            Marks: {p.selectedMarks.map((m: any) => `#${m.mark}`).join(', ')}
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="summary-item sub-item text-muted">No particulars selected</div>
-                  )}
+                <div className="summary-items-table" style={{ marginTop: '1rem', width: '100%' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+                        <th style={{ textAlign: 'left', padding: '0.5rem 0' }}>SERVICE</th>
+                        <th style={{ textAlign: 'left', padding: '0.5rem 0' }}>PRODUCT</th>
+                        <th style={{ textAlign: 'center', padding: '0.5rem 0' }}>QTY</th>
+                        <th style={{ textAlign: 'right', padding: '0.5rem 0' }}>RATE</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* SERVICE CHARGE ROW */}
+                      <tr style={{ borderBottom: '1px dashed var(--glass-border)' }}>
+                        <td style={{ padding: '0.75rem 0' }}>{formData.serviceType}</td>
+                        <td style={{ padding: '0.75rem 0', fontWeight: 600 }}>SERVICE CHARGE</td>
+                        <td style={{ padding: '0.75rem 0', textAlign: 'center' }}>1</td>
+                        <td style={{ padding: '0.75rem 0', textAlign: 'right' }}>
+                          <input 
+                            type="number" className="inline-input no-print" 
+                            style={{ width: '80px', textAlign: 'right', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', border: '1px solid var(--glass-border)', padding: '0.2rem' }}
+                            value={formData.serviceCharge} onChange={e => setFormData({...formData, serviceCharge: Number(e.target.value)})}
+                          />
+                        </td>
+                      </tr>
+
+                      {/* PARTICULARS ROWS */}
+                      {formData.particulars.length > 0 ? (
+                        formData.particulars.map((p: any) => (
+                          <tr key={p.name} style={{ borderBottom: '1px dashed var(--glass-border)' }}>
+                            <td style={{ padding: '0.75rem 0', fontSize: '0.75rem', opacity: 0.8 }}>{formData.serviceType}</td>
+                            <td style={{ padding: '0.75rem 0', fontWeight: 600 }}>
+                              {p.name}
+                              {p.selectedMarks?.length > 0 && (
+                                <div style={{ fontSize: '0.65rem', opacity: 0.6, fontWeight: 400 }}>
+                                  Marks: {p.selectedMarks.map((m: any) => `#${m.mark}`).join(', ')}
+                                </div>
+                              )}
+                            </td>
+                            <td style={{ padding: '0.75rem 0', textAlign: 'center' }}>{p.quantity}</td>
+                            <td style={{ padding: '0.75rem 0', textAlign: 'right', color: 'var(--text-muted)' }}>FITTED</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={4} style={{ padding: '1rem 0', textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                            No particulars selected
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
 
                 <div className="total-panel-inline" style={{ borderBottom: formData.hideEstimateTotal ? '1px dashed var(--glass-border)' : 'none', paddingBottom: formData.hideEstimateTotal ? '1rem' : '0' }}>
