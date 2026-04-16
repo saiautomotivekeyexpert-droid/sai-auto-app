@@ -416,42 +416,108 @@ function JobDetailPageContent() {
             </button>
           )}
 
-           {job.status === "In Progress" && (
-            <button className="primary-btn w-full" style={{ background: 'var(--warning)', color: '#000' }}
+          {/* 4-button action row — always visible */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.4rem', marginTop: '0.5rem' }}>
+            {/* VIEW ESTIMATE */}
+            <button
+              style={{
+                padding: '0.6rem 0.4rem',
+                background: '#3b82f6',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 700,
+                fontSize: '0.72rem',
+                cursor: 'pointer',
+                letterSpacing: '0.02em',
+                textAlign: 'center'
+              }}
+              onClick={() => router.push(`/dashboard/job/invoice?id=${job.id}&type=estimate`)}
+            >
+              VIEW<br />ESTIMATE
+            </button>
+
+            {/* MARK AS WORK DONE */}
+            <button
+              style={{
+                padding: '0.6rem 0.4rem',
+                background: job.status === 'In Progress' ? '#f59e0b' : 'rgba(245,158,11,0.25)',
+                color: job.status === 'In Progress' ? '#000' : 'rgba(0,0,0,0.4)',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 700,
+                fontSize: '0.72rem',
+                cursor: job.status === 'In Progress' ? 'pointer' : 'not-allowed',
+                letterSpacing: '0.02em',
+                textAlign: 'center'
+              }}
+              disabled={job.status !== 'In Progress'}
+              onClick={() => {
+                if (job.status !== 'In Progress') return;
+                setParticularsStep(1);
+                setTempSubCategories(Array.isArray(d.subCategories) ? [...d.subCategories] : []);
+                setCommission(d.commission || 0);
+                setShowEndWorkModal(true);
+              }}
+            >
+              MARK AS<br />WORK DONE
+            </button>
+
+            {/* GENERATE INVOICE */}
+            <button
+              style={{
+                padding: '0.6rem 0.4rem',
+                background: (job.status === 'Completed' || job.status === 'Approved' || job.status === 'In Progress') ? '#22c55e' : 'rgba(34,197,94,0.25)',
+                color: (job.status === 'Completed' || job.status === 'Approved' || job.status === 'In Progress') ? '#fff' : 'rgba(255,255,255,0.35)',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 700,
+                fontSize: '0.72rem',
+                cursor: (job.status === 'Completed' || job.status === 'Approved' || job.status === 'In Progress') ? 'pointer' : 'not-allowed',
+                letterSpacing: '0.02em',
+                textAlign: 'center'
+              }}
+              disabled={!(job.status === 'Completed' || job.status === 'Approved' || job.status === 'In Progress')}
+              onClick={() => {
+                if (!job.timeline?.invoiceGeneratedAt) addTimelineEvent(job.id, 'invoiceGeneratedAt');
+                router.push(`/dashboard/job/invoice?id=${job.id}`);
+              }}
+            >
+              {job.status === 'Completed' ? 'VIEW' : 'GENERATE'}<br />INVOICE
+            </button>
+
+            {/* JOB PARTICULARS — always available */}
+            <button
+              style={{
+                padding: '0.6rem 0.4rem',
+                background: '#7c3aed',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 700,
+                fontSize: '0.72rem',
+                cursor: 'pointer',
+                letterSpacing: '0.02em',
+                textAlign: 'center'
+              }}
               onClick={() => {
                 setParticularsStep(1);
                 setTempSubCategories(Array.isArray(d.subCategories) ? [...d.subCategories] : []);
                 setCommission(d.commission || 0);
                 setShowEndWorkModal(true);
-              }}>
-              🏁 Mark as Work Done
+              }}
+            >
+              JOB<br />PARTICULARS
             </button>
-          )}
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: job.status === "Waiting Approval" || job.status === "Approved" || job.status === "In Progress" ? '0.5rem' : '0' }}>
-            {/* Estimate Button - Always available once job exists */}
-            <button className="primary-btn" style={{ flex: 1, background: '#3b82f6' }} onClick={() => { 
-              router.push(`/dashboard/job/invoice?id=${job.id}&type=estimate`);
-            }}>
-              {d.hideEstimateTotal ? "View Estimate (Multi-tier)" : "View Estimate"}
-            </button>
-
-            {/* Invoice Button - Available after work starts or completes */}
-            {/* Invoice Button - Available after work starts or completes */}
-            {(job.status === "Completed" || job.status === "Approved" || job.status === "In Progress") && (
-              <button className="primary-btn green-btn" style={{ flex: 1 }} onClick={() => { 
-                if (!job.timeline?.invoiceGeneratedAt) addTimelineEvent(job.id, 'invoiceGeneratedAt'); 
-                router.push(`/dashboard/job/invoice?id=${job.id}`);
-              }}>
-                {job.status === "Approved" || job.status === "In Progress" ? "Generate Invoice" : "View Invoice"}
-              </button>
-            )}
           </div>
+
           {job.status === "Completed" && !job.timeline?.paymentReceivedAt && (
             <button className="secondary-btn w-full" style={{ marginTop: '0.5rem', borderColor: 'var(--success)', color: 'var(--success)' }}
               onClick={() => setShowPaymentModal(true)}>
               💰 Record Payment
             </button>
           )}
+
         </div>
       )}
 
@@ -922,7 +988,9 @@ function JobDetailPageContent() {
             {/* STEP 2: JOB PARTICULARS POP-UP */}
             {particularsStep === 2 && (
               <div className="animate-fade-in">
-                <h3 style={{ marginBottom: '0.5rem' }}>🏁 Finish & Select Items</h3>
+                <h3 style={{ marginBottom: '0.5rem' }}>
+                  {job.status === 'In Progress' ? '🏁 Finish & Select Items' : '📋 Job Particulars'}
+                </h3>
                 <p className="text-muted" style={{ fontSize: '0.9rem', marginBottom: '1rem' }}>
                   Select the parts used for <strong>{job.vehicleNumber}</strong>.
                 </p>
@@ -1059,16 +1127,12 @@ function JobDetailPageContent() {
                           particulars: d.particulars || [],
                           manualItems: manualItems,
                           commission: commission || 0,
-                          // Ensure we pass the latest particulars for sync
                           selectedItems: d.particulars || []
                        };
-                       
-                       
                        
                        if (job.status === "In Progress") {
                          updateJobStatus(job.id, 'Completed', updatedDetails);
                          addTimelineEvent(job.id, 'workEndedAt');
-                         
                          // Consume all selected physical stock marks
                          (d.particulars || []).forEach((p: any) => {
                            if (p.selectedMarks && p.selectedMarks.length > 0) {
@@ -1076,15 +1140,17 @@ function JobDetailPageContent() {
                                consumeInventoryItem(m.itemId, job.id);
                              });
                            } else if (p.inventoryInfo) {
-                             // Legacy fallback
                              consumeInventoryItem(p.inventoryInfo.itemId, job.id);
                            }
                          });
+                       } else {
+                         // Just save particulars without changing job status
+                         updateJobDetails(job.id, updatedDetails);
                        }
                        setShowEndWorkModal(false);
                      }}
                    >
-                     Confirm & Finish Work
+                     {job.status === 'In Progress' ? 'Confirm & Finish Work' : 'Save Particulars'}
                    </button>
                 </div>
               </div>
