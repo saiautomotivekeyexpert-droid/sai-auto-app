@@ -620,14 +620,28 @@ function JobDetailPageContent() {
               <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)' }}>RATE (₹)</span>
             </div>
             {d.qualityOptions.map((opt: any, idx: number) => (
-              <div key={idx} style={{ padding: '0.4rem 0', borderBottom: idx < d.qualityOptions.length - 1 ? '1px dashed rgba(255,255,255,0.05)' : 'none' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                  <span style={{ fontWeight: 600 }}>{opt.label}</span>
-                  <span style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>{opt.rate ? `₹${opt.rate}` : "TBD"}</span>
+              <div key={idx} style={{ padding: '0.5rem 0', borderBottom: idx < d.qualityOptions.length - 1 ? '1px dashed rgba(255,255,255,0.05)' : 'none' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                    <span style={{ fontWeight: 700 }}>{opt.label}</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                      {opt.service || "SERVICE"} {opt.product ? ` | ${opt.product}` : ""}
+                    </span>
+                    {opt.description && (
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '0.1rem' }}>{opt.description}</span>
+                    )}
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>
+                      ₹{((Number(opt.qty) || 1) * (Number(opt.rate) || 0)).toLocaleString('en-IN')}
+                    </div>
+                    {Number(opt.qty) > 1 && (
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', opacity: 0.7 }}>
+                        {opt.qty} x ₹{opt.rate}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {opt.description && (
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.4 }}>{opt.description}</p>
-                )}
               </div>
             ))}
           </div>

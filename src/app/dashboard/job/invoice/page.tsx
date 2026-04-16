@@ -400,7 +400,7 @@ function InvoiceContent({ id }: { id: string }) {
       <thead>
         <tr>
               <th style={{ width: colWidths.sno }}>S.NO</th>
-              <th style={{ width: colWidths.service }}>SERVICE</th>
+              <th style={{ width: colWidths.service }}>SERVICE TYPE</th>
               <th style={{ width: colWidths.product }}>PRODUCT</th>
               <th style={{ width: colWidths.qty }}>QTY</th>
               <th style={{ width: colWidths.rate }}>RATE</th>
@@ -566,23 +566,34 @@ function InvoiceContent({ id }: { id: string }) {
                           {/* Label column with optional strikethrough */}
                           <div style={{ 
                             flex: 1.5, 
-                            textAlign: 'center', 
+                            textAlign: 'left', 
+                            padding: '0 1rem',
                             textDecoration: showStrikethrough ? 'line-through' : 'none' 
                           }}>
-                            <div>{opt.label}</div>
+                            <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{opt.label}</div>
+                            {(opt.service || opt.product) && (
+                              <div style={{ fontSize: '0.75rem', marginTop: '0.1rem', color: '#444', textTransform: 'uppercase' }}>
+                                {opt.service && <span>{opt.service}</span>}
+                                {opt.service && opt.product && <span> | </span>}
+                                {opt.product && <span>{opt.product}</span>}
+                              </div>
+                            )}
                             {opt.description && (
-                              <div style={{ fontSize: '0.7rem', opacity: 0.6, marginTop: '0.1rem', fontStyle: 'italic' }}>{opt.description}</div>
+                              <div style={{ fontSize: '0.7rem', opacity: 0.7, marginTop: '0.1rem', fontStyle: 'italic' }}>{opt.description}</div>
                             )}
                           </div>
                           
                           {/* Rate column with optional strikethrough */}
                           <div style={{ 
                             flex: 1, 
-                            textAlign: 'center', 
+                            textAlign: 'right', 
+                            padding: '0 1.5rem',
                             textDecoration: showStrikethrough ? 'line-through' : 'none',
-                            fontWeight: 600
+                            fontWeight: 800,
+                            fontSize: '1.1rem'
                           }}>
-                            {opt.rate || '0'}
+                            {Number(opt.qty) > 1 && <span style={{ fontSize: '0.7rem', fontWeight: 500, opacity: 0.6, marginRight: '0.4rem' }}>{opt.qty} x ₹{opt.rate} =</span>}
+                            ₹{((Number(opt.qty) || 1) * (Number(opt.rate) || 0)).toLocaleString('en-IN')}
                           </div>
                         </div>
                       );
