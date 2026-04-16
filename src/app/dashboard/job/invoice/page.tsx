@@ -200,23 +200,28 @@ function InvoiceContent({ id }: { id: string }) {
     if (!paper) return;
 
     try {
-      // 2. Hide things that shouldn't be in the PDF (though .no-print should handle it, we want best quality)
       const html2canvas = (await import("html2canvas")).default;
       const { jsPDF } = await import("jspdf");
 
       const canvas = await html2canvas(paper, {
-        scale: 2, // High resolution
+        scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: "#ffffff"
       });
 
       const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
+      const imgProps = (new jsPDF()).getImageProperties(imgData);
       
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
+      // Calculate dimensions for a SINGLE page PDF of any height
+      const pdfWidth = 210; // Standard A4 width in mm
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      const pdf = new jsPDF({
+        orientation: "p",
+        unit: "mm",
+        format: [pdfWidth, pdfHeight]
+      });
       
       pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
       
@@ -224,7 +229,6 @@ function InvoiceContent({ id }: { id: string }) {
       const pdfBlob = pdf.output("blob");
       const file = new File([pdfBlob], fileName, { type: "application/pdf" });
 
-      // 3. Try Sharing via Web Share API (Active on Mac/iOS/Android)
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
@@ -232,7 +236,6 @@ function InvoiceContent({ id }: { id: string }) {
           text: `Here is your ${docTitle.toLowerCase()} from ${shopName}.`
         });
       } else {
-        // Fallback: Download and open WhatsApp Web
         const url = URL.createObjectURL(pdfBlob);
         const link = document.createElement("a");
         link.href = url;
@@ -276,7 +279,8 @@ function InvoiceContent({ id }: { id: string }) {
             <button className="secondary-btn" style={{ background: 'var(--glass-bg)', borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }} onClick={() => setIsCustomizing(true)}>
               <Edit3 size={16} /> CUSTOMIZE
             </button>
-            <button className="secondary-btn" onClick={() => window.print()}><Printer size={16} /> Print / PDF</button>
+            <button className="secondary-btn" onClick={() => window.print()}><Printer size={16} /> Print</button>
+            <button className="primary-btn" onClick={handleWhatsApp}><Save size={16} /> SAVE PDF (SINGLE PAGE)</button>
             <button className="primary-btn" style={{ background: "#25D366" }} onClick={handleWhatsApp}><Share2 size={16} /> WhatsApp</button>
           </>
         ) : (
