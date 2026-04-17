@@ -20,11 +20,42 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { spreadsheetId: sid, rows } = await request.json();
+    const body = await request.json();
+    const { spreadsheetId: sid, action, itemId, jobId, rows } = body;
     const spreadsheetId = sid || process.env.GOOGLE_SPREADSHEET_ID;
 
-    if (!spreadsheetId || !rows) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!spreadsheetId) {
+      return NextResponse.json({ error: 'Spreadsheet ID is required' }, { status: 400 });
+    }
+
+    if (action === 'consume') {
+      if (!itemId || !jobId) {
+        return NextResponse.json({ error: 'itemId and jobId required for consume' }, { status: 400 });
+      }
+      
+      // 1. Fetch current stock
+      const currentRows = await GoogleService.getStock(spreadsheetId);
+      if (!currentRows) return NextResponse.json({ error: 'Stock not found' }, { status: 404 });
+
+      // 2. Map through and update the specific item
+      // Columns: SERIES ID(0), PRODUCT NAME(1), VENDOR(2), RATE(3), DATE(4), ITEM ID(5), MARK(6), RAW ID(7), STATUS(8), JOB ID(9), USED AT(10)
+      const updatedRows = currentRows.map((row: any[]) => {
+        if (row[5] === itemId) {
+          const newRow = [...row];
+          newRow[8] = 'Used';
+          newRow[9] = jobId;
+          newRow[10] = Date.now();
+          return newRow;
+        }
+        return row;
+      });
+
+      await GoogleService.syncStock(spreadsheetId, updatedRows);
+      return NextResponse.json({ success: true, message: 'Item consumed' });
+    }
+
+    if (!rows) {
+      return NextResponse.json({ error: 'Missing rows for full sync' }, { status: 400 });
     }
 
     await GoogleService.syncStock(spreadsheetId, rows);

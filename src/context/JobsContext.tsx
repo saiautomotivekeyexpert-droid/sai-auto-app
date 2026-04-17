@@ -223,15 +223,19 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
         };
         syncToCloud(updated);
 
-        // Trigger Ledger sync on completion
+        // Trigger Ledger & Stock sync on completion
         if (status === 'Completed') {
           const d = updated.details || {};
           const revenue = Number(d.totalCharge) || 0;
-          const baseExp = (d.particulars || d.selectedItems || []).reduce((s: number, p: any) => s + Number(p.expense || 0), 0);
+          const items = d.particulars || d.selectedItems || [];
+          
+          // 1. Calculate Expenses accurately
+          const baseExp = items.reduce((s: number, p: any) => s + Number(p.expense || 0), 0);
           const commExp = Number(d.commission) || 0;
           const totalExp = baseExp + commExp;
           const profit = revenue - totalExp;
 
+          // 2. Sync to Ledger
           const ledgerRow = [
             new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
             updated.id,
@@ -248,6 +252,23 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ row: ledgerRow })
           }).catch(err => console.error("Ledger sync failed:", err));
+
+          // 3. Ensure Inventory items are marked as USED
+          items.forEach((p: any) => {
+            if (p.selectedMarks && Array.isArray(p.selectedMarks)) {
+              p.selectedMarks.forEach((m: any) => {
+                fetch('/api/google/sync-stock', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                    action: 'consume', 
+                    itemId: m.itemId || m.id, 
+                    jobId: updated.id 
+                  })
+                }).catch(err => console.error("Inventory consume failed:", err));
+              });
+            }
+          });
         }
 
         return updated;
