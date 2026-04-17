@@ -316,6 +316,25 @@ function JobDetailPageContent() {
         }
       });
 
+      // Ensure Inventory items are marked as USED if they were selected during this edit
+      if (finalData.particulars) {
+        finalData.particulars.forEach((p: any) => {
+          if (p.selectedMarks && Array.isArray(p.selectedMarks)) {
+            p.selectedMarks.forEach((m: any) => {
+              fetch('/api/google/sync-stock', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  action: 'consume', 
+                  itemId: m.itemId || m.id, 
+                  jobId: job.id 
+                })
+              }).catch(err => console.error("Inventory consume failed:", err));
+            });
+          }
+        });
+      }
+
       updateJobDetails(job.id, { ...finalData, manualItems });
       setIsReadOnly(true);
       setFiles({ documents: [] });
