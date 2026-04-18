@@ -387,4 +387,35 @@ export class GoogleService {
     }
     return { success: true };
   }
+
+  /**
+   * Overwrites the Settings sheet with flat data
+   */
+  static async syncSettingsBulk(spreadsheetId: string, rows: any[][]) {
+    await this.init();
+    if (!this.sheets) throw new Error("Sheets API not initialized");
+
+    await this.ensureSheetExists(spreadsheetId, 'Settings');
+
+    await this.sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range: 'Settings!A1:Z5000',
+    });
+
+    const headers = [
+      ["TYPE", "KEY / NAME", "VALUE 1", "VALUE 2", "VALUE 3", "VALUE 4", "VALUE 5", "ID"]
+    ];
+
+    const allRows = [...headers, ...rows];
+
+    if (allRows.length > 0) {
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: 'Settings!A1:Z' + allRows.length,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: allRows },
+      });
+    }
+    return { success: true };
+  }
 }

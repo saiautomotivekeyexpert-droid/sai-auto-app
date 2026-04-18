@@ -233,7 +233,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         setIsInitialized(true);
         setCloudLoaded(true);
       } else {
-        console.error("Failed to load cloud data, auto-sync disabled to prevent overwrite.");
+        console.error("Failed to load cloud data on mount. Sync disabled to prevent overwriting.");
+        // We do *not* set cloudLoaded to true if it fails.
       }
     });
   }, []);
