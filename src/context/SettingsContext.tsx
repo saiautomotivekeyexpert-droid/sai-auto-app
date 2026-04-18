@@ -284,6 +284,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       const { data } = await settingsRes.json();
       if (data) {
         if (data.serviceTypes) setServiceTypes(data.serviceTypes);
+        if (data.consentTypes) setConsentTypes(data.consentTypes);
         if (data.particulars) setParticulars(data.particulars);
         if (data.catalogCategories) setCatalogCategories(data.catalogCategories);
         if (data.shopProfile) setShopProfile(data.shopProfile);
