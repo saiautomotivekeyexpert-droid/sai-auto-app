@@ -140,6 +140,17 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
                 selectedItems: particulars,
                 particulars: particulars,
                 docsFolderLink: row[17] || '',
+                documents: (row[17] || '').toString().split('\n').map((line: string) => {
+                  const match = line.match(/=HYPERLINK\("([^"]+)",\s*"([^"]+)"\)/);
+                  if (match) {
+                    return { preview: match[1], name: match[2], type: 'image/jpeg', isCloud: true };
+                  }
+                  // Fallback for raw URLs
+                  if (line.startsWith('http')) {
+                    return { preview: line, name: 'Document', type: 'image/jpeg', isCloud: true };
+                  }
+                  return null;
+                }).filter(Boolean),
                 afterSales: row[18] || '',
                 timeline: timeline,
                 ...(invoiceSnapshot ? { invoiceSnapshot } : {}),

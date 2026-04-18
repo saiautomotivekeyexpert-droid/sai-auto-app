@@ -776,7 +776,7 @@ function JobDetailPageContent() {
               const isNew = idx >= (d.documents?.length || 0);
               
               // For new uploads we have a blobUrl directly; for stored docs we convert on click
-              const viewUrl = f.blobUrl || f.preview || '';
+              const viewUrl = f.blobUrl || f.preview || f.cloudUrl || '';
 
               return (
                 <div key={idx} className="ref-doc-card" style={{ position: 'relative' }}>

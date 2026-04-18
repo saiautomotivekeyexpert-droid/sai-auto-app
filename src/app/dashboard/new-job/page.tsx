@@ -240,10 +240,9 @@ export default function NewJobPage() {
       }
       
       cloudDocs.push({
-        preview: f.preview, // retain offline preview
+        preview: webViewLink || f.preview, // Prefer cloud link as the preview
         name: f.name,
         type: f.type,
-        cloudUrl: webViewLink // The Google Drive view link!
       });
     }
 
