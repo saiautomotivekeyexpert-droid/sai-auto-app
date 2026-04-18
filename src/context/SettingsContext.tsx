@@ -228,9 +228,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // Load from Cloud on mount
   useEffect(() => {
     // We strictly use cloud pull on mount. No more localStorage as primary.
-    pullFromCloud("").finally(() => {
-      setIsInitialized(true);
-      setCloudLoaded(true);
+    pullFromCloud("").then((success) => {
+      if (success) {
+        setIsInitialized(true);
+        setCloudLoaded(true);
+      } else {
+        console.error("Failed to load cloud data, auto-sync disabled to prevent overwrite.");
+      }
     });
   }, []);
 
