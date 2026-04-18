@@ -170,15 +170,21 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
             };
           });
 
-          // MERGE LOGIC: Cloud is master, but Local-only jobs (not yet synced) are kept
+          // MERGE LOGIC: Cloud is master for synced records. 
+          // Keep local-only (unsynced) jobs, but overwrite/remove synced jobs based on Cloud state.
           setJobs(prev => {
             const mergedMap: Record<string, Job> = {};
-            // Start with local jobs
-            prev.forEach(j => { mergedMap[j.id] = j; });
-            // Overwrite with cloud jobs (Cloud wins for same ID)
+            
+            // 1. Keep jobs that haven't been synced to cloud yet
+            prev.filter(j => !j.isCloud).forEach(j => {
+              mergedMap[j.id] = j;
+            });
+            
+            // 2. Add/Overwrite with current Cloud state (Cloud is the source of truth)
             Object.keys(cloudJobMap).forEach(id => {
               mergedMap[id] = cloudJobMap[id];
             });
+            
             return Object.values(mergedMap).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
           });
         }
