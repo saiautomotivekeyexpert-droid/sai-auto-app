@@ -289,9 +289,12 @@ function JobDetailPageContent() {
                 const data = await res.json();
                 if (data.webViewLink) {
                   return { preview: data.webViewLink, name: doc.name, type: doc.type };
+                } else {
+                  alert(`Google Drive Upload Failed for ${doc.name}\nReason: ${data.error || 'Unknown Server Error'}`);
                 }
-              } catch (err) {
+              } catch (err: any) {
                 console.error("Upload failed for doc:", doc.name, err);
+                alert(`Network/Server Error during upload for ${doc.name}:\n${err.message}`);
               }
             }
             return doc;

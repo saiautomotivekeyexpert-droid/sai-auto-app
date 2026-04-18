@@ -230,9 +230,12 @@ export default function NewJobPage() {
           if (jsonRes.success && jsonRes.webViewLink) {
             webViewLink = jsonRes.webViewLink;
             driveLinks.push(webViewLink);
+          } else {
+            alert(`Google Drive Upload Failed for ${f.name}\nReason: ${jsonRes.error || 'Unknown Server Error'}`);
           }
-        } catch (err) {
+        } catch (err: any) {
           console.error("Cloud upload error:", err);
+          alert(`Network/Server Error during upload for ${f.name}:\n${err.message}`);
         }
       }
       
