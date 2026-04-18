@@ -240,6 +240,7 @@ export class GoogleService {
     const response = await this.sheets.spreadsheets.values.get({
       spreadsheetId,
       range: 'Jobs!A:U',
+      valueRenderOption: 'FORMULA',
     });
     return response.data.values;
   }
