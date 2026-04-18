@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     if (data.particulars) {
       data.particulars.forEach((p: any) => {
         rows.push([
-          'Particular', p.name, p.cost, p.partnerPrice, p.expense, 
+          'Catalog Product', p.name, p.cost, p.partnerPrice, p.expense, 
           p.isQuickService ? 'TRUE' : 'FALSE', p.category || '', p.id
         ]);
       });
@@ -94,7 +94,7 @@ export async function GET(req: Request) {
       else if (type === 'Partner') data.partners.push({ name: key, id: v1 || Date.now().toString() });
       else if (type === 'SubCategory') data.subCategories.push({ name: key, id: v1 || Date.now().toString() });
       else if (type === 'CatalogCategory') data.catalogCategories.push({ name: key, showInPOS: v1 === 'TRUE' });
-      else if (type === 'Particular') {
+      else if (type === 'Catalog Product') {
         data.particulars.push({
           name: key,
           cost: Number(v1) || 0,
