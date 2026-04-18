@@ -113,30 +113,16 @@ interface SettingsContextType {
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 const DEFAULT_PARTICULARS: ParticularItem[] = [];
-
-const DEFAULT_SUB_CATEGORIES: SubCategoryItem[] = [
-  { id: "sc1", name: "KEY CUTTING" },
-  { id: "sc2", name: "PROGRAMING" },
-];
-
-const RECOMMENDED_CATALOG_CATEGORIES = [
-  "U- TRANSPONDERS", "G- TRANSPONDERS", "U- SMART KEY", "G- SMART KEY", 
-  "U- FLIP KEY REMOTE", "REMOTE KEY SHELLS", "KEY SHELLS", 
-  "BLADE", "BATTERIES", "OTHERS", "SERVICES"
-];
-
-const RECOMMENDED_SERVICE_TYPES = ["ADD KEY", "ALL KEYS LOST", "EMERGENCY CAR UNLOCK"];
+const DEFAULT_SUB_CATEGORIES: SubCategoryItem[] = [];
+const RECOMMENDED_CATALOG_CATEGORIES: string[] = [];
+const RECOMMENDED_SERVICE_TYPES: string[] = [];
 
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
-  const [serviceTypes, setServiceTypes] = useState<string[]>(["ADD KEY", "ALL KEYS LOST", "EMERGENCY CAR UNLOCK"]);
+  const [serviceTypes, setServiceTypes] = useState<string[]>([]);
   const [consentTypes, setConsentTypes] = useState<string[]>(["OWNER", "DRIVER", "PARTNER", "OTHER"]);
-  const [partners, setPartners] = useState<Partner[]>([
-    { id: "p1", name: "RAVI AUTO" },
-    { id: "p2", name: "SWADI AUTOMOBILE" },
-    { id: "p3", name: "RAJAN LOCK" }
-  ]);
+  const [partners, setPartners] = useState<Partner[]>([]);
   const [partnerPin, setPartnerPin] = useState<string>("1234");
 
   const [particulars, setParticulars] = useState<ParticularItem[]>([]);
@@ -543,11 +529,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const restoreRecommendedDefaults = () => {
-    setServiceTypes(RECOMMENDED_SERVICE_TYPES);
-    setSubCategories(DEFAULT_SUB_CATEGORIES);
-    setCatalogCategories(RECOMMENDED_CATALOG_CATEGORIES.map(c => ({ name: c, showInPOS: true })));
-    // Note: We don't reset particulars (catalog items) as they contain user data, 
-    // but these navigation lists are safe to reset for terminology alignment.
+    // User requested deep wipe, so we disable recommendation restoration
+    setCatalogCategories([]);
+    setServiceTypes([]);
+    setSubCategories([]);
   };
 
   const addPartner = (name: string) => {
