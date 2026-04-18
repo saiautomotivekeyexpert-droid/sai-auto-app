@@ -313,10 +313,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     if (!isInitialized || !cloudLoaded) return;
     const timer = setTimeout(() => {
       syncToCloud();
-    }, 2000); 
+    }, 500); 
     return () => clearTimeout(timer);
   }, [
-    serviceTypes, particulars, inventorySeries, catalogCategories, 
+    serviceTypes, consentTypes, particulars, inventorySeries, catalogCategories, 
     shopProfile, partners, subCategories, partnerPin, isInitialized, cloudLoaded
   ]);
 
