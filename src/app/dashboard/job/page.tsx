@@ -1306,7 +1306,7 @@ function JobDetailPageContent() {
             </div>
             {/* Viewer body */}
             <div style={{ flex: 1, overflow: 'hidden', background: '#222' }}>
-              {previewDoc.type === 'application/pdf' || previewDoc.url.startsWith('blob:') ? (
+              {(previewDoc.type === 'application/pdf' || previewDoc.url.startsWith('blob:') || previewDoc.url.includes('drive.google.com')) ? (
                 // Defensive check: If it's not a data/blob/http URL, it's likely a broken path
                 (!previewDoc.url.startsWith('data:') && !previewDoc.url.startsWith('blob:') && !previewDoc.url.startsWith('http')) ? (
                   <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', textAlign: 'center', color: '#64748b' }}>
