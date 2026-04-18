@@ -146,7 +146,11 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
                   const regex = /HYPERLINK\("([^"]+)",\s*"([^"]+)"\)/g;
                   let m;
                   while ((m = regex.exec(cellContent)) !== null) {
-                    const url = m[1];
+                    let url = m[1];
+                    // Convert standard Drive view links to preview links for better iframe loading
+                    if (url.includes('drive.google.com') && url.includes('/view')) {
+                      url = url.replace(/\/view.*$/, '/preview');
+                    }
                     const name = m[2].replace(/^VIEW\s+/i, '');
                     const type = name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
                     docs.push({ preview: url, name, type, isCloud: true });
