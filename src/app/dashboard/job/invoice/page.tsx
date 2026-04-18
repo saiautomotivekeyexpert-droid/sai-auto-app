@@ -204,7 +204,7 @@ function InvoiceContent({ id }: { id: string }) {
       const { jsPDF } = await import("jspdf");
 
       const canvas = await html2canvas(paper, {
-        scale: 3, // Even higher quality
+        scale: 2, // Adjusted from 3 to 2 for better stability on laptops
         useCORS: true,
         logging: false,
         backgroundColor: "#ffffff",
@@ -684,15 +684,15 @@ function InvoiceContent({ id }: { id: string }) {
         .inv-field-value { font-size: 0.95rem; font-weight: 700; color: #0f172a; }
         .inv-status-chip { background: #fefce8; border: 1px solid #fbbf24; color: #92400e; font-size: 0.7rem; font-weight: 800; padding: 0.15rem 0.5rem; border-radius: 4px; letter-spacing: 0.05em; }
         .inv-section-title { font-size: 0.75rem; font-weight: 800; color: #1e3a8a; letter-spacing: 0.08em; padding: 0.5rem 2.5rem; border-left: 4px solid #dc2626; margin: 0.5rem 0; background: #f8fafc; }
-        .inv-table { width: calc(100% - 5rem); margin: 0 2.5rem 1.5rem; border-collapse: collapse; font-size: 0.875rem; border: 1.5px solid #1e3a8a; }
+        .inv-table { width: 95%; max-width: calc(100% - 1rem); margin: 0 auto 1.5rem; border-collapse: collapse; font-size: 0.875rem; border: 1.5px solid #1e3a8a; }
         .inv-table thead tr { background: #1e3a8a; color: white; }
-        .inv-table th { padding: 0.6rem 1rem; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-align: left; border: 1px solid rgba(255,255,255,0.2); }
+        .inv-table th { padding: 0.6rem 0.75rem; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-align: left; border: 1px solid rgba(255,255,255,0.2); }
         .inv-table th.center, .inv-table td.center { text-align: center; }
         .inv-table th.right, .inv-table td.right { text-align: right; }
-        .inv-table td { padding: 0.65rem 1rem; border: 1px solid #cbd5e1; color: #334155; }
-        .inv-table textarea.edit-input { overflow: auto; min-width: 100px; }
+        .inv-table td { padding: 0.65rem 0.75rem; border: 1px solid #cbd5e1; color: #334155; }
+        .inv-table textarea.edit-input { overflow: auto; min-width: 80px; }
         .inv-total-row td { background: #f8fafc; border-top: 2.5px solid #1e3a8a; font-weight: 700; }
-        .inv-auth-box { margin: 0 2.5rem 1.5rem; border: 1.5px solid #dc2626; border-radius: 6px; padding: 1.25rem 1.5rem; position: relative; background: #fff9f9; }
+        .inv-auth-box { margin: 0 auto 1.5rem; width: 95%; max-width: calc(100% - 1rem); border: 1.5px solid #dc2626; border-radius: 6px; padding: 1.25rem 1.5rem; position: relative; background: #fff9f9; }
         .inv-auth-stamp { position: absolute; top: 12px; right: 16px; transform: rotate(15deg); border: 2px solid #dc2626; color: #dc2626; font-size: 0.65rem; font-weight: 900; letter-spacing: 0.12em; padding: 0.2rem 0.5rem; border-radius: 4px; opacity: 0.7; }
         .inv-auth-title { font-size: 0.72rem; font-weight: 900; color: #dc2626; letter-spacing: 0.07em; margin-bottom: 0.75rem; }
         .inv-auth-points p { font-size: 0.8rem; color: #1e293b; margin: 0.3rem 0; font-weight: 500; }
@@ -711,6 +711,11 @@ function InvoiceContent({ id }: { id: string }) {
           .inv-header { flex-direction: column; padding: 1.5rem 1rem; align-items: center; text-align: center; }
           .inv-memo-box { width: 100%; margin-top: 1rem; }
           .inv-two-col { grid-template-columns: 1fr; }
+          .inv-table { font-size: 0.75rem; width: 100% !important; margin: 0 0 1.5rem; border-left: none; border-right: none; }
+          .inv-table th, .inv-table td { padding: 0.5rem 0.4rem; }
+          .inv-auth-box { width: 100% !important; margin: 0 0 1.5rem; border-left: none; border-right: none; border-radius: 0; }
+          .inv-section-title { padding: 0.5rem 1rem; }
+          .inv-divider { margin: 0 1rem; }
         }
         @media print { 
           @page { size: A4; margin: 10mm; }

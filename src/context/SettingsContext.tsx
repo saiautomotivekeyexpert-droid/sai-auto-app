@@ -95,6 +95,7 @@ interface SettingsContextType {
   restoreRecommendedDefaults: () => void;
   releaseInventoryItem: (jobId: string) => void;
   consumeByProductName: (productName: string, jobId: string) => { itemId: string, mark: string } | null;
+  recoverCatalogFromHistory: () => Promise<void>;
   isSyncing: boolean;
   lastSyncTime: Date | null;
 }
@@ -309,6 +310,34 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     return false;
   };
 
+  const recoverCatalogFromHistory = async () => {
+    try {
+      setIsSyncing(true);
+      const res = await fetch('/api/google/recover-catalog');
+      const { recovered, success } = await res.json();
+      if (success && recovered && recovered.length > 0) {
+        // Merge with existing (though likely empty)
+        setParticulars(prev => {
+          const merged = [...prev];
+          recovered.forEach((rec: any) => {
+            if (!merged.some(p => p.name.trim().toUpperCase() === rec.name.trim().toUpperCase())) {
+              merged.push(rec);
+            }
+          });
+          return merged;
+        });
+        alert(`Recovered ${recovered.length} items from historical jobs. Please double check prices and click Save.`);
+      } else {
+        alert("No additional items found in job history to recover.");
+      }
+      setIsSyncing(false);
+    } catch (err) {
+      console.error("Recovery failed:", err);
+      setIsSyncing(false);
+      alert("Failed to recover catalog from history.");
+    }
+  };
+
   // Trigger auto-sync on any change (debounced)
   useEffect(() => {
     if (!isInitialized || !cloudLoaded) return;
@@ -487,6 +516,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       restoreRecommendedDefaults,
       releaseInventoryItem,
       consumeByProductName,
+      recoverCatalogFromHistory,
       isSyncing,
       lastSyncTime
     }}>
