@@ -33,7 +33,9 @@ export default function QuickServicePage() {
     carBrands2W,
     carModels2W,
     carBrands4W,
-    carModels4W
+    carModels4W,
+    carBrandsCV,
+    carModelsCV
   } = useSettings();
   const { addJob } = useJobs();
 
@@ -44,7 +46,7 @@ export default function QuickServicePage() {
     phone: "",
     brand: "",
     model: "",
-    category: "4-WHEELER" as "2-WHEELER" | "4-WHEELER",
+    category: "4-WHEELER" as "2-WHEELER" | "4-WHEELER" | "COMMERCIAL",
     customerType: "Retail" as "Retail" | "Partner",
     partnerName: "",
     consentType: "OWNER",
@@ -678,6 +680,11 @@ export default function QuickServicePage() {
                     onClick={() => setCustomerData({...customerData, category: '4-WHEELER', brand: '', model: ''})}
                     style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--glass-border)', background: customerData.category === '4-WHEELER' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.05)', color: customerData.category === '4-WHEELER' ? 'white' : 'inherit', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
                   >4-Wheeler</button>
+                  <button 
+                    type="button" 
+                    onClick={() => setCustomerData({...customerData, category: 'COMMERCIAL', brand: '', model: ''})}
+                    style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--glass-border)', background: customerData.category === 'COMMERCIAL' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.05)', color: customerData.category === 'COMMERCIAL' ? 'white' : 'inherit', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
+                  >Comm.</button>
                 </div>
               </div>
 
@@ -689,7 +696,7 @@ export default function QuickServicePage() {
                   onChange={(e) => setCustomerData({...customerData, brand: e.target.value, model: ''})}
                 >
                   <option value="">Select Brand</option>
-                  {(customerData.category === '2-WHEELER' ? carBrands2W : carBrands4W).map(b => (
+                  {(customerData.category === '2-WHEELER' ? carBrands2W : (customerData.category === 'COMMERCIAL' ? carBrandsCV : carBrands4W)).map(b => (
                     <option key={b} value={b}>{b}</option>
                   ))}
                 </select>
@@ -705,7 +712,7 @@ export default function QuickServicePage() {
                 >
                   <option value="">Select Model</option>
                   {(() => {
-                    const modelsMap = customerData.category === '2-WHEELER' ? carModels2W : carModels4W;
+                    const modelsMap = customerData.category === '2-WHEELER' ? carModels2W : (customerData.category === 'COMMERCIAL' ? carModelsCV : carModels4W);
                     return (modelsMap[customerData.brand] || []).map(m => (
                       <option key={m} value={m}>{m}</option>
                     ));

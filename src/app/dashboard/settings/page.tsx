@@ -14,7 +14,8 @@ export default function SettingsPage() {
     inventorySeries, partnerPin, updatePartnerPin,
     updateEstimateTerms, updateInvoiceTerms, updateShopProfile,
     addInventorySeries, updateInventoryItem, removeInventorySeries,
-    carBrands2W, carModels2W, carBrands4W, carModels4W, addCarBrand, removeCarBrand, addCarModel, removeCarModel
+    carBrands2W, carModels2W, carBrands4W, carModels4W, carBrandsCV, carModelsCV,
+    addCarBrand, removeCarBrand, addCarModel, removeCarModel
   } = useSettings();
 
   const [expandedSeries, setExpandedSeries] = useState<string | null>(null);
@@ -32,7 +33,7 @@ export default function SettingsPage() {
     }
   };
 
-  const [vehicleCategory, setVehicleCategory] = useState<'2-WHEELER' | '4-WHEELER'>('4-WHEELER');
+  const [vehicleCategory, setVehicleCategory] = useState<'2-WHEELER' | '4-WHEELER' | 'COMMERCIAL'>('4-WHEELER');
   const [newBrand, setNewBrand] = useState("");
   const [selectedBrandForModel, setSelectedBrandForModel] = useState("");
   const [newModel, setNewModel] = useState("");
@@ -51,8 +52,17 @@ export default function SettingsPage() {
     }
   };
 
-  const brands = vehicleCategory === '2-WHEELER' ? carBrands2W : carBrands4W;
-  const models = vehicleCategory === '2-WHEELER' ? carModels2W : carModels4W;
+  const brands = vehicleCategory === '2-WHEELER' 
+    ? carBrands2W 
+    : vehicleCategory === 'COMMERCIAL' 
+      ? carBrandsCV 
+      : carBrands4W;
+
+  const models = vehicleCategory === '2-WHEELER' 
+    ? carModels2W 
+    : vehicleCategory === 'COMMERCIAL' 
+      ? carModelsCV 
+      : carModels4W;
 
 
   return (
@@ -223,13 +233,20 @@ export default function SettingsPage() {
                 onClick={() => { setVehicleCategory('4-WHEELER'); setSelectedBrandForModel(""); }}
                 style={{ padding: '0.4rem 0.75rem', fontSize: '0.7rem', fontWeight: 700, borderRadius: '6px', border: 'none', background: vehicleCategory === '4-WHEELER' ? 'var(--accent-primary)' : 'transparent', color: vehicleCategory === '4-WHEELER' ? 'white' : 'var(--text-muted)', cursor: 'pointer', transition: '0.2s' }}
                >4-WHEELER</button>
+               <button 
+                onClick={() => { setVehicleCategory('COMMERCIAL'); setSelectedBrandForModel(""); }}
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.7rem', fontWeight: 700, borderRadius: '6px', border: 'none', background: vehicleCategory === 'COMMERCIAL' ? 'var(--accent-primary)' : 'transparent', color: vehicleCategory === 'COMMERCIAL' ? 'white' : 'var(--text-muted)', cursor: 'pointer', transition: '0.2s' }}
+               >COMMERCIAL</button>
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1fr) 2fr', gap: '2rem' }}>
             {/* BRANDS COLUMN */}
             <div>
-              <label className="terms-label" style={{ marginBottom: '0.75rem' }}>MANAGE {vehicleCategory === '2-WHEELER' ? 'BIKE' : 'CAR'} BRANDS</label>
+              <label className="terms-label" style={{ marginBottom: '0.75rem' }}>MANAGE {
+                vehicleCategory === '2-WHEELER' ? 'BIKE' : 
+                vehicleCategory === 'COMMERCIAL' ? 'COMMERCIAL' : 'CAR'
+              } BRANDS</label>
               <div className="options-list" style={{ maxHeight: '350px' }}>
                 {brands.map(brand => (
                   <div key={brand} className={`option-item ${selectedBrandForModel === brand ? 'active-brand' : ''}`} 
@@ -244,7 +261,10 @@ export default function SettingsPage() {
               </div>
               <div className="add-option">
                 <input 
-                  type="text" placeholder={`New ${vehicleCategory === '2-WHEELER' ? 'Bike' : 'Car'} Brand...`} 
+                  type="text" placeholder={`New ${
+                    vehicleCategory === '2-WHEELER' ? 'Bike' : 
+                    vehicleCategory === 'COMMERCIAL' ? 'Commercial' : 'Car'
+                  } Brand...`} 
                   value={newBrand} onChange={e => setNewBrand(e.target.value)}
                   onKeyPress={e => e.key === 'Enter' && handleAddBrand()}
                 />

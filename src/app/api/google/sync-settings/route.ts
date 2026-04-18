@@ -54,6 +54,12 @@ export async function POST(req: Request) {
         models.forEach((m: string) => settingsRows.push(['VehicleModel4W', m, brand]));
       });
     }
+    if (data.carBrandsCV) data.carBrandsCV.forEach((b: string) => settingsRows.push(['VehicleBrandCV', b, '']));
+    if (data.carModelsCV) {
+      Object.entries(data.carModelsCV).forEach(([brand, models]: [string, any]) => {
+        models.forEach((m: string) => settingsRows.push(['VehicleModelCV', m, brand]));
+      });
+    }
 
     // 6. Particulars
     if (data.particulars) {
@@ -86,7 +92,8 @@ export async function GET(req: Request) {
     const data: any = {
       serviceTypes: [], consentTypes: [], particulars: [], subCategories: [], 
       partners: [], catalogCategories: [], shopProfile: {}, 
-      carBrands2W: [], carModels2W: {}, carBrands4W: [], carModels4W: {}
+      carBrands2W: [], carModels2W: {}, carBrands4W: [], carModels4W: {},
+      carBrandsCV: [], carModelsCV: {}
     };
 
     if (!rows || rows.length === 0) return NextResponse.json({ data: null });
@@ -121,6 +128,11 @@ export async function GET(req: Request) {
       else if (type === 'VehicleModel4W') {
         if (!data.carModels4W[v1]) data.carModels4W[v1] = [];
         data.carModels4W[v1].push(key);
+      }
+      else if (type === 'VehicleBrandCV') data.carBrandsCV.push(key);
+      else if (type === 'VehicleModelCV') {
+        if (!data.carModelsCV[v1]) data.carModelsCV[v1] = [];
+        data.carModelsCV[v1].push(key);
       }
       else if (type === 'Catalog Product') {
         data.particulars.push({

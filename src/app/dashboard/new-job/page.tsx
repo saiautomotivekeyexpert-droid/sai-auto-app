@@ -17,7 +17,7 @@ export default function NewJobPage() {
     particulars: particularsOptions, 
     subCategories: subCategoryOptions,
     partners: partnerOptions,
-    carBrands2W, carModels2W, carBrands4W, carModels4W,
+    carBrands2W, carModels2W, carBrands4W, carModels4W, carBrandsCV, carModelsCV,
     inventorySeries,
     syncToCloud, pullFromCloud, isSyncing 
   } = useSettings();
@@ -515,6 +515,10 @@ export default function NewJobPage() {
                       type="button" className={formData.category === '4-WHEELER' ? 'active' : ''}
                       onClick={() => setFormData({...formData, category: '4-WHEELER', brand: '', model: ''})}
                     >4-Wheeler</button>
+                    <button 
+                      type="button" className={formData.category === 'COMMERCIAL' ? 'active' : ''}
+                      onClick={() => setFormData({...formData, category: 'COMMERCIAL', brand: '', model: ''})}
+                    >Commercial</button>
                   </div>
                 </div>
                 <div className="form-group">
@@ -526,7 +530,7 @@ export default function NewJobPage() {
                   >
                     <option value="">Select Brand</option>
                     {(() => {
-                      const brands = formData.category === '2-WHEELER' ? carBrands2W : carBrands4W;
+                      const brands = formData.category === '2-WHEELER' ? carBrands2W : (formData.category === 'COMMERCIAL' ? carBrandsCV : carBrands4W);
                       return brands.map(b => <option key={b} value={b}>{b}</option>);
                     })()}
                   </select>
@@ -541,7 +545,7 @@ export default function NewJobPage() {
                   >
                     <option value="">Select Model</option>
                     {(() => {
-                      const models = formData.category === '2-WHEELER' ? carModels2W : carModels4W;
+                      const models = formData.category === '2-WHEELER' ? carModels2W : (formData.category === 'COMMERCIAL' ? carModelsCV : carModels4W);
                       return (models[formData.brand] || []).map(m => (
                         <option key={m} value={m}>{m}</option>
                       ));

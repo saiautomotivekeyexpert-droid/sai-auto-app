@@ -61,6 +61,8 @@ interface SettingsContextType {
   carModels2W: Record<string, string[]>;
   carBrands4W: string[];
   carModels4W: Record<string, string[]>;
+  carBrandsCV: string[];
+  carModelsCV: Record<string, string[]>;
   estimateTerms: string;
   invoiceTerms: string;
   shopProfile: {
@@ -98,10 +100,10 @@ interface SettingsContextType {
   releaseInventoryItem: (jobId: string) => void;
   consumeByProductName: (productName: string, jobId: string) => { itemId: string, mark: string } | null;
   recoverCatalogFromHistory: () => Promise<void>;
-  addCarBrand: (name: string, category: '2-WHEELER' | '4-WHEELER') => void;
-  removeCarBrand: (name: string, category: '2-WHEELER' | '4-WHEELER') => void;
-  addCarModel: (brand: string, model: string, category: '2-WHEELER' | '4-WHEELER') => void;
-  removeCarModel: (brand: string, model: string, category: '2-WHEELER' | '4-WHEELER') => void;
+  addCarBrand: (name: string, category: '2-WHEELER' | '4-WHEELER' | 'COMMERCIAL') => void;
+  removeCarBrand: (name: string, category: '2-WHEELER' | '4-WHEELER' | 'COMMERCIAL') => void;
+  addCarModel: (brand: string, model: string, category: '2-WHEELER' | '4-WHEELER' | 'COMMERCIAL') => void;
+  removeCarModel: (brand: string, model: string, category: '2-WHEELER' | '4-WHEELER' | 'COMMERCIAL') => void;
   syncToCloud: () => Promise<boolean>;
   pullFromCloud: (spreadsheetId?: string) => Promise<boolean>;
   isSyncing: boolean;
@@ -198,6 +200,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     "Other": ["Custom"]
   });
 
+  const [carBrandsCV, setCarBrandsCV] = useState<string[]>([
+    "Tata", "Mahindra", "Ashok Leyland", "Force", "Maruti Suzuki", "Eicher", "Isuzu", "BharatBenz", "Piaggio", "Other"
+  ]);
+
+  const [carModelsCV, setCarModelsCV] = useState<Record<string, string[]>>({
+    "Tata": ["Ace", "Intra", "Yodha", "407", "Winger"],
+    "Mahindra": ["Bolero Pik-Up", "Supro", "Jeeto", "Alfa", "Imperio"],
+    "Maruti Suzuki": ["Super Carry"],
+    "Ashok Leyland": ["Dost", "Bada Dost", "Partner"],
+    "Other": ["Custom"]
+  });
+
   // Flatten inventory series into rows for Google Sheets
   const flattenInventory = (series: InventorySeries[]) => {
     const rows: any[][] = [];
@@ -269,7 +283,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       const dataToSync = {
         serviceTypes, consentTypes, particulars, subCategories, partners,
         estimateTerms, invoiceTerms, shopProfile,
-        catalogCategories, partnerPin, carBrands2W, carModels2W, carBrands4W, carModels4W
+        catalogCategories, partnerPin, carBrands2W, carModels2W, carBrands4W, carModels4W, carBrandsCV, carModelsCV
       };
 
       // 1. Sync Settings Blob
@@ -319,6 +333,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         if (data.carModels2W && Object.keys(data.carModels2W).length > 0) setCarModels2W(data.carModels2W);
         if (data.carBrands4W && data.carBrands4W.length > 0) setCarBrands4W(data.carBrands4W);
         if (data.carModels4W && Object.keys(data.carModels4W).length > 0) setCarModels4W(data.carModels4W);
+        if (data.carBrandsCV && data.carBrandsCV.length > 0) setCarBrandsCV(data.carBrandsCV);
+        if (data.carModelsCV && Object.keys(data.carModelsCV).length > 0) setCarModelsCV(data.carModelsCV);
       }
 
       // 2. Pull Stock
@@ -335,13 +351,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     return false;
   };
 
-  const addCarBrand = (name: string, category: '2-WHEELER' | '4-WHEELER') => {
+  const addCarBrand = (name: string, category: '2-WHEELER' | '4-WHEELER' | 'COMMERCIAL') => {
     if (!name) return;
     const clean = name.trim();
     if (category === '2-WHEELER') {
       if (carBrands2W.includes(clean)) return;
       setCarBrands2W(prev => [...prev, clean]);
       if (!carModels2W[clean]) setCarModels2W(prev => ({ ...prev, [clean]: [] }));
+    } else if (category === 'COMMERCIAL') {
+      if (carBrandsCV.includes(clean)) return;
+      setCarBrandsCV(prev => [...prev, clean]);
+      if (!carModelsCV[clean]) setCarModelsCV(prev => ({ ...prev, [clean]: [] }));
     } else {
       if (carBrands4W.includes(clean)) return;
       setCarBrands4W(prev => [...prev, clean]);
@@ -349,10 +369,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const removeCarBrand = (name: string, category: '2-WHEELER' | '4-WHEELER') => {
+  const removeCarBrand = (name: string, category: '2-WHEELER' | '4-WHEELER' | 'COMMERCIAL') => {
     if (category === '2-WHEELER') {
       setCarBrands2W(prev => prev.filter(b => b !== name));
       setCarModels2W(prev => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    } else if (category === 'COMMERCIAL') {
+      setCarBrandsCV(prev => prev.filter(b => b !== name));
+      setCarModelsCV(prev => {
         const next = { ...prev };
         delete next[name];
         return next;
@@ -367,12 +394,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addCarModel = (brand: string, model: string, category: '2-WHEELER' | '4-WHEELER') => {
+  const addCarModel = (brand: string, model: string, category: '2-WHEELER' | '4-WHEELER' | 'COMMERCIAL') => {
     if (!brand || !model) return;
     const cleanBrand = brand.trim();
     const cleanModel = model.trim();
     if (category === '2-WHEELER') {
       setCarModels2W(prev => {
+        const list = prev[cleanBrand] || [];
+        if (list.includes(cleanModel)) return prev;
+        return { ...prev, [cleanBrand]: [...list, cleanModel] };
+      });
+    } else if (category === 'COMMERCIAL') {
+      setCarModelsCV(prev => {
         const list = prev[cleanBrand] || [];
         if (list.includes(cleanModel)) return prev;
         return { ...prev, [cleanBrand]: [...list, cleanModel] };
@@ -386,9 +419,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const removeCarModel = (brand: string, model: string, category: '2-WHEELER' | '4-WHEELER') => {
+  const removeCarModel = (brand: string, model: string, category: '2-WHEELER' | '4-WHEELER' | 'COMMERCIAL') => {
     if (category === '2-WHEELER') {
       setCarModels2W(prev => {
+        const list = prev[brand] || [];
+        return { ...prev, [brand]: list.filter(m => m !== model) };
+      });
+    } else if (category === 'COMMERCIAL') {
+      setCarModelsCV(prev => {
         const list = prev[brand] || [];
         return { ...prev, [brand]: list.filter(m => m !== model) };
       });
@@ -637,6 +675,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       carModels2W,
       carBrands4W,
       carModels4W,
+      carBrandsCV,
+      carModelsCV,
       isSyncing,
       lastSyncTime
     }}>
