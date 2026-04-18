@@ -120,18 +120,24 @@ export class GoogleService {
     }
   }
 
-  static async getSettings(spreadsheetId: string) {
+  static async getSettingsAndCatalog(spreadsheetId: string) {
     await this.init();
     if (!this.sheets) throw new Error("Sheets API not initialized");
+    let settingsVal = [];
+    let catalogVal = [];
     try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'Settings!A:Z',
-      });
-      return response.data.values;
+      const s = await this.sheets.spreadsheets.values.get({ spreadsheetId, range: 'Settings!A:Z' });
+      settingsVal = s.data.values || [];
     } catch (e) {
-      return null;
+      // Ignore if sheet doesn't exist
     }
+    try {
+      const c = await this.sheets.spreadsheets.values.get({ spreadsheetId, range: 'Catalog!A:Z' });
+      catalogVal = c.data.values || [];
+    } catch (e) {
+      // Ignore if sheet doesn't exist
+    }
+    return [...settingsVal, ...catalogVal];
   }
 
   /**
@@ -389,33 +395,41 @@ export class GoogleService {
   }
 
   /**
-   * Overwrites the Settings sheet with flat data
+   * Overwrites the Settings & Catalog sheets with flat data
    */
-  static async syncSettingsBulk(spreadsheetId: string, rows: any[][]) {
+  static async syncSettingsAndCatalogBulk(spreadsheetId: string, settingsRows: any[][], catalogRows: any[][]) {
     await this.init();
     if (!this.sheets) throw new Error("Sheets API not initialized");
 
     await this.ensureSheetExists(spreadsheetId, 'Settings');
+    await this.ensureSheetExists(spreadsheetId, 'Catalog');
 
-    await this.sheets.spreadsheets.values.clear({
-      spreadsheetId,
-      range: 'Settings!A1:Z5000',
-    });
+    await this.sheets.spreadsheets.values.clear({ spreadsheetId, range: 'Settings!A1:Z5000' });
+    await this.sheets.spreadsheets.values.clear({ spreadsheetId, range: 'Catalog!A1:Z5000' });
 
-    const headers = [
-      ["TYPE", "KEY / NAME", "VALUE 1", "VALUE 2", "VALUE 3", "VALUE 4", "VALUE 5", "ID"]
-    ];
+    const settingsHeaders = [["TYPE", "KEY / NAME", "VALUE 1", "VALUE 2", "VALUE 3", "VALUE 4", "VALUE 5", "ID"]];
+    const catalogHeaders = [["TYPE", "KEY / NAME", "COST / VAL 1", "PARTNER PRICE / VAL 2", "EXPENSE / VAL 3", "QS? / VAL 4", "CATEGORY / VAL 5", "ID"]];
 
-    const allRows = [...headers, ...rows];
+    const allSettings = [...settingsHeaders, ...settingsRows];
+    const allCatalog = [...catalogHeaders, ...catalogRows];
 
-    if (allRows.length > 0) {
+    if (allSettings.length > 0) {
       await this.sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: 'Settings!A1:Z' + allRows.length,
+        range: 'Settings!A1:Z' + allSettings.length,
         valueInputOption: 'USER_ENTERED',
-        requestBody: { values: allRows },
+        requestBody: { values: allSettings },
       });
     }
+    if (allCatalog.length > 0) {
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: 'Catalog!A1:Z' + allCatalog.length,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: allCatalog },
+      });
+    }
+    
     return { success: true };
   }
 }

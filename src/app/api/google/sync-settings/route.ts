@@ -11,44 +11,47 @@ export async function POST(req: Request) {
     
     if (!spreadsheetId) return NextResponse.json({ error: 'spreadsheetId is required' }, { status: 400 });
 
-    const rows: any[][] = [];
+    const settingsRows: any[][] = [];
+    const catalogRows: any[][] = [];
     
     // Type | Name/Key | Val1 | Val2 | Val3 | Val4 | Val5 | ID (Val6)
     
     // 1. Strings
-    if (data.estimateTerms) rows.push(['Terms', 'Estimate Terms', data.estimateTerms]);
-    if (data.invoiceTerms) rows.push(['Terms', 'Invoice Terms', data.invoiceTerms]);
-    if (data.partnerPin) rows.push(['Pin', 'Partner Pin', data.partnerPin]);
+    if (data.estimateTerms) settingsRows.push(['Terms', 'Estimate Terms', data.estimateTerms]);
+    if (data.invoiceTerms) settingsRows.push(['Terms', 'Invoice Terms', data.invoiceTerms]);
+    if (data.partnerPin) settingsRows.push(['Pin', 'Partner Pin', data.partnerPin]);
 
     // 2. Shop Profile
     if (data.shopProfile) {
-      Object.entries(data.shopProfile).forEach(([k, v]) => rows.push(['Profile', k, v]));
+      Object.entries(data.shopProfile).forEach(([k, v]) => settingsRows.push(['Profile', k, v]));
     }
 
     // 3. Simple Arrays
-    if (data.serviceTypes) data.serviceTypes.forEach((t: string) => rows.push(['ServiceType', 'Types', t]));
-    if (data.consentTypes) data.consentTypes.forEach((t: string) => rows.push(['ConsentType', 'Types', t]));
+    if (data.consentTypes) data.consentTypes.forEach((t: string) => settingsRows.push(['ConsentType', 'Types', t]));
 
     // 4. Object Arrays
-    if (data.partners) data.partners.forEach((p: any) => rows.push(['Partner', p.name, p.id]));
-    if (data.subCategories) data.subCategories.forEach((sc: any) => rows.push(['SubCategory', sc.name, sc.id]));
+    if (data.partners) data.partners.forEach((p: any) => settingsRows.push(['Partner', p.name, p.id]));
+
+    // ---------- CATALOG ROWS ----------
+    if (data.serviceTypes) data.serviceTypes.forEach((t: string) => catalogRows.push(['ServiceType', 'Types', t]));
+    if (data.subCategories) data.subCategories.forEach((sc: any) => catalogRows.push(['SubCategory', sc.name, sc.id]));
     if (data.catalogCategories) {
       data.catalogCategories.forEach((cc: any) => {
-        rows.push(['CatalogCategory', cc.name, cc.showInPOS ? 'TRUE' : 'FALSE']);
+        catalogRows.push(['CatalogCategory', cc.name, cc.showInPOS ? 'TRUE' : 'FALSE']);
       });
     }
 
     // 5. Particulars
     if (data.particulars) {
       data.particulars.forEach((p: any) => {
-        rows.push([
+        catalogRows.push([
           'Catalog Product', p.name, p.cost, p.partnerPrice, p.expense, 
           p.isQuickService ? 'TRUE' : 'FALSE', p.category || '', p.id
         ]);
       });
     }
 
-    await GoogleService.syncSettingsBulk(spreadsheetId, rows);
+    await GoogleService.syncSettingsAndCatalogBulk(spreadsheetId, settingsRows, catalogRows);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
@@ -64,7 +67,7 @@ export async function GET(req: Request) {
     
     if (!spreadsheetId) return NextResponse.json({ error: 'spreadsheetId required' }, { status: 400 });
 
-    const rows = await GoogleService.getSettings(spreadsheetId);
+    const rows = await GoogleService.getSettingsAndCatalog(spreadsheetId);
     
     const data: any = {
       serviceTypes: [], consentTypes: [], particulars: [], subCategories: [], 
