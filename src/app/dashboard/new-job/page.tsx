@@ -17,9 +17,9 @@ export default function NewJobPage() {
     particulars: particularsOptions, 
     subCategories: subCategoryOptions,
     partners: partnerOptions,
-    carBrands,
-    carModels,
-    inventorySeries
+    carBrands2W, carModels2W, carBrands4W, carModels4W,
+    inventorySeries,
+    syncToCloud, pullFromCloud, isSyncing 
   } = useSettings();
   const { addJob } = useJobs();
   const [step, setStep] = useState(1);
@@ -184,7 +184,7 @@ export default function NewJobPage() {
   };
 
   const availableStock = useMemo(() => {
-    return inventorySeries.flatMap(s => s.items.filter(i => i.status === 'Available').map(i => ({ ...i, seriesName: s.name })));
+    return inventorySeries.flatMap((s: any) => s.items.filter((i: any) => i.status === 'Available').map((item: any) => ({ ...item, seriesName: s.name })));
   }, [inventorySeries]);
 
   const handleConfirmAndDownload = () => {
@@ -508,12 +508,12 @@ export default function NewJobPage() {
                   <label className="label">Category</label>
                   <div className="toggle-group">
                     <button 
-                      type="button" className={formData.category === '2-Wheeler' ? 'active' : ''}
-                      onClick={() => setFormData({...formData, category: '2-Wheeler'})}
+                      type="button" className={formData.category === '2-WHEELER' ? 'active' : ''}
+                      onClick={() => setFormData({...formData, category: '2-WHEELER', brand: '', model: ''})}
                     >2-Wheeler</button>
                     <button 
-                      type="button" className={formData.category === '4-Wheeler' ? 'active' : ''}
-                      onClick={() => setFormData({...formData, category: '4-Wheeler'})}
+                      type="button" className={formData.category === '4-WHEELER' ? 'active' : ''}
+                      onClick={() => setFormData({...formData, category: '4-WHEELER', brand: '', model: ''})}
                     >4-Wheeler</button>
                   </div>
                 </div>
@@ -525,7 +525,10 @@ export default function NewJobPage() {
                     onChange={e => setFormData({...formData, brand: e.target.value, model: ""})}
                   >
                     <option value="">Select Brand</option>
-                    {carBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                    {(() => {
+                      const brands = formData.category === '2-WHEELER' ? carBrands2W : carBrands4W;
+                      return brands.map(b => <option key={b} value={b}>{b}</option>);
+                    })()}
                   </select>
                 </div>
                 <div className="form-group">
@@ -534,12 +537,15 @@ export default function NewJobPage() {
                     className="input-field"
                     value={formData.model}
                     onChange={e => setFormData({...formData, model: e.target.value})}
-                    disabled={!formData.brand || !carModels[formData.brand]}
+                    disabled={!formData.brand}
                   >
                     <option value="">Select Model</option>
-                    {formData.brand && carModels[formData.brand]?.map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
+                    {(() => {
+                      const models = formData.category === '2-WHEELER' ? carModels2W : carModels4W;
+                      return (models[formData.brand] || []).map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ));
+                    })()}
                   </select>
                 </div>
                 <div className="form-group">

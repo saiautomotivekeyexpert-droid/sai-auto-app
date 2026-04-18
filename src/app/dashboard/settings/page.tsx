@@ -14,7 +14,7 @@ export default function SettingsPage() {
     inventorySeries, partnerPin, updatePartnerPin,
     updateEstimateTerms, updateInvoiceTerms, updateShopProfile,
     addInventorySeries, updateInventoryItem, removeInventorySeries,
-    carBrands, carModels, addCarBrand, removeCarBrand, addCarModel, removeCarModel
+    carBrands2W, carModels2W, carBrands4W, carModels4W, addCarBrand, removeCarBrand, addCarModel, removeCarModel
   } = useSettings();
 
   const [expandedSeries, setExpandedSeries] = useState<string | null>(null);
@@ -32,23 +32,27 @@ export default function SettingsPage() {
     }
   };
 
+  const [vehicleCategory, setVehicleCategory] = useState<'2-WHEELER' | '4-WHEELER'>('4-WHEELER');
   const [newBrand, setNewBrand] = useState("");
   const [selectedBrandForModel, setSelectedBrandForModel] = useState("");
   const [newModel, setNewModel] = useState("");
 
   const handleAddBrand = () => {
     if (newBrand.trim()) {
-      addCarBrand(newBrand.trim());
+      addCarBrand(newBrand.trim(), vehicleCategory);
       setNewBrand("");
     }
   };
 
   const handleAddModel = () => {
     if (selectedBrandForModel && newModel.trim()) {
-      addCarModel(selectedBrandForModel, newModel.trim());
+      addCarModel(selectedBrandForModel, newModel.trim(), vehicleCategory);
       setNewModel("");
     }
   };
+
+  const brands = vehicleCategory === '2-WHEELER' ? carBrands2W : carBrands4W;
+  const models = vehicleCategory === '2-WHEELER' ? carModels2W : carModels4W;
 
 
   return (
@@ -205,22 +209,34 @@ export default function SettingsPage() {
 
         {/* VEHICLE MANAGEMENT */}
         <div className="settings-card glass-panel animate-fade-in" style={{ animationDelay: "0.7s", gridColumn: 'span 2' }}>
-          <div className="card-header">
-            <h3>Vehicle Catalog (Brands & Models)</h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>Add new vehicle makes and models as they launch in the market</p>
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h3>Vehicle Catalog (Brands & Models)</h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>Add new vehicle makes and models as they launch in the market</p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', padding: '0.25rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+               <button 
+                onClick={() => { setVehicleCategory('2-WHEELER'); setSelectedBrandForModel(""); }}
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.7rem', fontWeight: 700, borderRadius: '6px', border: 'none', background: vehicleCategory === '2-WHEELER' ? 'var(--accent-primary)' : 'transparent', color: vehicleCategory === '2-WHEELER' ? 'white' : 'var(--text-muted)', cursor: 'pointer', transition: '0.2s' }}
+               >2-WHEELER</button>
+               <button 
+                onClick={() => { setVehicleCategory('4-WHEELER'); setSelectedBrandForModel(""); }}
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.7rem', fontWeight: 700, borderRadius: '6px', border: 'none', background: vehicleCategory === '4-WHEELER' ? 'var(--accent-primary)' : 'transparent', color: vehicleCategory === '4-WHEELER' ? 'white' : 'var(--text-muted)', cursor: 'pointer', transition: '0.2s' }}
+               >4-WHEELER</button>
+            </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1fr) 2fr', gap: '2rem' }}>
             {/* BRANDS COLUMN */}
             <div>
-              <label className="terms-label" style={{ marginBottom: '0.75rem' }}>MANAGE BRANDS</label>
-              <div className="options-list" style={{ maxHeight: '250px' }}>
-                {carBrands.map(brand => (
+              <label className="terms-label" style={{ marginBottom: '0.75rem' }}>MANAGE {vehicleCategory === '2-WHEELER' ? 'BIKE' : 'CAR'} BRANDS</label>
+              <div className="options-list" style={{ maxHeight: '350px' }}>
+                {brands.map(brand => (
                   <div key={brand} className={`option-item ${selectedBrandForModel === brand ? 'active-brand' : ''}`} 
                        onClick={() => setSelectedBrandForModel(brand)} 
                        style={{ cursor: 'pointer', borderColor: selectedBrandForModel === brand ? 'var(--accent-primary)' : 'var(--glass-border)' }}>
                     <span style={{ color: selectedBrandForModel === brand ? 'var(--accent-primary)' : 'inherit' }}>{brand}</span>
-                    <button className="delete-btn" onClick={(e) => { e.stopPropagation(); removeCarBrand(brand); }}>
+                    <button className="delete-btn" onClick={(e) => { e.stopPropagation(); removeCarBrand(brand, vehicleCategory); }}>
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -228,7 +244,7 @@ export default function SettingsPage() {
               </div>
               <div className="add-option">
                 <input 
-                  type="text" placeholder="New Brand..." 
+                  type="text" placeholder={`New ${vehicleCategory === '2-WHEELER' ? 'Bike' : 'Car'} Brand...`} 
                   value={newBrand} onChange={e => setNewBrand(e.target.value)}
                   onKeyPress={e => e.key === 'Enter' && handleAddBrand()}
                 />
@@ -239,15 +255,15 @@ export default function SettingsPage() {
             {/* MODELS COLUMN */}
             <div>
               <label className="terms-label" style={{ marginBottom: '0.75rem' }}>
-                {selectedBrandForModel ? `MODELS FOR ${selectedBrandForModel.toUpperCase()}` : 'SELECT A BRAND TO VIEW MODELS'}
+                {selectedBrandForModel ? `MODELS FOR ${selectedBrandForModel.toUpperCase()} (${vehicleCategory})` : 'SELECT A BRAND TO VIEW MODELS'}
               </label>
               {selectedBrandForModel ? (
                 <>
-                  <div className="options-list" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', maxHeight: '250px' }}>
-                    {(carModels[selectedBrandForModel] || []).map(model => (
+                  <div className="options-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.5rem', maxHeight: '350px' }}>
+                    {(models[selectedBrandForModel] || []).map(model => (
                       <div key={model} className="option-item" style={{ padding: '0.5rem 0.75rem' }}>
                         <span style={{ fontSize: '0.85rem' }}>{model}</span>
-                        <button className="delete-btn" onClick={() => removeCarModel(selectedBrandForModel, model)}>
+                        <button className="delete-btn" onClick={() => removeCarModel(selectedBrandForModel, model, vehicleCategory)}>
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -263,7 +279,7 @@ export default function SettingsPage() {
                   </div>
                 </>
               ) : (
-                <div style={{ height: '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px dashed var(--glass-border)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                <div style={{ height: '350px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px dashed var(--glass-border)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                   Click a brand on the left to manage its models
                 </div>
               )}

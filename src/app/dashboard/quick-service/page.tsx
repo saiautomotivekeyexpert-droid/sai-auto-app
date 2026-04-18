@@ -30,8 +30,10 @@ export default function QuickServicePage() {
     partnerPin, 
     consumeInventoryItem, 
     catalogCategories,
-    carBrands,
-    carModels
+    carBrands2W,
+    carModels2W,
+    carBrands4W,
+    carModels4W
   } = useSettings();
   const { addJob } = useJobs();
 
@@ -41,6 +43,8 @@ export default function QuickServicePage() {
     regNumber: "",
     phone: "",
     brand: "",
+    model: "",
+    category: "4-WHEELER" as "2-WHEELER" | "4-WHEELER",
     customerType: "Retail" as "Retail" | "Partner",
     partnerName: "",
     consentType: "OWNER",
@@ -662,14 +666,50 @@ export default function QuickServicePage() {
               </div>
 
               <div className="input-group">
+                <label>Vehicle Category</label>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                  <button 
+                    type="button" 
+                    onClick={() => setCustomerData({...customerData, category: '2-WHEELER', brand: '', model: ''})}
+                    style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--glass-border)', background: customerData.category === '2-WHEELER' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.05)', color: customerData.category === '2-WHEELER' ? 'white' : 'inherit', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
+                  >2-Wheeler</button>
+                  <button 
+                    type="button" 
+                    onClick={() => setCustomerData({...customerData, category: '4-WHEELER', brand: '', model: ''})}
+                    style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--glass-border)', background: customerData.category === '4-WHEELER' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.05)', color: customerData.category === '4-WHEELER' ? 'white' : 'inherit', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
+                  >4-Wheeler</button>
+                </div>
+              </div>
+
+              <div className="input-group">
                 <label><Car size={14} /> Vehicle Brand</label>
                 <select 
                   className="input-field"
                   value={customerData.brand}
-                  onChange={(e) => setCustomerData({...customerData, brand: e.target.value})}
+                  onChange={(e) => setCustomerData({...customerData, brand: e.target.value, model: ''})}
                 >
                   <option value="">Select Brand</option>
-                  {carBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                  {(customerData.category === '2-WHEELER' ? carBrands2W : carBrands4W).map(b => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="input-group">
+                <label><List size={14} /> Vehicle Model</label>
+                <select 
+                  className="input-field"
+                  value={customerData.model}
+                  onChange={(e) => setCustomerData({...customerData, model: e.target.value})}
+                  disabled={!customerData.brand}
+                >
+                  <option value="">Select Model</option>
+                  {(() => {
+                    const modelsMap = customerData.category === '2-WHEELER' ? carModels2W : carModels4W;
+                    return (modelsMap[customerData.brand] || []).map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ));
+                  })()}
                 </select>
               </div>
               

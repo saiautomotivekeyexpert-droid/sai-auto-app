@@ -42,10 +42,16 @@ export async function POST(req: Request) {
     }
 
     // 5. Vehicle Data
-    if (data.carBrands) data.carBrands.forEach((b: string) => settingsRows.push(['VehicleBrand', b, '']));
-    if (data.carModels) {
-      Object.entries(data.carModels).forEach(([brand, models]: [string, any]) => {
-        models.forEach((m: string) => settingsRows.push(['VehicleModel', m, brand]));
+    if (data.carBrands2W) data.carBrands2W.forEach((b: string) => settingsRows.push(['VehicleBrand2W', b, '']));
+    if (data.carModels2W) {
+      Object.entries(data.carModels2W).forEach(([brand, models]: [string, any]) => {
+        models.forEach((m: string) => settingsRows.push(['VehicleModel2W', m, brand]));
+      });
+    }
+    if (data.carBrands4W) data.carBrands4W.forEach((b: string) => settingsRows.push(['VehicleBrand4W', b, '']));
+    if (data.carModels4W) {
+      Object.entries(data.carModels4W).forEach(([brand, models]: [string, any]) => {
+        models.forEach((m: string) => settingsRows.push(['VehicleModel4W', m, brand]));
       });
     }
 
@@ -79,7 +85,8 @@ export async function GET(req: Request) {
     
     const data: any = {
       serviceTypes: [], consentTypes: [], particulars: [], subCategories: [], 
-      partners: [], catalogCategories: [], shopProfile: {}, carBrands: [], carModels: {}
+      partners: [], catalogCategories: [], shopProfile: {}, 
+      carBrands2W: [], carModels2W: {}, carBrands4W: [], carModels4W: {}
     };
 
     if (!rows || rows.length === 0) return NextResponse.json({ data: null });
@@ -105,10 +112,15 @@ export async function GET(req: Request) {
       else if (type === 'Partner') data.partners.push({ name: key, id: v1 || Date.now().toString() });
       else if (type === 'SubCategory') data.subCategories.push({ name: key, id: v1 || Date.now().toString() });
       else if (type === 'CatalogCategory') data.catalogCategories.push({ name: key, showInPOS: v1 === 'TRUE' });
-      else if (type === 'VehicleBrand') data.carBrands.push(key);
-      else if (type === 'VehicleModel') {
-        if (!data.carModels[v1]) data.carModels[v1] = [];
-        data.carModels[v1].push(key);
+      else if (type === 'VehicleBrand2W') data.carBrands2W.push(key);
+      else if (type === 'VehicleModel2W') {
+        if (!data.carModels2W[v1]) data.carModels2W[v1] = [];
+        data.carModels2W[v1].push(key);
+      }
+      else if (type === 'VehicleBrand4W') data.carBrands4W.push(key);
+      else if (type === 'VehicleModel4W') {
+        if (!data.carModels4W[v1]) data.carModels4W[v1] = [];
+        data.carModels4W[v1].push(key);
       }
       else if (type === 'Catalog Product') {
         data.particulars.push({

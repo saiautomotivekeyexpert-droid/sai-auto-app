@@ -57,8 +57,10 @@ interface SettingsContextType {
   subCategories: SubCategoryItem[];
   partners: Partner[];
   partnerPin: string;
-  carBrands: string[];
-  carModels: Record<string, string[]>;
+  carBrands2W: string[];
+  carModels2W: Record<string, string[]>;
+  carBrands4W: string[];
+  carModels4W: Record<string, string[]>;
   estimateTerms: string;
   invoiceTerms: string;
   shopProfile: {
@@ -96,10 +98,12 @@ interface SettingsContextType {
   releaseInventoryItem: (jobId: string) => void;
   consumeByProductName: (productName: string, jobId: string) => { itemId: string, mark: string } | null;
   recoverCatalogFromHistory: () => Promise<void>;
-  addCarBrand: (name: string) => void;
-  removeCarBrand: (name: string) => void;
-  addCarModel: (brand: string, model: string) => void;
-  removeCarModel: (brand: string, model: string) => void;
+  addCarBrand: (name: string, category: '2-WHEELER' | '4-WHEELER') => void;
+  removeCarBrand: (name: string, category: '2-WHEELER' | '4-WHEELER') => void;
+  addCarModel: (brand: string, model: string, category: '2-WHEELER' | '4-WHEELER') => void;
+  removeCarModel: (brand: string, model: string, category: '2-WHEELER' | '4-WHEELER') => void;
+  syncToCloud: () => Promise<boolean>;
+  pullFromCloud: (spreadsheetId?: string) => Promise<boolean>;
   isSyncing: boolean;
   lastSyncTime: Date | null;
 }
@@ -154,13 +158,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     email: "SAIAUTOKEYWORKS@GMAIL.COM"
   });
 
-  const [carBrands, setCarBrands] = useState<string[]>([
+  const [carBrands4W, setCarBrands4W] = useState<string[]>([
     "Maruti Suzuki", "Hyundai", "Tata", "Mahindra", "Toyota", "Kia", "Honda", 
     "Skoda", "Volkswagen", "Renault", "MG", "Nissan", "Mercedes-Benz", "BMW", 
     "Audi", "Ford", "Chevrolet", "Jeep", "Other"
   ]);
 
-  const [carModels, setCarModels] = useState<Record<string, string[]>>({
+  const [carModels4W, setCarModels4W] = useState<Record<string, string[]>>({
     "Maruti Suzuki": ["Alto", "Swift", "Dzire", "Wagon R", "Baleno", "Ertiga", "Brezza", "Ciaz", "Grand Vitara", "Ignis", "S-Presso"],
     "Hyundai": ["i10", "i20", "Creta", "Venue", "Verna", "Alcazar", "Tucson", "Santal Fe", "Eon", "Xcent"],
     "Tata": ["Nexon", "Punch", "Altroz", "Tiago", "Tigor", "Harrier", "Safari", "Nano", "Indica", "Indigo"],
@@ -179,6 +183,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     "Ford": ["EcoSport", "Endeavour", "Figo", "Aspire", "Fiesta"],
     "Chevrolet": ["Beat", "Cruze", "Spark", "Sail", "Tavera"],
     "Jeep": ["Compass", "Meridian", "Wrangler"],
+    "Other": ["Custom"]
+  });
+
+  const [carBrands2W, setCarBrands2W] = useState<string[]>([
+    "Hero", "Honda", "TVS", "Bajaj", "Yamaha", "Royal Enfield", "Suzuki", "KTM", "Ather", "Ola", "Piaggio", "Other"
+  ]);
+
+  const [carModels2W, setCarModels2W] = useState<Record<string, string[]>>({
+    "Hero": ["Splendor", "Passion", "Glamour", "HF Deluxe", "Xpulse"],
+    "Honda": ["Activa", "Shine", "Unicorn", "SP125", "Dio"],
+    "TVS": ["Jupiter", "Apache", "XL100", "Ntorq", "Raider"],
+    "Bajaj": ["Pulsar", "Platina", "Avenger", "CT100", "Dominar"],
     "Other": ["Custom"]
   });
 
@@ -247,13 +263,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // Cloud Sync Logic
   const syncToCloud = async () => {
     try {
-      if (!cloudLoaded) return; 
+      if (!cloudLoaded) return false; 
 
       setIsSyncing(true);
       const dataToSync = {
         serviceTypes, consentTypes, particulars, subCategories, partners,
         estimateTerms, invoiceTerms, shopProfile,
-        catalogCategories, partnerPin, carBrands, carModels
+        catalogCategories, partnerPin, carBrands2W, carModels2W, carBrands4W, carModels4W
       };
 
       // 1. Sync Settings Blob
@@ -274,9 +290,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setLastSyncTime(new Date());
       setIsSyncing(false);
       console.log("Settings & Stock synced to cloud");
+      return true;
     } catch (err) {
       console.error("Cloud sync failed:", err);
       setIsSyncing(false);
+      return false;
     }
   };
 
@@ -296,10 +314,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         if (data.partners) setPartners(data.partners);
         if (data.subCategories) setSubCategories(data.subCategories);
         if (data.partnerPin) setPartnerPin(data.partnerPin);
-        if (data.estimateTerms) setEstimateTerms(data.estimateTerms);
         if (data.invoiceTerms) setInvoiceTerms(data.invoiceTerms);
-        if (data.carBrands) setCarBrands(data.carBrands);
-        if (data.carModels) setCarModels(data.carModels);
+        if (data.carBrands2W && data.carBrands2W.length > 0) setCarBrands2W(data.carBrands2W);
+        if (data.carModels2W && Object.keys(data.carModels2W).length > 0) setCarModels2W(data.carModels2W);
+        if (data.carBrands4W && data.carBrands4W.length > 0) setCarBrands4W(data.carBrands4W);
+        if (data.carModels4W && Object.keys(data.carModels4W).length > 0) setCarModels4W(data.carModels4W);
       }
 
       // 2. Pull Stock
@@ -316,39 +335,69 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     return false;
   };
 
-  const addCarBrand = (name: string) => {
+  const addCarBrand = (name: string, category: '2-WHEELER' | '4-WHEELER') => {
     if (!name) return;
     const clean = name.trim();
-    if (carBrands.includes(clean)) return;
-    setCarBrands(prev => [...prev, clean]);
-    if (!carModels[clean]) setCarModels(prev => ({ ...prev, [clean]: [] }));
+    if (category === '2-WHEELER') {
+      if (carBrands2W.includes(clean)) return;
+      setCarBrands2W(prev => [...prev, clean]);
+      if (!carModels2W[clean]) setCarModels2W(prev => ({ ...prev, [clean]: [] }));
+    } else {
+      if (carBrands4W.includes(clean)) return;
+      setCarBrands4W(prev => [...prev, clean]);
+      if (!carModels4W[clean]) setCarModels4W(prev => ({ ...prev, [clean]: [] }));
+    }
   };
 
-  const removeCarBrand = (name: string) => {
-    setCarBrands(prev => prev.filter(b => b !== name));
-    setCarModels(prev => {
-      const next = { ...prev };
-      delete next[name];
-      return next;
-    });
+  const removeCarBrand = (name: string, category: '2-WHEELER' | '4-WHEELER') => {
+    if (category === '2-WHEELER') {
+      setCarBrands2W(prev => prev.filter(b => b !== name));
+      setCarModels2W(prev => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    } else {
+      setCarBrands4W(prev => prev.filter(b => b !== name));
+      setCarModels4W(prev => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
   };
 
-  const addCarModel = (brand: string, model: string) => {
+  const addCarModel = (brand: string, model: string, category: '2-WHEELER' | '4-WHEELER') => {
     if (!brand || !model) return;
     const cleanBrand = brand.trim();
     const cleanModel = model.trim();
-    setCarModels(prev => {
-      const list = prev[cleanBrand] || [];
-      if (list.includes(cleanModel)) return prev;
-      return { ...prev, [cleanBrand]: [...list, cleanModel] };
-    });
+    if (category === '2-WHEELER') {
+      setCarModels2W(prev => {
+        const list = prev[cleanBrand] || [];
+        if (list.includes(cleanModel)) return prev;
+        return { ...prev, [cleanBrand]: [...list, cleanModel] };
+      });
+    } else {
+      setCarModels4W(prev => {
+        const list = prev[cleanBrand] || [];
+        if (list.includes(cleanModel)) return prev;
+        return { ...prev, [cleanBrand]: [...list, cleanModel] };
+      });
+    }
   };
 
-  const removeCarModel = (brand: string, model: string) => {
-    setCarModels(prev => {
-      const list = prev[brand] || [];
-      return { ...prev, [brand]: list.filter(m => m !== model) };
-    });
+  const removeCarModel = (brand: string, model: string, category: '2-WHEELER' | '4-WHEELER') => {
+    if (category === '2-WHEELER') {
+      setCarModels2W(prev => {
+        const list = prev[brand] || [];
+        return { ...prev, [brand]: list.filter(m => m !== model) };
+      });
+    } else {
+      setCarModels4W(prev => {
+        const list = prev[brand] || [];
+        return { ...prev, [brand]: list.filter(m => m !== model) };
+      });
+    }
   };
 
   const recoverCatalogFromHistory = async () => {
@@ -538,7 +587,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   return (
     <SettingsContext.Provider value={{
       serviceTypes, consentTypes, particulars, subCategories, partners,
-      carBrands, carModels,
       estimateTerms, invoiceTerms, shopProfile,
       inventorySeries,
       addServiceType, removeServiceType,
@@ -562,6 +610,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       removeCarBrand,
       addCarModel,
       removeCarModel,
+      syncToCloud,
+      pullFromCloud,
+      carBrands2W,
+      carModels2W,
+      carBrands4W,
+      carModels4W,
       isSyncing,
       lastSyncTime
     }}>
