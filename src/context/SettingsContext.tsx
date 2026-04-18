@@ -306,13 +306,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       const settingsRes = await fetch(`/api/google/sync-settings${sidParam}`);
       const { data } = await settingsRes.json();
       if (data) {
-        if (data.serviceTypes) setServiceTypes(data.serviceTypes);
-        if (data.consentTypes) setConsentTypes(data.consentTypes);
-        if (data.particulars) setParticulars(data.particulars);
-        if (data.catalogCategories) setCatalogCategories(data.catalogCategories);
-        if (data.shopProfile) setShopProfile(data.shopProfile);
-        if (data.partners) setPartners(data.partners);
-        if (data.subCategories) setSubCategories(data.subCategories);
+        if (data.serviceTypes && data.serviceTypes.length > 0) setServiceTypes(data.serviceTypes);
+        if (data.consentTypes && data.consentTypes.length > 0) setConsentTypes(data.consentTypes);
+        if (data.particulars && data.particulars.length > 0) setParticulars(data.particulars);
+        if (data.catalogCategories && data.catalogCategories.length > 0) setCatalogCategories(data.catalogCategories);
+        if (data.shopProfile && Object.keys(data.shopProfile).length > 0) setShopProfile(data.shopProfile);
+        if (data.partners && data.partners.length > 0) setPartners(data.partners);
+        if (data.subCategories && data.subCategories.length > 0) setSubCategories(data.subCategories);
         if (data.partnerPin) setPartnerPin(data.partnerPin);
         if (data.invoiceTerms) setInvoiceTerms(data.invoiceTerms);
         if (data.carBrands2W && data.carBrands2W.length > 0) setCarBrands2W(data.carBrands2W);
@@ -404,21 +404,42 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsSyncing(true);
       const res = await fetch('/api/google/recover-catalog');
-      const { recovered, success } = await res.json();
-      if (success && recovered && recovered.length > 0) {
-        // Merge with existing (though likely empty)
-        setParticulars(prev => {
-          const merged = [...prev];
-          recovered.forEach((rec: any) => {
-            if (!merged.some(p => p.name.trim().toUpperCase() === rec.name.trim().toUpperCase())) {
-              merged.push(rec);
-            }
+      const { recovered, recoveredConsents, success } = await res.json();
+      if (success) {
+        let msg = "";
+        if (recovered && recovered.length > 0) {
+          setParticulars(prev => {
+            const merged = [...prev];
+            recovered.forEach((rec: any) => {
+              if (!merged.some(p => p.name.trim().toUpperCase() === rec.name.trim().toUpperCase())) {
+                merged.push(rec);
+              }
+            });
+            return merged;
           });
-          return merged;
-        });
-        alert(`Recovered ${recovered.length} items from historical jobs. Please double check prices and click Save.`);
+          msg += `Recovered ${recovered.length} items. `;
+        }
+        
+        if (recoveredConsents && recoveredConsents.length > 0) {
+          setConsentTypes(prev => {
+            const merged = [...prev];
+            recoveredConsents.forEach((c: string) => {
+              if (!merged.some(existing => existing.trim().toUpperCase() === c.trim().toUpperCase())) {
+                merged.push(c);
+              }
+            });
+            return merged;
+          });
+          msg += `Recovered ${recoveredConsents.length} consent types. `;
+        }
+
+        if (msg) {
+          alert(`${msg}Please double check and click Save.`);
+        } else {
+          alert("No additional data found to recover.");
+        }
       } else {
-        alert("No additional items found in job history to recover.");
+        alert("Failed to recover data from history.");
       }
       setIsSyncing(false);
     } catch (err) {

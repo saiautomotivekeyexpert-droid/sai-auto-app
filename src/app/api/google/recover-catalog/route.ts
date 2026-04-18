@@ -17,9 +17,17 @@ export async function GET(req: Request) {
     }
 
     const uniqueProducts: Record<string, any> = {};
+    const uniqueConsents = new Set<string>();
 
-    // 2. Parse Column Q (index 16) - Particulars JSON
+    // 2. Parse Rows
     allRows.forEach((row: any[]) => {
+      // Consent Type at Index 14
+      const consent = row[14];
+      if (consent && typeof consent === 'string' && consent.trim()) {
+        uniqueConsents.add(consent.trim().toUpperCase());
+      }
+
+      // Catalog items in index 16
       const particularsJson = row[16];
       if (!particularsJson) return;
 
@@ -50,11 +58,13 @@ export async function GET(req: Request) {
     });
 
     const recoveredList = Object.values(uniqueProducts);
+    const recoveredConsents = Array.from(uniqueConsents);
 
     return NextResponse.json({ 
       success: true, 
       recovered: recoveredList,
-      message: `Successfully identified ${recoveredList.length} unique items from job history.`
+      recoveredConsents,
+      message: `Identified ${recoveredList.length} products and ${recoveredConsents.length} consent types from job history.`
     });
   } catch (err: any) {
     console.error("Catalog Recovery Error:", err);
