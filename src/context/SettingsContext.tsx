@@ -313,7 +313,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     if (!isInitialized || !cloudLoaded) return;
     const timer = setTimeout(() => {
       syncToCloud();
-    }, 500); 
+    }, 100); 
     return () => clearTimeout(timer);
   }, [
     serviceTypes, consentTypes, particulars, inventorySeries, catalogCategories, 
