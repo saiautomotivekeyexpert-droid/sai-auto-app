@@ -365,25 +365,7 @@ export default function InventoryPage() {
               ))}
               {particulars.filter(p => p.category !== "SERVICES").length === 0 && (
                 <div style={{ textAlign: 'center', padding: '1.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px dashed var(--glass-border)' }}>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>No products in catalog.</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <button 
-                      onClick={recoverCatalogFromHistory}
-                      className="primary-btn"
-                      style={{ fontSize: '0.7rem', padding: '0.4rem', justifyContent: 'center', background: 'var(--accent-primary)' }}
-                      disabled={isSyncing}
-                    >
-                      <RefreshCcw size={14} style={{ animation: isSyncing ? 'spin 2s linear infinite' : 'none', marginRight: '0.4rem' }} />
-                      RECOVER FROM JOB HISTORY
-                    </button>
-                    <button 
-                      onClick={restoreRecommendedDefaults}
-                      className="secondary-btn"
-                      style={{ fontSize: '0.6rem', padding: '0.3rem', justifyContent: 'center', opacity: 0.7 }}
-                    >
-                      RESTORE RECOMMENDED DEFAULTS
-                    </button>
-                  </div>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 0 }}>No products in catalog.</p>
                 </div>
               )}
             </div>
