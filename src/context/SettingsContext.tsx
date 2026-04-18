@@ -96,6 +96,10 @@ interface SettingsContextType {
   releaseInventoryItem: (jobId: string) => void;
   consumeByProductName: (productName: string, jobId: string) => { itemId: string, mark: string } | null;
   recoverCatalogFromHistory: () => Promise<void>;
+  addCarBrand: (name: string) => void;
+  removeCarBrand: (name: string) => void;
+  addCarModel: (brand: string, model: string) => void;
+  removeCarModel: (brand: string, model: string) => void;
   isSyncing: boolean;
   lastSyncTime: Date | null;
 }
@@ -150,13 +154,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     email: "SAIAUTOKEYWORKS@GMAIL.COM"
   });
 
-  const carBrands = [
+  const [carBrands, setCarBrands] = useState<string[]>([
     "Maruti Suzuki", "Hyundai", "Tata", "Mahindra", "Toyota", "Kia", "Honda", 
     "Skoda", "Volkswagen", "Renault", "MG", "Nissan", "Mercedes-Benz", "BMW", 
     "Audi", "Ford", "Chevrolet", "Jeep", "Other"
-  ];
+  ]);
 
-  const carModels: Record<string, string[]> = {
+  const [carModels, setCarModels] = useState<Record<string, string[]>>({
     "Maruti Suzuki": ["Alto", "Swift", "Dzire", "Wagon R", "Baleno", "Ertiga", "Brezza", "Ciaz", "Grand Vitara", "Ignis", "S-Presso"],
     "Hyundai": ["i10", "i20", "Creta", "Venue", "Verna", "Alcazar", "Tucson", "Santal Fe", "Eon", "Xcent"],
     "Tata": ["Nexon", "Punch", "Altroz", "Tiago", "Tigor", "Harrier", "Safari", "Nano", "Indica", "Indigo"],
@@ -176,7 +180,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     "Chevrolet": ["Beat", "Cruze", "Spark", "Sail", "Tavera"],
     "Jeep": ["Compass", "Meridian", "Wrangler"],
     "Other": ["Custom"]
-  };
+  });
 
   // Flatten inventory series into rows for Google Sheets
   const flattenInventory = (series: InventorySeries[]) => {
@@ -249,7 +253,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       const dataToSync = {
         serviceTypes, consentTypes, particulars, subCategories, partners,
         estimateTerms, invoiceTerms, shopProfile,
-        catalogCategories, partnerPin
+        catalogCategories, partnerPin, carBrands, carModels
       };
 
       // 1. Sync Settings Blob
@@ -294,6 +298,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         if (data.partnerPin) setPartnerPin(data.partnerPin);
         if (data.estimateTerms) setEstimateTerms(data.estimateTerms);
         if (data.invoiceTerms) setInvoiceTerms(data.invoiceTerms);
+        if (data.carBrands) setCarBrands(data.carBrands);
+        if (data.carModels) setCarModels(data.carModels);
       }
 
       // 2. Pull Stock
@@ -308,6 +314,41 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       console.error("Cloud pull failed:", err);
     }
     return false;
+  };
+
+  const addCarBrand = (name: string) => {
+    if (!name) return;
+    const clean = name.trim();
+    if (carBrands.includes(clean)) return;
+    setCarBrands(prev => [...prev, clean]);
+    if (!carModels[clean]) setCarModels(prev => ({ ...prev, [clean]: [] }));
+  };
+
+  const removeCarBrand = (name: string) => {
+    setCarBrands(prev => prev.filter(b => b !== name));
+    setCarModels(prev => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
+
+  const addCarModel = (brand: string, model: string) => {
+    if (!brand || !model) return;
+    const cleanBrand = brand.trim();
+    const cleanModel = model.trim();
+    setCarModels(prev => {
+      const list = prev[cleanBrand] || [];
+      if (list.includes(cleanModel)) return prev;
+      return { ...prev, [cleanBrand]: [...list, cleanModel] };
+    });
+  };
+
+  const removeCarModel = (brand: string, model: string) => {
+    setCarModels(prev => {
+      const list = prev[brand] || [];
+      return { ...prev, [brand]: list.filter(m => m !== model) };
+    });
   };
 
   const recoverCatalogFromHistory = async () => {
@@ -517,6 +558,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       releaseInventoryItem,
       consumeByProductName,
       recoverCatalogFromHistory,
+      addCarBrand,
+      removeCarBrand,
+      addCarModel,
+      removeCarModel,
       isSyncing,
       lastSyncTime
     }}>

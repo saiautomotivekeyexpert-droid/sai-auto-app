@@ -41,7 +41,15 @@ export async function POST(req: Request) {
       });
     }
 
-    // 5. Particulars
+    // 5. Vehicle Data
+    if (data.carBrands) data.carBrands.forEach((b: string) => settingsRows.push(['VehicleBrand', b, '']));
+    if (data.carModels) {
+      Object.entries(data.carModels).forEach(([brand, models]: [string, any]) => {
+        models.forEach((m: string) => settingsRows.push(['VehicleModel', m, brand]));
+      });
+    }
+
+    // 6. Particulars
     if (data.particulars) {
       data.particulars.forEach((p: any) => {
         catalogRows.push([
@@ -71,7 +79,7 @@ export async function GET(req: Request) {
     
     const data: any = {
       serviceTypes: [], consentTypes: [], particulars: [], subCategories: [], 
-      partners: [], catalogCategories: [], shopProfile: {}
+      partners: [], catalogCategories: [], shopProfile: {}, carBrands: [], carModels: {}
     };
 
     if (!rows || rows.length === 0) return NextResponse.json({ data: null });
@@ -97,6 +105,11 @@ export async function GET(req: Request) {
       else if (type === 'Partner') data.partners.push({ name: key, id: v1 || Date.now().toString() });
       else if (type === 'SubCategory') data.subCategories.push({ name: key, id: v1 || Date.now().toString() });
       else if (type === 'CatalogCategory') data.catalogCategories.push({ name: key, showInPOS: v1 === 'TRUE' });
+      else if (type === 'VehicleBrand') data.carBrands.push(key);
+      else if (type === 'VehicleModel') {
+        if (!data.carModels[v1]) data.carModels[v1] = [];
+        data.carModels[v1].push(key);
+      }
       else if (type === 'Catalog Product') {
         data.particulars.push({
           name: key,

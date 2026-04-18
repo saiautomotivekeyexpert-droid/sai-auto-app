@@ -13,7 +13,8 @@ export default function SettingsPage() {
     estimateTerms, invoiceTerms, shopProfile,
     inventorySeries, partnerPin, updatePartnerPin,
     updateEstimateTerms, updateInvoiceTerms, updateShopProfile,
-    addInventorySeries, updateInventoryItem, removeInventorySeries
+    addInventorySeries, updateInventoryItem, removeInventorySeries,
+    carBrands, carModels, addCarBrand, removeCarBrand, addCarModel, removeCarModel
   } = useSettings();
 
   const [expandedSeries, setExpandedSeries] = useState<string | null>(null);
@@ -28,6 +29,24 @@ export default function SettingsPage() {
     if (newPartner.trim()) { 
       addPartner(newPartner.trim()); 
       setNewPartner(""); 
+    }
+  };
+
+  const [newBrand, setNewBrand] = useState("");
+  const [selectedBrandForModel, setSelectedBrandForModel] = useState("");
+  const [newModel, setNewModel] = useState("");
+
+  const handleAddBrand = () => {
+    if (newBrand.trim()) {
+      addCarBrand(newBrand.trim());
+      setNewBrand("");
+    }
+  };
+
+  const handleAddModel = () => {
+    if (selectedBrandForModel && newModel.trim()) {
+      addCarModel(selectedBrandForModel, newModel.trim());
+      setNewModel("");
     }
   };
 
@@ -183,10 +202,82 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* VEHICLE MANAGEMENT */}
+        <div className="settings-card glass-panel animate-fade-in" style={{ animationDelay: "0.7s", gridColumn: 'span 2' }}>
+          <div className="card-header">
+            <h3>Vehicle Catalog (Brands & Models)</h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>Add new vehicle makes and models as they launch in the market</p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem' }}>
+            {/* BRANDS COLUMN */}
+            <div>
+              <label className="terms-label" style={{ marginBottom: '0.75rem' }}>MANAGE BRANDS</label>
+              <div className="options-list" style={{ maxHeight: '250px' }}>
+                {carBrands.map(brand => (
+                  <div key={brand} className={`option-item ${selectedBrandForModel === brand ? 'active-brand' : ''}`} 
+                       onClick={() => setSelectedBrandForModel(brand)} 
+                       style={{ cursor: 'pointer', borderColor: selectedBrandForModel === brand ? 'var(--accent-primary)' : 'var(--glass-border)' }}>
+                    <span style={{ color: selectedBrandForModel === brand ? 'var(--accent-primary)' : 'inherit' }}>{brand}</span>
+                    <button className="delete-btn" onClick={(e) => { e.stopPropagation(); removeCarBrand(brand); }}>
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="add-option">
+                <input 
+                  type="text" placeholder="New Brand..." 
+                  value={newBrand} onChange={e => setNewBrand(e.target.value)}
+                  onKeyPress={e => e.key === 'Enter' && handleAddBrand()}
+                />
+                <button onClick={handleAddBrand}><Plus size={18} /></button>
+              </div>
+            </div>
+
+            {/* MODELS COLUMN */}
+            <div>
+              <label className="terms-label" style={{ marginBottom: '0.75rem' }}>
+                {selectedBrandForModel ? `MODELS FOR ${selectedBrandForModel.toUpperCase()}` : 'SELECT A BRAND TO VIEW MODELS'}
+              </label>
+              {selectedBrandForModel ? (
+                <>
+                  <div className="options-list" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', maxHeight: '250px' }}>
+                    {(carModels[selectedBrandForModel] || []).map(model => (
+                      <div key={model} className="option-item" style={{ padding: '0.5rem 0.75rem' }}>
+                        <span style={{ fontSize: '0.85rem' }}>{model}</span>
+                        <button className="delete-btn" onClick={() => removeCarModel(selectedBrandForModel, model)}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="add-option" style={{ marginTop: '1rem' }}>
+                    <input 
+                      type="text" placeholder={`Add model to ${selectedBrandForModel}...`} 
+                      value={newModel} onChange={e => setNewModel(e.target.value)}
+                      onKeyPress={e => e.key === 'Enter' && handleAddModel()}
+                    />
+                    <button onClick={handleAddModel}><Plus size={18} /></button>
+                  </div>
+                </>
+              ) : (
+                <div style={{ height: '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px dashed var(--glass-border)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  Click a brand on the left to manage its models
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
         
       </div>
 
       <style jsx>{`
+        .active-brand {
+          background: rgba(59, 130, 246, 0.08) !important;
+          box-shadow: 0 0 0 1px var(--accent-primary);
+        }
         .settings-container {
           max-width: 1200px;
           margin: 0 auto;
