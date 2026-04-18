@@ -20,9 +20,29 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const mimeType = file.type;
 
-    const result = await GoogleService.uploadImage(folderId, fileName, mimeType, buffer);
-
-    return NextResponse.json({ success: true, ...result });
+    const webhookUrl = process.env.GOOGLE_DRIVE_WEBHOOK_URL;
+    
+    if (webhookUrl) {
+      // Use Google Apps Script Webhook bypass
+      const base64Data = buffer.toString('base64');
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          fileName,
+          mimeType,
+          fileData: base64Data,
+          folderId: folderId // Allows the script to know where to save
+        })
+      });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      return NextResponse.json({ success: true, webViewLink: data.url });
+    } else {
+      // Legacy Service Account approach
+      const result = await GoogleService.uploadImage(folderId, fileName, mimeType, buffer);
+      return NextResponse.json({ success: true, ...result });
+    }
   } catch (error: any) {
     console.error("Error in upload-file route:", error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
