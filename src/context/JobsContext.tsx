@@ -146,7 +146,10 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
                   const regex = /HYPERLINK\("([^"]+)",\s*"([^"]+)"\)/g;
                   let m;
                   while ((m = regex.exec(cellContent)) !== null) {
-                    docs.push({ preview: m[1], name: m[2].replace(/^VIEW\s+/i, ''), type: 'image/jpeg', isCloud: true });
+                    const url = m[1];
+                    const name = m[2].replace(/^VIEW\s+/i, '');
+                    const type = name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+                    docs.push({ preview: url, name, type, isCloud: true });
                   }
                   // Fallback for non-formula links
                   if (docs.length === 0 && cellContent.startsWith('http')) {
