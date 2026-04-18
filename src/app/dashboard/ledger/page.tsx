@@ -146,7 +146,7 @@ export default function LedgerPage() {
                       const timer = setTimeout(() => {
                         const touch = e.touches[0];
                         setContextMenu({ x: touch.clientX, y: touch.clientY, jobId: job.id });
-                      }, 600);
+                      }, 100);
                       const clearTimer = () => clearTimeout(timer);
                       e.currentTarget.addEventListener('touchend', clearTimer, { once: true });
                     };

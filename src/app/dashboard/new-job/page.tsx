@@ -198,7 +198,7 @@ export default function NewJobPage() {
     }
     addJob(finalData, 'Waiting Approval');
     window.print();
-    setTimeout(() => router.push('/dashboard'), 1000);
+    setTimeout(() => router.push('/dashboard'), 100);
   };
 
   const handleReject = () => {

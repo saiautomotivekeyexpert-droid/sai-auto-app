@@ -64,7 +64,7 @@ export default function InventoryPage() {
     if (formRef.current) {
       formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
       // Minor delay to allow state update/animation to finish before focus
-      setTimeout(() => nameInputRef.current?.focus(), 500);
+      setTimeout(() => nameInputRef.current?.focus(), 100);
     }
   };
   

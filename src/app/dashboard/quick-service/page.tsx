@@ -199,7 +199,7 @@ export default function QuickServicePage() {
     setIsSuccess(true);
     setTimeout(() => {
       router.push(`/dashboard/job?id=${jobId}`);
-    }, 1500);
+    }, 100);
   };
 
   const openStockPicker = (itemId: string, cartIndex: number) => {
