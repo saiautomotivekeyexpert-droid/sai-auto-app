@@ -189,13 +189,6 @@ export default function NewJobPage() {
 
   const handleConfirmAndDownload = () => {
     const finalData: any = { ...formData };
-    if (files.documents.length > 0) {
-      finalData.documents = files.documents.map(f => ({
-        preview: f.preview,
-        name: f.name,
-        type: f.type
-      }));
-    }
     addJob(finalData, 'Waiting Approval');
     window.print();
     setTimeout(() => router.push('/dashboard'), 100);
@@ -204,13 +197,6 @@ export default function NewJobPage() {
   const handleReject = () => {
     if (window.confirm("Mark this estimate as Rejected? The record will be kept but status will be 'Rejected'.")) {
       const finalData: any = { ...formData };
-      if (files.documents.length > 0) {
-        finalData.documents = files.documents.map(f => ({
-          preview: f.preview,
-          name: f.name,
-          type: f.type
-        }));
-      }
       addJob(finalData, 'Rejected');
       router.push('/dashboard');
     }

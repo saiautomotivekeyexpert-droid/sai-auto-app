@@ -85,19 +85,22 @@ export async function POST(req: Request) {
       // Format Documents as =HYPERLINK("url", "name") (Column R)
       let docDetail = '';
       if (d.documents && Array.isArray(d.documents) && d.documents.length > 0) {
-        // Find the first document with a valid web URL
-        const firstValidDoc = d.documents.find((doc: any) => {
+        const validDocs = d.documents.filter((doc: any) => {
           const url = doc.cloudUrl || doc.preview;
           return url && (url.startsWith('http') || url.includes('drive.google.com'));
         });
 
-        if (firstValidDoc) {
-          const url = firstValidDoc.cloudUrl || firstValidDoc.preview;
-          const fileName = (firstValidDoc.name || 'Document').replace(/"/g, '""'); // Escape quotes for formula
-          docDetail = `=HYPERLINK("${url}", "CLICK TO VIEW: ${fileName}")`;
+        if (validDocs.length > 0) {
+          docDetail = validDocs.map((doc: any) => {
+            const url = doc.cloudUrl || doc.preview;
+            const fileName = (doc.name || 'Document').replace(/"/g, '""');
+            return `HYPERLINK("${url}", "VIEW ${fileName}")`;
+          }).join(" & CHAR(10) & ");
+          
+          // Google Sheets requires formula wrapping for dynamic joins
+          docDetail = `=${docDetail}`;
         } else {
-          // Fallback to name only if no URL
-          docDetail = d.documents[0].name || '';
+          docDetail = d.documents.map((doc: any) => doc.name || 'Doc').join(", ");
         }
       } else if (d.docsFolderLink) {
         docDetail = d.docsFolderLink;
