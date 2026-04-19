@@ -150,7 +150,11 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
                   let match;
                   while ((match = regex.exec(cellContent)) !== null) {
                     let url = match[1];
-                    const name = match[2];
+                    // AUTO-OPTIMIZE: Drive view links often fail in iframes. Preview links are much more reliable.
+                    if (url.includes('drive.google.com') && url.includes('/view')) {
+                      url = url.replace(/\/view(\?.*)?$/, '/preview');
+                    }
+                    const name = match[2].replace(/^VIEW\s+/i, ''); // Clean prefix
                     const type = name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
                     docs.push({ preview: url, name: name, type, synced: true });
                   }
