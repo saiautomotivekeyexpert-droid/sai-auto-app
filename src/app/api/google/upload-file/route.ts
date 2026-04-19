@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { GoogleService } from '@/lib/googleService';
 
+export const maxDuration = 60; // Allow 60 seconds for larger uploads from mobile
+
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
@@ -35,7 +37,14 @@ export async function POST(req: Request) {
           folderId: folderId // Allows the script to know where to save
         })
       });
-      const data = await response.json();
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Webhook returned invalid response: ${text.substring(0, 100)}`);
+      }
+      
       if (data.error) throw new Error(data.error);
       return NextResponse.json({ success: true, webViewLink: data.url });
     } else {

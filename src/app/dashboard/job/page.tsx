@@ -95,6 +95,41 @@ function JobDetailPageContent() {
     });
   };
 
+  const compressImage = async (file: File): Promise<Blob | File> => {
+    if (!file.type.startsWith('image/')) return file;
+    if (file.size < 1.5 * 1024 * 1024) return file; // Only compress if over 1.5MB
+
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1600; 
+          const MAX_HEIGHT = 2000;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+          } else {
+            if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            resolve(blob || file);
+          }, 'image/jpeg', 0.8);
+        };
+      };
+    });
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, key: "documents") => {
     const selectedFiles = e.target.files;
     if (selectedFiles && selectedFiles.length > 0) {
@@ -106,9 +141,8 @@ function JobDetailPageContent() {
             ...prev,
             [key]: [...(prev[key] || []), { 
               file,
-              // Store both the data URL (for persistence) and the blob URL (for preview)
-              preview: reader.result as string,  // data: URL for saving to storage
-              blobUrl,                            // blob: URL for viewing
+              preview: reader.result as string,
+              blobUrl,
               name: file.name,
               type: file.type
             }]
@@ -274,12 +308,14 @@ function JobDetailPageContent() {
               const formData = new FormData();
               
               if (fileToUpload) {
-                formData.append('file', fileToUpload);
+                const compressed = await compressImage(fileToUpload);
+                formData.append('file', compressed, doc.name);
               } else {
                 // Convert base64 preview back to blob
                 const res = await fetch(previewToUpload);
                 const blob = await res.blob();
-                formData.append('file', blob);
+                const compressed = await compressImage(new File([blob], doc.name, { type: blob.type }));
+                formData.append('file', compressed, doc.name);
               }
               
               formData.append('fileName', doc.name || 'document.jpg');
