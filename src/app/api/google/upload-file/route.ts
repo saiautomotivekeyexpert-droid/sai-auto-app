@@ -25,17 +25,18 @@ export async function POST(req: Request) {
     const webhookUrl = process.env.GOOGLE_DRIVE_WEBHOOK_URL;
     
     if (webhookUrl) {
-      // Use Google Apps Script Webhook bypass
-      const base64Data = buffer.toString('base64');
-      const response = await fetch(webhookUrl, {
+      // Use Google Apps Script Webhook bypass with BINARY data to minimize size
+      // We pass metadata in query params and the file buffer in the POST body
+      const params = new URLSearchParams({
+        fileName,
+        mimeType,
+        folderId
+      });
+
+      const response = await fetch(`${webhookUrl}?${params.toString()}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          fileName,
-          mimeType,
-          fileData: base64Data,
-          folderId: folderId // Allows the script to know where to save
-        })
+        headers: { 'Content-Type': mimeType },
+        body: buffer
       });
       const text = await response.text();
       let data;
