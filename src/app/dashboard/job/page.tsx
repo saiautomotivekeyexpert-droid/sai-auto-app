@@ -380,9 +380,10 @@ function JobDetailPageContent() {
         finalData.documents = uploadedDocs;
       
       // Update docsFolderLink for Google Sheets (Column R)
+      // IMPORTANT: Only save ACTUAL cloud links. Ignore 'UPLOADING...' or local filenames.
       const allLinks = (finalData.documents || [])
         .map((doc: any) => doc.preview || doc.url)
-        .filter((link: string) => link && (link.includes('drive.google.com') || link.startsWith('http')));
+        .filter((link: string) => link && (link.includes('drive.google.com') || link.startsWith('http')) && link !== 'UPLOADING...');
       
       finalData.docsFolderLink = allLinks.join(', ');
 

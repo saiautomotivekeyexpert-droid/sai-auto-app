@@ -147,6 +147,9 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
                   let m;
                   while ((m = regex.exec(cellContent)) !== null) {
                     let url = m[1];
+                    // Skip placeholders
+                    if (url === 'UPLOADING...' || !url.startsWith('http')) continue;
+
                     // Convert standard Drive view links to preview links for better iframe loading
                     if (url.includes('drive.google.com') && url.includes('/view')) {
                       url = url.replace(/\/view.*$/, '/preview');
@@ -155,9 +158,17 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
                     const type = name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
                     docs.push({ preview: url, name, type, isCloud: true });
                   }
-                  // Fallback for non-formula links
+                  // Fallback for non-formula links (STRICT: must be a real URL)
                   if (docs.length === 0 && cellContent.startsWith('http')) {
-                    docs.push({ preview: cellContent, name: 'Document', type: 'image/jpeg', isCloud: true });
+                    const links = cellContent.split(',').map((l: string) => l.trim()).filter((l: string) => l.startsWith('http'));
+                    links.forEach((url: string) => {
+                       docs.push({ 
+                         preview: url, 
+                         name: url.split('/').pop()?.split('?')[0] || 'Document', 
+                         type: url.toLowerCase().includes('.pdf') ? 'application/pdf' : 'image/jpeg', 
+                         isCloud: true 
+                       });
+                    });
                   }
                   return docs;
                 })(),
