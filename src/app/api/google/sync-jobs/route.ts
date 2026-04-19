@@ -18,18 +18,27 @@ export async function GET(req: Request) {
 
     if (action === 'fetch') {
       const allRows = await GoogleService.getJobs(spreadsheetId);
-      if (!allRows) return NextResponse.json({ success: true, data: [] });
+      if (!allRows || !Array.isArray(allRows)) {
+        console.warn("[SYNC-JOBS] No data returned from GoogleService.getJobs");
+        return NextResponse.json({ success: true, data: [] });
+      }
       
       // ABSOLUTE FILTER: Remove any system rows or settings rows
       // And ignore the header row if it's there
       const filteredData = allRows.filter((row: any[]) => {
-        // More robust ID finding (Check column index 10 - Column K)
-        const id = row[10]?.toString().trim().toUpperCase();
-        if (!id || id === "" || id === "ESTIMATE MEMO NO.") return false;
-        
-        // Match standard ID patterns (JOB-xxxx or QS-xxxx)
-        const isJobOrQs = (id.startsWith("JOB-") || id.startsWith("QS-"));
-        return isJobOrQs && id !== "APP_SETTINGS";
+        try {
+          if (!row || row.length < 11) return false;
+          
+          const id = row[10]?.toString().trim().toUpperCase();
+          if (!id || id === "" || id === "ESTIMATE MEMO NO.") return false;
+          
+          // Match standard ID patterns (JOB-xxxx or QS-xxxx)
+          const isJobOrQs = (id.startsWith("JOB-") || id.startsWith("QS-"));
+          return isJobOrQs && id !== "APP_SETTINGS";
+        } catch (filterError) {
+          console.error("[SYNC-JOBS] Filter error on row:", row, filterError);
+          return false;
+        }
       });
       
       return NextResponse.json({ success: true, data: filteredData });
