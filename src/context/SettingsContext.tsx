@@ -326,7 +326,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         if (data.consentTypes && data.consentTypes.length > 0) setConsentTypes(data.consentTypes);
         if (data.particulars && data.particulars.length > 0) setParticulars(data.particulars);
         if (data.catalogCategories && data.catalogCategories.length > 0) setCatalogCategories(data.catalogCategories);
-        if (data.shopProfile && Object.keys(data.shopProfile).length > 0) setShopProfile(data.shopProfile);
+        if (data.shopProfile && Object.keys(data.shopProfile).length > 0) {
+          const profile = { ...data.shopProfile };
+          // Sanitize formula errors
+          Object.keys(profile).forEach(k => {
+            if ((profile as any)[k] === "#ERROR!") (profile as any)[k] = "";
+          });
+          setShopProfile(profile);
+        }
         if (data.partners && data.partners.length > 0) setPartners(data.partners);
         if (data.subCategories && data.subCategories.length > 0) setSubCategories(data.subCategories);
         if (data.partnerPin) setPartnerPin(data.partnerPin);
