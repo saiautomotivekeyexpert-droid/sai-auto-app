@@ -45,6 +45,7 @@ function JobDetailPageContent() {
   const [files, setFiles] = useState<{ documents: any[] }>({
     documents: [],
   });
+  const [isUploading, setIsUploading] = useState<Record<string, boolean>>({});
   const [isSaving, setIsSaving] = useState(false);
 
   // Helper: convert a data: URL to a blob: URL for reliable PDF embedding
@@ -130,26 +131,66 @@ function JobDetailPageContent() {
     });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, key: "documents") => {
-    const selectedFiles = e.target.files;
-    if (selectedFiles && selectedFiles.length > 0) {
-      Array.from(selectedFiles).forEach(file => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const blobUrl = URL.createObjectURL(file);
-          setFiles(prev => ({
-            ...prev,
-            [key]: [...(prev[key] || []), { 
-              file,
-              preview: reader.result as string,
-              blobUrl,
-              name: file.name,
-              type: file.type
-            }]
-          }));
-        };
+  const handleDirectUpload = async (docId: string, file: File) => {
+    if (!cloudConfig.webhookUrl || !job) return;
+    
+    setIsUploading(prev => ({ ...prev, [docId]: true }));
+    
+    try {
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve) => {
+        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
         reader.readAsDataURL(file);
       });
+      const base64Data = await base64Promise;
+
+      const response = await fetch(cloudConfig.webhookUrl, {
+        method: 'POST',
+        mode: 'no-cors', // Apps Script CORS limitation
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          fileName: file.name,
+          mimeType: file.type,
+          fileData: base64Data,
+          folderId: cloudConfig.folderId || '',
+          jobId: job.id,
+          spreadsheetId: cloudConfig.spreadsheetId || ''
+        })
+      });
+
+      setFiles(prev => ({
+        ...prev,
+        documents: prev.documents.map(d => d.id === docId ? { ...d, preview: 'UPLOADING...', synced: false } : d)
+      }));
+    } catch (err) {
+      console.error("Direct upload failed:", err);
+    } finally {
+      setIsUploading(prev => ({ ...prev, [docId]: false }));
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, key: "documents") => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files).map(file => {
+        const docId = Math.random().toString(36).substring(7);
+        const newDoc = {
+          id: docId,
+          file,
+          preview: URL.createObjectURL(file),
+          name: file.name,
+          type: file.type,
+          synced: false
+        };
+        
+        // TRIGGER IMMEDIATE UPLOAD
+        handleDirectUpload(docId, file);
+        
+        return newDoc;
+      });
+      setFiles(prev => ({
+        ...prev,
+        [key]: [...(prev[key] || []), ...newFiles]
+      }));
     }
   };
 
@@ -286,98 +327,16 @@ function JobDetailPageContent() {
     setIsSaving(true);
     try {
       const finalData = { ...editData };
-        // 1. Get all current documents (existing + new)
-        const currentDocs = [
-          ...(Array.isArray(finalData.documents) ? finalData.documents : []),
-          ...files.documents
-        ];
         
-        // 2. Upload any document that doesn't have a web link yet
-        const uploadedDocs = await Promise.all(
-          currentDocs.map(async (doc) => {
-            // Already synced? Skip.
-            if (doc.preview && (doc.preview.startsWith('http') || doc.preview.includes('drive.google.com'))) {
-              return doc;
-            }
+        // 0. Filter and clean documents: Only keep those that are fully synced or properly signaled
+        const uploadedDocs = files.documents
+          .filter(doc => doc.preview !== 'UPLOADING...') // Wait for sync if still uploading
+          .map(doc => {
+            const { file, ...rest } = doc as any; // Strip raw file
+            return rest;
+          });
 
-            // Not synced but has file/preview? Upload.
-            const fileToUpload = (doc as any).file;
-            const previewToUpload = doc.preview;
-
-            if (fileToUpload || (previewToUpload && previewToUpload.startsWith('data:'))) {
-              const fileName = doc.name || 'document.jpg';
-              const mimeType = doc.type || 'image/jpeg';
-              
-              // 1. Prepare data
-              let finalBlob: Blob | File;
-              if (fileToUpload) {
-                finalBlob = await compressImage(fileToUpload);
-              } else {
-                const res = await fetch(previewToUpload);
-                finalBlob = await res.blob();
-              }
-
-              // 2. High-Capacity Upload Strategy: Direct browser-to-Drive if possible
-              const webhookUrl = cloudConfig.webhookUrl;
-              const spreadsheetId = cloudConfig.spreadsheetId;
-              const folderId = cloudConfig.folderId;
-
-              if (webhookUrl && (finalBlob.size > 3.5 * 1024 * 1024 || true)) {
-                 // DIRECT SIGNALING PATH (Supports up to 50MB+)
-                 try {
-                   const reader = new FileReader();
-                   const base64Promise = new Promise<string>((resolve) => {
-                     reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-                     reader.readAsDataURL(finalBlob);
-                   });
-                   const base64Data = await base64Promise;
-
-                   // We use no-cors because Apps Script doesn't support CORS redirects well for Fetch
-                   // The signaling happens in the sheet, so we don't need the immediate response
-                   await fetch(webhookUrl, {
-                     method: 'POST',
-                     mode: 'no-cors',
-                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                     body: new URLSearchParams({
-                       fileName,
-                       mimeType,
-                       fileData: base64Data,
-                       folderId: folderId || '',
-                       jobId: job.id,
-                       spreadsheetId: spreadsheetId || ''
-                     })
-                   });
-                   
-                   // Return a placeholder; the sheet sync will replace it with the real URL
-                   return { preview: 'UPLOADING...', name: fileName, type: mimeType };
-                 } catch (err) {
-                   console.error("Direct upload failed, falling back to API", err);
-                 }
-              }
-
-              // 3. Fallback: API Route Path (limited to 4.5MB)
-              const formData = new FormData();
-              formData.append('file', finalBlob, fileName);
-              formData.append('fileName', fileName);
-              
-              try {
-                const res = await fetch('/api/google/upload-file', { method: 'POST', body: formData });
-                const data = await res.json();
-                if (data.webViewLink) {
-                  return { preview: data.webViewLink, name: fileName, type: mimeType };
-                } else {
-                  alert(`Upload Failed for ${fileName}\nReason: ${data.error || 'Unknown'}`);
-                }
-              } catch (err: any) {
-                console.error("API Upload failed:", fileName, err);
-                alert(`Upload Error for ${fileName}: ${err.message}`);
-              }
-            }
-            return doc;
-          })
-        );
-
-        finalData.documents = uploadedDocs;
+        finalData.documents = [...(job.details.documents || []), ...uploadedDocs];
       
       // Update docsFolderLink for Google Sheets (Column R)
       // IMPORTANT: Only save ACTUAL cloud links. Ignore 'UPLOADING...' or local filenames.
