@@ -108,6 +108,11 @@ interface SettingsContextType {
   pullFromCloud: (spreadsheetId?: string) => Promise<boolean>;
   isSyncing: boolean;
   lastSyncTime: Date | null;
+  cloudConfig: {
+    webhookUrl: string;
+    spreadsheetId: string;
+    folderId: string;
+  };
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -131,6 +136,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [cloudLoaded, setCloudLoaded] = useState(false);
+  const [cloudConfig, setCloudConfig] = useState({
+    webhookUrl: "",
+    spreadsheetId: "",
+    folderId: ""
+  });
 
   const [subCategories, setSubCategories] = useState<SubCategoryItem[]>(DEFAULT_SUB_CATEGORIES);
   const [estimateTerms, setEstimateTerms] = useState<string>(
@@ -246,18 +256,24 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     })).sort((a, b) => b.createdAt - a.createdAt);
   };
 
-  // Load from Cloud on mount
+  // Load Config & Cloud Data
   useEffect(() => {
-    // We strictly use cloud pull on mount. No more localStorage as primary.
-    pullFromCloud("").then((success) => {
-      if (success) {
-        setIsInitialized(true);
-        setCloudLoaded(true);
-      } else {
-        console.error("Failed to load cloud data on mount. Sync disabled to prevent overwriting.");
-        // We do *not* set cloudLoaded to true if it fails.
+    const init = async () => {
+      try {
+        const configRes = await fetch('/api/google/config');
+        const config = await configRes.json();
+        setCloudConfig(config);
+        
+        const success = await pullFromCloud(config.spreadsheetId);
+        if (success) {
+          setIsInitialized(true);
+          setCloudLoaded(true);
+        }
+      } catch (err) {
+        console.error("Initialization failed:", err);
       }
-    });
+    };
+    init();
   }, []);
 
   // Cloud Sync Logic
@@ -663,7 +679,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       carBrandsCV,
       carModelsCV,
       isSyncing,
-      lastSyncTime
+      lastSyncTime,
+      cloudConfig
     }}>
       {children}
     </SettingsContext.Provider>

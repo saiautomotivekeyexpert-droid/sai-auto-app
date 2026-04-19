@@ -17,7 +17,7 @@ function JobDetailPageContent() {
   const { jobs, isLoaded, updateJobStatus, updateJobDetails, addTimelineEvent } = useJobs();
   const { 
     serviceTypes, subCategories: subCategoryOptions, particulars: catalogItems, 
-    inventorySeries, consumeInventoryItem, releaseInventoryItem
+    inventorySeries, consumeInventoryItem, releaseInventoryItem, cloudConfig
   } = useSettings();
 
   const [isReadOnly, setIsReadOnly] = useState(true);
@@ -318,9 +318,9 @@ function JobDetailPageContent() {
               }
 
               // 2. High-Capacity Upload Strategy: Direct browser-to-Drive if possible
-              const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_WEBHOOK_URL;
-              const spreadsheetId = process.env.NEXT_PUBLIC_GOOGLE_SPREADSHEET_ID;
-              const folderId = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_FOLDER_ID;
+              const webhookUrl = cloudConfig.webhookUrl;
+              const spreadsheetId = cloudConfig.spreadsheetId;
+              const folderId = cloudConfig.folderId;
 
               if (webhookUrl && (finalBlob.size > 3.5 * 1024 * 1024 || true)) {
                  // DIRECT SIGNALING PATH (Supports up to 50MB+)
