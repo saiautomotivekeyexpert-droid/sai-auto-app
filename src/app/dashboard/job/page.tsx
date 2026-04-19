@@ -305,32 +305,72 @@ function JobDetailPageContent() {
             const previewToUpload = doc.preview;
 
             if (fileToUpload || (previewToUpload && previewToUpload.startsWith('data:'))) {
-              const formData = new FormData();
+              const fileName = doc.name || 'document.jpg';
+              const mimeType = doc.type || 'image/jpeg';
               
+              // 1. Prepare data
+              let finalBlob: Blob | File;
               if (fileToUpload) {
-                const compressed = await compressImage(fileToUpload);
-                formData.append('file', compressed, doc.name);
+                finalBlob = await compressImage(fileToUpload);
               } else {
-                // Convert base64 preview back to blob
                 const res = await fetch(previewToUpload);
-                const blob = await res.blob();
-                const compressed = await compressImage(new File([blob], doc.name, { type: blob.type }));
-                formData.append('file', compressed, doc.name);
+                finalBlob = await res.blob();
               }
-              
-              formData.append('fileName', doc.name || 'document.jpg');
+
+              // 2. High-Capacity Upload Strategy: Direct browser-to-Drive if possible
+              const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_WEBHOOK_URL;
+              const spreadsheetId = process.env.NEXT_PUBLIC_GOOGLE_SPREADSHEET_ID;
+              const folderId = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_FOLDER_ID;
+
+              if (webhookUrl && (finalBlob.size > 3.5 * 1024 * 1024 || true)) {
+                 // DIRECT SIGNALING PATH (Supports up to 50MB+)
+                 try {
+                   const reader = new FileReader();
+                   const base64Promise = new Promise<string>((resolve) => {
+                     reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+                     reader.readAsDataURL(finalBlob);
+                   });
+                   const base64Data = await base64Promise;
+
+                   // We use no-cors because Apps Script doesn't support CORS redirects well for Fetch
+                   // The signaling happens in the sheet, so we don't need the immediate response
+                   await fetch(webhookUrl, {
+                     method: 'POST',
+                     mode: 'no-cors',
+                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                     body: new URLSearchParams({
+                       fileName,
+                       mimeType,
+                       fileData: base64Data,
+                       folderId: folderId || '',
+                       jobId: job.id,
+                       spreadsheetId: spreadsheetId || ''
+                     })
+                   });
+                   
+                   // Return a placeholder; the sheet sync will replace it with the real URL
+                   return { preview: 'UPLOADING...', name: fileName, type: mimeType };
+                 } catch (err) {
+                   console.error("Direct upload failed, falling back to API", err);
+                 }
+              }
+
+              // 3. Fallback: API Route Path (limited to 4.5MB)
+              const formData = new FormData();
+              formData.append('file', finalBlob, fileName);
+              formData.append('fileName', fileName);
               
               try {
                 const res = await fetch('/api/google/upload-file', { method: 'POST', body: formData });
                 const data = await res.json();
                 if (data.webViewLink) {
-                  return { preview: data.webViewLink, name: doc.name, type: doc.type };
+                  return { preview: data.webViewLink, name: fileName, type: mimeType };
                 } else {
-                  alert(`Google Drive Upload Failed for ${doc.name}\nReason: ${data.error || 'Unknown Server Error'}`);
+                  alert(`Upload Failed for ${fileName}\nReason: ${data.error || 'Unknown'}`);
                 }
               } catch (err: any) {
-                console.error("Upload failed for doc:", doc.name, err);
-                alert(`Network/Server Error during upload for ${doc.name}:\n${err.message}`);
+                console.error("API Upload failed:", fileName, err);
+                alert(`Upload Error for ${fileName}: ${err.message}`);
               }
             }
             return doc;
