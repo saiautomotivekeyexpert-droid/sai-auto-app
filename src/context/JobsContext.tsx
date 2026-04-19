@@ -146,31 +146,27 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
                   const cellContent = (row[17] || '').toString();
                   const docs: any[] = [];
                   const regex = /HYPERLINK\("([^"]+)",\s*"([^"]+)"\)/g;
-                  let m;
-                  while ((m = regex.exec(cellContent)) !== null) {
-                    let url = m[1];
-                    // Skip placeholders
-                    if (url === 'UPLOADING...' || !url.startsWith('http')) continue;
-
-                    // Convert standard Drive view links to preview links for better iframe loading
-                    if (url.includes('drive.google.com') && url.includes('/view')) {
-                      url = url.replace(/\/view.*$/, '/preview');
-                    }
-                    const name = m[2].replace(/^VIEW\s+/i, '');
+                  let match;
+                  while ((match = regex.exec(cellContent)) !== null) {
+                    let url = match[1];
+                    const name = match[2];
                     const type = name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
-                    docs.push({ preview: url, name, type, isCloud: true });
+                    docs.push({ preview: url, name, type, synced: true });
                   }
-                  // Fallback for non-formula links (STRICT: must be a real URL)
-                  if (docs.length === 0 && cellContent.startsWith('http')) {
-                    const links = cellContent.split(',').map((l: string) => l.trim()).filter((l: string) => l.startsWith('http'));
-                    links.forEach((url: string) => {
-                       docs.push({ 
-                         preview: url, 
-                         name: url.split('/').pop()?.split('?')[0] || 'Document', 
-                         type: url.toLowerCase().includes('.pdf') ? 'application/pdf' : 'image/jpeg', 
-                         isCloud: true 
-                       });
-                    });
+                  
+                  // Fallback for flat text
+                  if (docs.length === 0 && cellContent && !cellContent.includes("HYPERLINK")) {
+                     cellContent.split(',').forEach((name: string) => {
+                        const trimmed = name.trim();
+                        if (trimmed) {
+                          docs.push({ 
+                            preview: trimmed, 
+                            name: trimmed, 
+                            type: trimmed.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
+                            synced: false
+                          });
+                        }
+                     });
                   }
                   return docs;
                 })(),
