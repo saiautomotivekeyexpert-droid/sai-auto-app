@@ -15,7 +15,8 @@ export default function SettingsPage() {
     updateEstimateTerms, updateInvoiceTerms, updateShopProfile,
     addInventorySeries, updateInventoryItem, removeInventorySeries,
     carBrands2W, carModels2W, carBrands4W, carModels4W, carBrandsCV, carModelsCV,
-    addCarBrand, removeCarBrand, addCarModel, removeCarModel
+    addCarBrand, removeCarBrand, addCarModel, removeCarModel,
+    cloudConfig
   } = useSettings();
 
   const [expandedSeries, setExpandedSeries] = useState<string | null>(null);
@@ -139,6 +140,44 @@ export default function SettingsPage() {
               />
             </div>
             <p className="terms-help">This PIN will be used by ALL partners to login to the Quick Service POS.</p>
+          </div>
+        </div>
+
+        {/* CLOUD CONNECTIVITY */}
+        <div className="settings-card glass-panel animate-fade-in" style={{ animationDelay: "0.55s" }}>
+          <div className="card-header">
+            <h3>Cloud Connectivity</h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>Verify your Google Cloud bypass configuration</p>
+          </div>
+          <div className="profile-form">
+            <div className="input-group">
+              <label className="terms-label" style={{ color: cloudConfig.webhookUrl ? 'var(--success)' : 'var(--danger)' }}>
+                {cloudConfig.webhookUrl ? '✅ Signaling Webhook URL' : '❌ Webhook Missing'}
+              </label>
+              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '0.75rem', borderRadius: '8px', fontSize: '0.7rem', wordBreak: 'break-all', color: 'var(--text-muted)' }}>
+                {cloudConfig.webhookUrl || "Not configured in Vercel. Large uploads will use fallback."}
+              </div>
+            </div>
+            <div className="input-group">
+              <label className="terms-label">Spreadsheet ID</label>
+              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '0.75rem', borderRadius: '8px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                {cloudConfig.spreadsheetId || "Missing"}
+              </div>
+            </div>
+            <div className="input-group">
+              <label className="terms-label">Storage Folder ID</label>
+              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '0.75rem', borderRadius: '8px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                {cloudConfig.folderId || "Missing"}
+              </div>
+            </div>
+            {(!cloudConfig.webhookUrl) && (
+              <div style={{ padding: '0.75rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                <AlertTriangle size={20} color="var(--danger)" />
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                   Missing Webhook! Large files (10MB+) will fail. Please add <strong>GOOGLE_DRIVE_WEBHOOK_URL</strong> to Vercel.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
