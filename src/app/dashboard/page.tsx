@@ -7,8 +7,8 @@ import { useJobs } from "@/context/JobsContext";
 import { useSettings } from "@/context/SettingsContext";
 
 export default function Dashboard() {
-  const { jobs, isLoaded, syncError, updateJobDetails } = useJobs();
-  const { inventorySeries } = useSettings();
+  const { jobs, isLoaded, syncError, updateJobDetails, isCloudConnected, refreshCloudData } = useJobs();
+  const { inventorySeries, cloudConfig } = useSettings();
   const [visibleAmounts, setVisibleAmounts] = useState<Record<string, boolean>>({});
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -104,10 +104,28 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-content">
-      {syncError && (
-        <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid #ef4444' }}>
-          <strong style={{ display: 'block', marginBottom: '0.25rem' }}>Cloud Connection Issue</strong>
-          <span style={{ fontSize: '0.85rem' }}>{syncError}</span>
+      {isLoaded && (
+        <div style={{ 
+          background: isCloudConnected ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
+          color: isCloudConnected ? '#10b981' : '#ef4444', 
+          padding: '0.75rem 1rem', 
+          borderRadius: 'var(--radius-md)', 
+          border: `1px solid ${isCloudConnected ? '#10b981' : '#ef4444'}`,
+          marginBottom: '1rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '0.85rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: isCloudConnected ? '#10b981' : '#ef4444', animation: isCloudConnected ? 'none' : 'pulse 2s infinite' }}></div>
+            <strong>{isCloudConnected ? 'Cloud Sync Online' : 'Sync Disconnected'}</strong>
+            {cloudConfig?.spreadsheetId && (
+              <span style={{ opacity: 0.7 }}>• ID: ...{cloudConfig.spreadsheetId.slice(-6)}</span>
+            )}
+          </div>
+          {syncError && <span style={{ fontWeight: 600 }}>Error: {syncError}</span>}
+          <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{jobs.length} Total Jobs Loaded</span>
         </div>
       )}
 
@@ -117,9 +135,14 @@ export default function Dashboard() {
             <h1 className="text-gradient">Shop Dashboard</h1>
             <p className="text-muted">Welcome back! Here's what's happening today at SILCA Locksmith Record Book.</p>
           </div>
-          <button className="primary-btn" onClick={exportToCSV}>
-            <Download size={18} /> Export CSV
-          </button>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button className="secondary-btn" onClick={() => refreshCloudData()} title="Sync Now">
+              <Clock size={18} /> Refresh {isLoaded ? "" : "..."}
+            </button>
+            <button className="primary-btn" onClick={exportToCSV}>
+              <Download size={18} /> Export CSV
+            </button>
+          </div>
         </div>
       </div>
 
@@ -436,6 +459,21 @@ export default function Dashboard() {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+
+        .secondary-btn {
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid var(--glass-border);
+          color: white;
+          padding: 0.6rem 1.2rem;
+          border-radius: var(--radius-md);
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .secondary-btn:hover { background: rgba(255, 255, 255, 0.1); }
         
         @media (max-width: 768px) {
           .dashboard-content { gap: 1rem; }

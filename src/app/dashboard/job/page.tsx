@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { 
   Lock, Edit3, Printer,
   User, Car, IndianRupee, ClipboardCheck, ArrowLeft, Download,
-  ChevronRight, ChevronLeft, Calendar, Check, Camera, UploadCloud, AlertCircle, Package, X
+  ChevronRight, ChevronLeft, Calendar, Check, Camera, UploadCloud, AlertCircle, Package, X,
+  ExternalLink
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useJobs } from "@/context/JobsContext";
@@ -75,6 +76,13 @@ function JobDetailPageContent() {
     const raw = doc.preview || doc.url || '';
     if (!raw) return;
     
+    // FORCE FIX: If it's a Google Drive link or any external link, just open in new tab
+    // User confirmed manual links (window.open style) work fine.
+    if (raw.includes('drive.google.com') || (raw.startsWith('http') && !raw.includes(window.location.host))) {
+      window.open(raw, '_blank');
+      return;
+    }
+
     const isPdf = doc.type === 'application/pdf' || raw.startsWith('data:application/pdf');
     let viewUrl = raw;
     
@@ -85,7 +93,6 @@ function JobDetailPageContent() {
         if (converted) viewUrl = converted;
       } catch (err) {
         console.error("Failed to convert PDF data URL to blob", err);
-        // Fallback to raw data URL (iframe might still handle it if not too large)
       }
     }
     
@@ -132,36 +139,42 @@ function JobDetailPageContent() {
   };
 
   const handleDirectUpload = async (docId: string, file: File) => {
-    if (!cloudConfig.webhookUrl || !job) return;
-    
     setIsUploading(prev => ({ ...prev, [docId]: true }));
     
     try {
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve) => {
-        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-        reader.readAsDataURL(file);
-      });
-      const base64Data = await base64Promise;
-
-      const response = await fetch(cloudConfig.webhookUrl, {
+      const uploadData = new FormData();
+      uploadData.append('file', file);
+      uploadData.append('fileName', file.name);
+      
+      const res = await fetch('/api/google/upload-file', {
         method: 'POST',
-        mode: 'no-cors', // Apps Script CORS limitation
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          fileName: file.name,
-          mimeType: file.type,
-          fileData: base64Data,
-          folderId: cloudConfig.folderId || '',
-          jobId: job.id,
-          spreadsheetId: cloudConfig.spreadsheetId || ''
-        })
+        body: uploadData
       });
-
-      setFiles(prev => ({
-        ...prev,
-        documents: prev.documents.map(d => d.id === docId ? { ...d, preview: 'UPLOADING...', synced: false } : d)
-      }));
+      const data = await res.json();
+      
+      if (data.success && data.webViewLink) {
+        const newDoc = { 
+          id: Math.random().toString(36).substring(7),
+          preview: data.webViewLink, 
+          name: file.name,
+          type: file.type,
+          synced: true 
+        };
+        
+        // ADD TO EDIT DATA and REMOVE FROM LOCAL FILES to avoid duplicates
+        const currentDocs = [...(editData?.documents || job?.details?.documents || [])];
+        setEditData({ 
+          ...(editData || job?.details || {}), 
+          documents: [...currentDocs, newDoc] 
+        });
+        
+        setFiles(prev => ({
+          ...prev,
+          documents: prev.documents.filter(d => d.id !== docId)
+        }));
+      } else {
+        console.error("Upload failed:", data.error);
+      }
     } catch (err) {
       console.error("Direct upload failed:", err);
     } finally {
@@ -196,9 +209,12 @@ function JobDetailPageContent() {
 
   const job = jobs.find(j => j.id === id);
 
+  const initialisedRef = useRef<string | null>(null);
+
   // Initialise editData when job loads or edit mode begins
   useEffect(() => {
-    if (job) {
+    // Only initialise if we haven't for this job ID yet
+    if (job && initialisedRef.current !== job.id) {
       const details = { ...job.details };
       // Migration: Ensure particulars and selectedItems are aliased
       if (!details.particulars && details.selectedItems) {
@@ -217,14 +233,16 @@ function JobDetailPageContent() {
           details.documents.push(...docsToAdd);
         }
       });
+      
       setEditData(details);
       setManualItems(details.manualItems || []);
+      initialisedRef.current = job.id;
     }
-  }, [job?.id, job?.details]);
+  }, [job?.id]);
 
   const handleDeleteDocument = (idx: number) => {
     if (isReadOnly) return;
-    const currentDocs = (editData?.documents || job?.details?.documents || []);
+    const currentDocs = [...(editData?.documents || job?.details?.documents || [])];
     const updatedDocs = currentDocs.filter((_: any, i: number) => i !== idx);
     setEditData({ ...(editData || job?.details || {}), documents: updatedDocs });
   };
@@ -328,21 +346,23 @@ function JobDetailPageContent() {
     try {
       const finalData = { ...editData };
         
-        // 0. Filter and clean documents: Only keep those that are fully synced or properly signaled
+        // 0. Filter and clean documents: Only keep those that are fully synced
+        // Use editData.documents which reflects deletions made by the user
         const uploadedDocs = files.documents
-          .filter(doc => doc.preview !== 'UPLOADING...') // Wait for sync if still uploading
+          .filter(doc => doc.synced) 
           .map(doc => {
-            const { file, ...rest } = doc as any; // Strip raw file
+            const { file, id, ...rest } = doc as any; // Strip raw file and local id
             return rest;
           });
 
-        finalData.documents = [...(job.details.documents || []), ...uploadedDocs];
+        const mergedDocs = [...(editData.documents || []), ...uploadedDocs];
+        finalData.documents = mergedDocs;
       
       // Update docsFolderLink for Google Sheets (Column R)
-      // IMPORTANT: Only save ACTUAL cloud links. Ignore 'UPLOADING...' or local filenames.
+      // IMPORTANT: Only save ACTUAL cloud links.
       const allLinks = (finalData.documents || [])
         .map((doc: any) => doc.preview || doc.url)
-        .filter((link: string) => link && (link.includes('drive.google.com') || link.startsWith('http')) && link !== 'UPLOADING...');
+        .filter((link: string) => link && (link.includes('drive.google.com') || link.startsWith('http')));
       
       finalData.docsFolderLink = allLinks.join(', ');
 
@@ -817,20 +837,35 @@ function JobDetailPageContent() {
               return (
                 <div key={idx} className="ref-doc-card" style={{ position: 'relative' }}>
                   <div className="ref-doc-header" title={cardTitle}>{cardTitle}</div>
-                  <div className="ref-doc-img-wrapper" onClick={() => openDocumentViewer({ preview: viewUrl, type: isPdf ? 'application/pdf' : (f.type || 'image/jpeg'), name: cardTitle })}>
+                  <div className="ref-doc-img-wrapper" onClick={() => {
+                    if (viewUrl.startsWith('http') || viewUrl.startsWith('blob:') || viewUrl.startsWith('data:')) {
+                      openDocumentViewer({ preview: viewUrl, type: isPdf ? 'application/pdf' : (f.type || 'image/jpeg'), name: cardTitle });
+                    }
+                  }}>
                     {isPdf ? (
                       <div className="pdf-thumb-placeholder">
                         <ClipboardCheck size={32} className="pdf-icon" />
                         <span className="pdf-text">VIEW PDF</span>
                         <span className="pdf-subtext">Click to open in viewer</span>
                       </div>
+                    ) : (viewUrl.startsWith('http') || viewUrl.startsWith('blob:') || viewUrl.startsWith('data:')) ? (
+                      <img src={viewUrl} alt={cardTitle} className="ref-doc-img" />
                     ) : (
-                      <img src={f.blobUrl || f.preview!} alt={cardTitle} className="ref-doc-img" />
+                      <div className="pdf-thumb-placeholder" style={{ background: 'rgba(0,0,0,0.2)' }}>
+                        <X size={32} style={{ opacity: 0.3 }} />
+                        <span className="pdf-text" style={{ opacity: 0.5 }}>NO PREVIEW</span>
+                        <span className="pdf-subtext">Link missing or broken</span>
+                      </div>
                     )}
-                    {f.preview && (
-                       <a href={f.preview} download={cardTitle} className="ref-download-btn" onClick={e => e.stopPropagation()} title="Download">
-                         <Download size={14} />
-                       </a>
+                    {f.preview && (f.preview.startsWith('http') || f.preview.startsWith('blob:') || f.preview.startsWith('data:')) && (
+                      <div className="ref-doc-actions">
+                        <a href={f.preview} target="_blank" rel="noopener noreferrer" className="ref-action-btn" title="Open Link" onClick={e => e.stopPropagation()}>
+                          <ExternalLink size={14} /> Open
+                        </a>
+                        <a href={f.preview} download={cardTitle} className="ref-action-btn" onClick={e => e.stopPropagation()} title="Download">
+                          <Download size={14} /> Save
+                        </a>
+                      </div>
                     )}
                   </div>
                   {!isReadOnly && (
@@ -1505,7 +1540,9 @@ function JobDetailPageContent() {
         .doc-chip img { width: 100%; height: 100%; object-fit: cover; }
         .pdf-placeholder { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); font-size: 0.7rem; font-weight: 700; color: var(--text-muted); }
         .remove-chip-btn { position: absolute; top: 2px; right: 2px; background: rgba(239,68,68,0.9); color: white; border: none; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; z-index: 3; }
-        .remove-chip-btn:hover { background: var(--danger); }
+        .ref-download-btn, .ref-action-btn { background: rgba(59,130,246,0.9); color: white; border: none; border-radius: 4px; padding: 0.25rem 0.5rem; display: flex; alignItems: center; gap: 0.3rem; font-size: 11px; cursor: pointer; textDecoration: none; }
+        .ref-doc-actions { position: absolute; bottom: 8px; left: 8px; right: 8px; display: flex; gap: 0.4rem; justify-content: center; z-index: 5; }
+        .ref-action-btn:hover { background: var(--accent-primary); }
         
         /* Print Report Attachment Styles */
         .print-doc-group { margin-bottom: 2rem; page-break-inside: avoid; }

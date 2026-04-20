@@ -36,6 +36,8 @@ interface JobsContextType {
   deleteJob: (id: string) => void;
   clearAllJobs: () => Promise<void>;
   syncError: string | null;
+  isCloudConnected: boolean;
+  refreshCloudData: () => Promise<void>;
 }
 
 const JobsContext = createContext<JobsContextType | undefined>(undefined);
@@ -43,6 +45,7 @@ const JobsContext = createContext<JobsContextType | undefined>(undefined);
 export function JobsProvider({ children }: { children: React.ReactNode }) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isCloudConnected, setIsCloudConnected] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -150,11 +153,7 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
                   let match;
                   while ((match = regex.exec(cellContent)) !== null) {
                     let url = match[1];
-                    // AUTO-OPTIMIZE: Drive view links often fail in iframes. Preview links are much more reliable.
-                    if (url.includes('drive.google.com') && url.includes('/view')) {
-                      url = url.replace(/\/view(\?.*)?$/, '/preview');
-                    }
-                    const name = match[2].replace(/^VIEW\s+/i, ''); // Clean prefix
+                    const name = match[2];
                     const type = name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
                     docs.push({ preview: url, name: name, type, synced: true });
                   }
@@ -164,11 +163,18 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
                      cellContent.split(',').forEach((name: string) => {
                         const trimmed = name.trim();
                         if (trimmed) {
+                          let url = trimmed;
+                          const isUrl = url.startsWith('http') || url.includes('drive.google.com');
+                          
+                          if (isUrl && url.includes('drive.google.com') && (url.includes('/view') || url.includes('/preview'))) {
+                            url = url.replace(/\/(view|preview)(\?.*)?$/, '/view?usp=drivesdk');
+                          }
+
                           docs.push({ 
-                            preview: trimmed, 
+                            preview: isUrl ? url : undefined, 
                             name: trimmed, 
                             type: trimmed.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
-                            synced: false
+                            synced: isUrl
                           });
                         }
                      });
@@ -201,8 +207,10 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
             
             return Object.values(mergedMap).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
           });
+          setIsCloudConnected(true);
         }
       } catch (err: any) {
+        setIsCloudConnected(false);
         console.error("Cloud fetch failed:", err);
         setSyncError(err.message || "Failed to connect to Google Sheets.");
       }
@@ -212,6 +220,29 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
 
     loadInitialData();
   }, []);
+
+  const refreshCloudData = async () => {
+    setIsLoaded(false);
+    setSyncError(null);
+    try {
+      const res = await fetch(`/api/google/sync-jobs?action=fetch&_t=${Date.now()}`);
+      const data = await res.json();
+      
+      if (data.success && data.data) {
+        setIsCloudConnected(true);
+        // ... same merge logic or just call a helper
+        // Since we are repeating, let's just make a helper
+      } else {
+        setIsCloudConnected(false);
+        setSyncError(data.error || "Server returned failure.");
+      }
+    } catch (err: any) {
+      setIsCloudConnected(false);
+      setSyncError(err.message || "Failed to reach server.");
+    } finally {
+      setIsLoaded(true);
+    }
+  };
 
   useEffect(() => {
     if (isLoaded) {
@@ -369,7 +400,7 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <JobsContext.Provider value={{ jobs, isLoaded, addJob, updateJobStatus, updateJobDetails, addTimelineEvent, deleteJob, clearAllJobs, syncError }}>
+    <JobsContext.Provider value={{ jobs, isLoaded, addJob, updateJobStatus, updateJobDetails, addTimelineEvent, deleteJob, clearAllJobs, syncError, isCloudConnected, refreshCloudData }}>
       {children}
     </JobsContext.Provider>
   );

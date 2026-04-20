@@ -101,13 +101,8 @@ export async function POST(req: Request) {
 
         if (validDocs.length > 0) {
           docDetail = validDocs.map((doc: any) => {
-            const url = doc.cloudUrl || doc.preview;
-            const fileName = (doc.name || 'Document').replace(/"/g, '""');
-            return `HYPERLINK("${url}", "VIEW ${fileName}")`;
-          }).join(" & CHAR(10) & ");
-          
-          // Google Sheets requires formula wrapping for dynamic joins
-          docDetail = `=${docDetail}`;
+            return doc.cloudUrl || doc.preview;
+          }).join(", ");
         } else {
           docDetail = d.documents.map((doc: any) => doc.name || 'Doc').join(", ");
         }
