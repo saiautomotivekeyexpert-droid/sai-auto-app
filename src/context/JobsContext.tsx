@@ -1,6 +1,4 @@
 "use client";
-// Deployment Trigger: Activation of 10MB+ Signaling Upload System
-
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 
@@ -48,176 +46,167 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
   const [isCloudConnected, setIsCloudConnected] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadInitialData = async () => {
-      setSyncError(null);
+  const parseCloudRows = (rows: any[]) => {
+    const cloudJobMap: Record<string, Job> = {};
+    rows.forEach((row: any[]) => {
+      const id = row[10];
+      if (!id) return;
+      const idUpper = id.toString().trim().toUpperCase();
+      if (!idUpper.startsWith("JOB-") && !idUpper.startsWith("QS-")) return;
       
-      // 1. Load from Local (Immediate UI response)
-      const localData = localStorage.getItem("sai_auto_jobs");
-      let localJobs: Job[] = [];
-      if (localData) {
+      const timeline = typeof row[19] === 'string' ? JSON.parse(row[19]) : {};
+      let estimateSnapshot: any = undefined;
+      let invoiceSnapshot: any = undefined;
+      if (row[20] && typeof row[20] === 'string' && row[20].startsWith('{')) {
         try {
-          localJobs = JSON.parse(localData);
-          setJobs(localJobs);
-        } catch (e) {
-          console.error("Local load failed:", e);
-        }
+          const parsed = JSON.parse(row[20]);
+          if (parsed.e !== undefined || parsed.i !== undefined) {
+            estimateSnapshot = parsed.e || undefined;
+            invoiceSnapshot = parsed.i || undefined;
+          } else {
+            invoiceSnapshot = parsed;
+          }
+        } catch(e) { /* ignore */ }
       }
-
-      // 2. Load from Cloud (Source of Truth)
-      try {
-        const res = await fetch(`/api/google/sync-jobs?action=fetch&_t=${Date.now()}`);
-        const data = await res.json();
-        
-        if (data.success && data.data && Array.isArray(data.data)) {
-          const rows = data.data[0]?.[0] === "NAME" ? data.data.slice(1) : data.data;
-
-          const cloudJobMap: Record<string, Job> = {};
-          rows.forEach((row: any[]) => {
-            const id = row[10];
-            if (!id) return;
-            const idUpper = id.toString().trim().toUpperCase();
-            if (!idUpper.startsWith("JOB-") && !idUpper.startsWith("QS-")) return;
-            
-            const timeline = typeof row[19] === 'string' ? JSON.parse(row[19]) : {};
-            let estimateSnapshot: any = undefined;
-            let invoiceSnapshot: any = undefined;
-            if (row[20] && typeof row[20] === 'string' && row[20].startsWith('{')) {
-              try {
-                const parsed = JSON.parse(row[20]);
-                if (parsed.e !== undefined || parsed.i !== undefined) {
-                  estimateSnapshot = parsed.e || undefined;
-                  invoiceSnapshot = parsed.i || undefined;
-                } else {
-                  invoiceSnapshot = parsed;
-                }
-              } catch(e) { /* ignore */ }
-            }
-            const createdAt = timeline.estimatedAt || Date.now();
-            
-            let particulars: any[] = [];
-            const rawParticulars = row[16];
-            if (rawParticulars && typeof rawParticulars === 'string') {
-                if (rawParticulars.startsWith('[') || rawParticulars.startsWith('{')) {
-                    try { 
-                        const parsed = JSON.parse(rawParticulars); 
-                        if (Array.isArray(parsed)) {
-                            particulars = parsed.map((p: any) => {
-                                if (typeof p === 'string') return { name: p, quantity: 1, selectedMarks: [] };
-                                const marks = Array.isArray(p.selectedMarks) ? p.selectedMarks : [];
-                                return { 
-                                    name: p.name || p, 
-                                    quantity: p.quantity || marks.length || 1, 
-                                    selectedMarks: marks 
-                                };
-                            });
-                        }
-                    } catch(e) { particulars = []; }
-                } else {
-                    particulars = rawParticulars.split(',').map(name => ({ name: name.trim(), quantity: 1 }));
-                }
-            }
-
-            cloudJobMap[idUpper] = {
-              id: idUpper,
-              customerName: row[0] || '',
-              vehicleNumber: row[5] || '',
-              serviceType: row[13] || '',
-              status: row[12] as any || 'Pending',
-              date: new Date(createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
-              createdAt: createdAt,
-              timeline: timeline,
-              details: {
-                fullName: row[0] || '',
-                address: row[1] || '',
-                phone: row[2] || '',
-                referenceName: row[3] || '',
-                complaintHistory: row[4] || '',
-                regNumber: row[5] || '',
-                brand: row[6] || '',
-                model: row[7] || '',
-                year: row[8] || '',
-                category: row[9] || '',
-                totalCharge: row[11] || 0,
-                serviceType: row[13] || '',
-                consentType: row[14] || '',
-                selectedSubCategories: (row[15] || '').toString().split(',').map((s: string) => s.trim()).filter(Boolean),
-                selectedItems: particulars,
-                particulars: particulars,
-                docsFolderLink: row[17] || '',
-                documents: (() => {
-                  const cellContent = (row[17] || '').toString();
-                  const docs: any[] = [];
-                  // Robust regex for: HYPERLINK("url", "name") or hyperlink('url', 'name')
-                  const regex = /HYPERLINK\s*\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)/gi;
-                  let match;
-                  while ((match = regex.exec(cellContent)) !== null) {
-                    let url = match[1];
-                    const name = match[2];
-                    const type = name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
-                    docs.push({ preview: url, name: name, type, synced: true });
-                  }
-                  
-                  // Fallback for flat text
-                  if (docs.length === 0 && cellContent && !cellContent.includes("HYPERLINK")) {
-                     cellContent.split(',').forEach((name: string) => {
-                        const trimmed = name.trim();
-                        if (trimmed) {
-                          let url = trimmed;
-                          const isUrl = url.startsWith('http') || url.includes('drive.google.com');
-                          
-                          if (isUrl && url.includes('drive.google.com') && (url.includes('/view') || url.includes('/preview'))) {
-                            url = url.replace(/\/(view|preview)(\?.*)?$/, '/view?usp=drivesdk');
-                          }
-
-                          docs.push({ 
-                            preview: isUrl ? url : undefined, 
-                            name: trimmed, 
-                            type: trimmed.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
-                            synced: isUrl
-                          });
-                        }
-                     });
-                  }
-                  return docs;
-                })(),
-                afterSales: row[18] || '',
-                timeline: timeline,
-                ...(invoiceSnapshot ? { invoiceSnapshot } : {}),
-                ...(estimateSnapshot ? { estimateSnapshot } : {})
-              },
-              isCloud: true
-            };
-          });
-
-          // MERGE LOGIC: Cloud is master for synced records. 
-          // Keep local-only (unsynced) jobs, but overwrite/remove synced jobs based on Cloud state.
-          setJobs(prev => {
-            const mergedMap: Record<string, Job> = {};
-            
-            // 1. Keep jobs that haven't been synced to cloud yet
-            prev.filter(j => !j.isCloud).forEach(j => {
-              mergedMap[j.id] = j;
-            });
-            
-            // 2. Add/Overwrite with current Cloud state (Cloud is the source of truth)
-            Object.keys(cloudJobMap).forEach(id => {
-              mergedMap[id] = cloudJobMap[id];
-            });
-            
-            return Object.values(mergedMap).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-          });
-          setIsCloudConnected(true);
-        }
-      } catch (err: any) {
-        setIsCloudConnected(false);
-        console.error("Cloud fetch failed:", err);
-        setSyncError(err.message || "Failed to connect to Google Sheets.");
-      }
+      const createdAt = timeline.estimatedAt || Date.now();
       
-      setIsLoaded(true);
-    };
+      let particulars: any[] = [];
+      const rawParticulars = row[16];
+      if (rawParticulars && typeof rawParticulars === 'string') {
+          if (rawParticulars.startsWith('[') || rawParticulars.startsWith('{')) {
+              try { 
+                  const parsed = JSON.parse(rawParticulars); 
+                  if (Array.isArray(parsed)) {
+                      particulars = parsed.map((p: any) => {
+                          if (typeof p === 'string') return { name: p, quantity: 1, selectedMarks: [] };
+                          const marks = Array.isArray(p.selectedMarks) ? p.selectedMarks : [];
+                          return { 
+                              name: p.name || p, 
+                              quantity: p.quantity || marks.length || 1, 
+                              selectedMarks: marks 
+                          };
+                      });
+                  }
+              } catch(e) { particulars = []; }
+          } else {
+              particulars = rawParticulars.split(',').map(name => ({ name: name.trim(), quantity: 1 }));
+          }
+      }
 
+      cloudJobMap[idUpper] = {
+        id: idUpper,
+        customerName: row[0] || '',
+        vehicleNumber: row[5] || '',
+        serviceType: row[13] || '',
+        status: row[12] as any || 'Pending',
+        date: new Date(createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
+        createdAt: createdAt,
+        timeline: timeline,
+        details: {
+          fullName: row[0] || '',
+          address: row[1] || '',
+          phone: row[2] || '',
+          referenceName: row[3] || '',
+          complaintHistory: row[4] || '',
+          regNumber: row[5] || '',
+          brand: row[6] || '',
+          model: row[7] || '',
+          year: row[8] || '',
+          category: row[9] || '',
+          totalCharge: row[11] || 0,
+          serviceType: row[13] || '',
+          consentType: row[14] || '',
+          selectedSubCategories: (row[15] || '').toString().split(',').map((s: string) => s.trim()).filter(Boolean),
+          selectedItems: particulars,
+          particulars: particulars,
+          docsFolderLink: row[17] || '',
+          documents: (() => {
+            const cellContent = (row[17] || '').toString();
+            const docs: any[] = [];
+            const regex = /HYPERLINK\s*\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)/gi;
+            let match;
+            while ((match = regex.exec(cellContent)) !== null) {
+              let url = match[1];
+              const name = match[2];
+              const type = name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+              docs.push({ preview: url, name: name, type, synced: true });
+            }
+            
+            if (docs.length === 0 && cellContent && !cellContent.includes("HYPERLINK")) {
+               cellContent.split(',').forEach((name: string) => {
+                  const trimmed = name.trim();
+                  if (trimmed) {
+                    let url = trimmed;
+                    const isUrl = url.startsWith('http') || url.includes('drive.google.com');
+                    if (isUrl && url.includes('drive.google.com') && (url.includes('/view') || url.includes('/preview'))) {
+                      url = url.replace(/\/(view|preview)(\?.*)?$/, '/view?usp=drivesdk');
+                    }
+                    docs.push({ 
+                      preview: isUrl ? url : undefined, 
+                      name: trimmed, 
+                      type: trimmed.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
+                      synced: isUrl
+                    });
+                  }
+               });
+            }
+            return docs;
+          })(),
+          afterSales: row[18] || '',
+          timeline: timeline,
+          ...(invoiceSnapshot ? { invoiceSnapshot } : {}),
+          ...(estimateSnapshot ? { estimateSnapshot } : {})
+        },
+        isCloud: true
+      };
+    });
+    return cloudJobMap;
+  };
+
+  const loadInitialData = async () => {
+    setSyncError(null);
+    
+    // 1. Load from Local (Immediate UI response)
+    const localData = localStorage.getItem("sai_auto_jobs");
+    let localJobs: Job[] = [];
+    if (localData) {
+      try {
+        localJobs = JSON.parse(localData);
+        setJobs(localJobs);
+      } catch (e) {
+        console.error("Local load failed:", e);
+      }
+    }
+
+    // 2. Load from Cloud (Source of Truth)
+    try {
+      const res = await fetch(`/api/google/sync-jobs?action=fetch&_t=${Date.now()}`);
+      const data = await res.json();
+      
+      if (data.success && data.data && Array.isArray(data.data)) {
+        const rows = data.data[0]?.[0] === "NAME" ? data.data.slice(1) : data.data;
+        const cloudJobMap = parseCloudRows(rows);
+
+        setJobs(prev => {
+          const mergedMap: Record<string, Job> = {};
+          // 1. Keep jobs that haven't been synced to cloud yet
+          prev.filter(j => !j.isCloud).forEach(j => { mergedMap[j.id] = j; });
+          // 2. Add/Overwrite with current Cloud state
+          Object.keys(cloudJobMap).forEach(id => { mergedMap[id] = cloudJobMap[id]; });
+          return Object.values(mergedMap).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        });
+        setIsCloudConnected(true);
+      }
+    } catch (err: any) {
+      setIsCloudConnected(false);
+      console.error("Cloud fetch failed:", err);
+      setSyncError(err.message || "Failed to connect to Google Sheets.");
+    }
+    
+    setIsLoaded(true);
+  };
+
+  useEffect(() => {
     loadInitialData();
   }, []);
 
@@ -230,8 +219,17 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
       
       if (data.success && data.data) {
         setIsCloudConnected(true);
-        // ... same merge logic or just call a helper
-        // Since we are repeating, let's just make a helper
+        const rows = data.data[0]?.[0] === "NAME" ? data.data.slice(1) : data.data;
+        const cloudJobMap = parseCloudRows(rows);
+
+        setJobs(prev => {
+          const mergedMap: Record<string, Job> = {};
+          // Keep local-only
+          prev.filter(j => !j.isCloud).forEach(j => { mergedMap[j.id] = j; });
+          // Overwrite with Cloud state
+          Object.keys(cloudJobMap).forEach(id => { mergedMap[id] = cloudJobMap[id]; });
+          return Object.values(mergedMap).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        });
       } else {
         setIsCloudConnected(false);
         setSyncError(data.error || "Server returned failure.");
@@ -294,55 +292,6 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
           vehicleNumber: updatedDetails.regNumber || j.vehicleNumber,
         };
         syncToCloud(updated);
-
-        // Trigger Ledger & Stock sync on completion
-        if (status === 'Completed') {
-          const d = updated.details || {};
-          const revenue = Number(d.totalCharge) || 0;
-          const items = d.particulars || d.selectedItems || [];
-          
-          // 1. Calculate Expenses accurately
-          const baseExp = items.reduce((s: number, p: any) => s + Number(p.expense || 0), 0);
-          const commExp = Number(d.commission) || 0;
-          const totalExp = baseExp + commExp;
-          const profit = revenue - totalExp;
-
-          // 2. Sync to Ledger
-          const ledgerRow = [
-            new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
-            updated.id,
-            updated.customerName,
-            updated.vehicleNumber,
-            revenue,
-            totalExp,
-            profit,
-            "Job Revenue"
-          ];
-
-          fetch('/api/google/sync-ledger', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ row: ledgerRow })
-          }).catch(err => console.error("Ledger sync failed:", err));
-
-          // 3. Ensure Inventory items are marked as USED
-          items.forEach((p: any) => {
-            if (p.selectedMarks && Array.isArray(p.selectedMarks)) {
-              p.selectedMarks.forEach((m: any) => {
-                fetch('/api/google/sync-stock', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ 
-                    action: 'consume', 
-                    itemId: m.itemId || m.id, 
-                    jobId: updated.id 
-                  })
-                }).catch(err => console.error("Inventory consume failed:", err));
-              });
-            }
-          });
-        }
-
         return updated;
       }
       return j;
@@ -378,16 +327,13 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
 
   const clearAllJobs = async () => {
     try {
-      // 1. Clear Server
       const res = await fetch('/api/google/sync-jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'clear' })
       });
       const data = await res.json();
-      
       if (data.success) {
-        // 2. Clear Local State
         setJobs([]);
         alert("All job data cleared successfully from Cloud.");
       } else {

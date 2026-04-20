@@ -153,20 +153,23 @@ function JobDetailPageContent() {
       const data = await res.json();
       
       if (data.success && data.webViewLink) {
+        // AUTO-SAVE to cloud immediately after successful upload
+        const currentDocs = [...(editData?.documents || job?.details?.documents || [])];
         const newDoc = { 
-          id: Math.random().toString(36).substring(7),
+          id: docId, 
           preview: data.webViewLink, 
-          name: file.name,
-          type: file.type,
+          name: file.name, 
+          type: file.type, 
           synced: true 
         };
         
-        // ADD TO EDIT DATA and REMOVE FROM LOCAL FILES to avoid duplicates
-        const currentDocs = [...(editData?.documents || job?.details?.documents || [])];
-        setEditData({ 
+        const finalDetails = { 
           ...(editData || job?.details || {}), 
           documents: [...currentDocs, newDoc] 
-        });
+        };
+        
+        updateJobDetails(job.id, finalDetails);
+        setEditData(finalDetails);
         
         setFiles(prev => ({
           ...prev,
