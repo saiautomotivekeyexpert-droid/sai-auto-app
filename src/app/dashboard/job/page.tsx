@@ -240,9 +240,34 @@ function JobDetailPageContent() {
     }
   }, [job?.id]);
 
-  const handleDeleteDocument = (idx: number) => {
+  const getFileIdFromUrl = (url: string) => {
+    if (!url) return null;
+    const match = url.match(/\/d\/([^/]+)/);
+    return match ? match[1] : null;
+  };
+
+  const handleDeleteDocument = async (idx: number) => {
     if (isReadOnly) return;
     const currentDocs = [...(editData?.documents || job?.details?.documents || [])];
+    const docToDelete = currentDocs[idx];
+    
+    // Cloud Deletion Trigger
+    if (docToDelete && (docToDelete.preview || docToDelete.cloudUrl)) {
+      const url = docToDelete.preview || docToDelete.cloudUrl || '';
+      const fileId = getFileIdFromUrl(url);
+      if (fileId && url.includes('drive.google.com')) {
+        try {
+          console.log(`[CLOUD DELETE] Requesting deletion of file ${fileId}`);
+          fetch('/api/google/delete-file', {
+            method: 'POST',
+            body: JSON.stringify({ fileId })
+          }).catch(e => console.error("Cloud file delete fetch failed:", e));
+        } catch (err) {
+          console.error("Failed to initiate cloud deletion:", err);
+        }
+      }
+    }
+
     const updatedDocs = currentDocs.filter((_: any, i: number) => i !== idx);
     setEditData({ ...(editData || job?.details || {}), documents: updatedDocs });
   };

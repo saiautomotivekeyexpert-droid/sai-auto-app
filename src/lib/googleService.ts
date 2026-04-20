@@ -231,6 +231,22 @@ export class GoogleService {
   }
 
   /**
+   * Deletes a file from Google Drive.
+   */
+  static async deleteFile(fileId: string) {
+    await this.init();
+    if (!this.drive) throw new Error("Drive API not initialized");
+
+    try {
+      await this.drive.files.delete({ fileId });
+      return { success: true };
+    } catch (error: any) {
+      console.error(`Failed to delete file ${fileId}:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Fetches all jobs from the Spreadsheet.
    */
   static async getJobs(spreadsheetId: string) {
