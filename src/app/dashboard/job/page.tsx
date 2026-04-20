@@ -168,7 +168,7 @@ function JobDetailPageContent() {
           documents: [...currentDocs, newDoc] 
         };
         
-        updateJobDetails(job.id, finalDetails);
+        updateJobDetails(id as string, finalDetails);
         setEditData(finalDetails);
         
         setFiles(prev => ({
