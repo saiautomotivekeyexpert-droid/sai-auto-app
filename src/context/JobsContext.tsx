@@ -181,6 +181,10 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
     // 2. Load from Cloud (Source of Truth)
     try {
       const res = await fetch(`/api/google/sync-jobs?action=fetch&_t=${Date.now()}`);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text.slice(0, 50)}...`);
+      }
       const data = await res.json();
       
       if (data.success && data.data && Array.isArray(data.data)) {
@@ -189,9 +193,7 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
 
         setJobs(prev => {
           const mergedMap: Record<string, Job> = {};
-          // 1. Keep jobs that haven't been synced to cloud yet
           prev.filter(j => !j.isCloud).forEach(j => { mergedMap[j.id] = j; });
-          // 2. Add/Overwrite with current Cloud state
           Object.keys(cloudJobMap).forEach(id => { mergedMap[id] = cloudJobMap[id]; });
           return Object.values(mergedMap).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         });
@@ -215,6 +217,10 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
     setSyncError(null);
     try {
       const res = await fetch(`/api/google/sync-jobs?action=fetch&_t=${Date.now()}`);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text.slice(0, 50)}...`);
+      }
       const data = await res.json();
       
       if (data.success && data.data) {
@@ -224,9 +230,7 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
 
         setJobs(prev => {
           const mergedMap: Record<string, Job> = {};
-          // Keep local-only
           prev.filter(j => !j.isCloud).forEach(j => { mergedMap[j.id] = j; });
-          // Overwrite with Cloud state
           Object.keys(cloudJobMap).forEach(id => { mergedMap[id] = cloudJobMap[id]; });
           return Object.values(mergedMap).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         });
