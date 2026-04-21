@@ -86,7 +86,7 @@ function InvoiceContent({ id }: { id: string }) {
 
   const realItemsTotal = currentParticulars.reduce((sum: number, p: any) => sum + (Number(p.cost || 0) * (p.quantity || 1)), 0);
   const manualItemsTotal = currentManualItems.reduce((sum: number, p: any) => sum + (Number(p.rate || 0) * (p.qty || 1)), 0);
-  const calculatedTotal = currentServiceCharge + manualItemsTotal + (isQuickService ? realItemsTotal : 0);
+  const calculatedTotal = manualItemsTotal + (isQuickService ? realItemsTotal : 0);
   const grandTotal = isCustomizing ? calculatedTotal : (Number(dTable.totalCharge) || calculatedTotal);
   
   const handleToggleStyle = (style: 'bold' | 'italic') => {
@@ -424,22 +424,7 @@ function InvoiceContent({ id }: { id: string }) {
             {(() => {
               let rows: React.ReactElement[] = [];
               let sno = 1;
-              // 1. Service Charge (Base Amount)
-              if (currentServiceCharge > 0) {
-                rows.push(
-                  <tr key="service-charge">
-                    <td className="center">{sno++}</td>
-                    <td colSpan={2}>
-                      <div style={{ fontWeight: 800 }}>{job.serviceType.toUpperCase()} (BASE SERVICE CHARGE)</div>
-                    </td>
-                    <td className="center">1</td>
-                    <td className="right">₹ {currentServiceCharge.toLocaleString("en-IN")}</td>
-                    <td className="right"><strong>₹ {currentServiceCharge.toLocaleString("en-IN")}</strong></td>
-                  </tr>
-                );
-              }
-
-              // 2. Particulars (Physical Items)
+              // 1. Particulars (Physical Items)
               const activeParticulars = isCustomizing ? tempParticulars : particulars;
               activeParticulars.forEach((p, idx) => {
                 const amount = (p.quantity || 1) * (Number(p.cost) || 0);
@@ -456,7 +441,7 @@ function InvoiceContent({ id }: { id: string }) {
                 );
               });
 
-              // 3. Manual Items
+              // 2. Manual Items
               const activeManual = isCustomizing ? tempManualItems : manualItems;
               activeManual.forEach((m, idx) => {
                 const amount = (m.qty || 1) * (m.rate || 0);
@@ -530,10 +515,10 @@ function InvoiceContent({ id }: { id: string }) {
                         `₹ ${Number(m.rate || 0).toLocaleString("en-IN")}`
                       )}
                     </td>
-                    <td className="right" style={{ position: 'relative' }}>
+                    <td className="right" style={{ position: 'relative', paddingRight: isCustomizing ? '40px' : '0.75rem' }}>
                       <strong>₹ {amount.toLocaleString("en-IN")}</strong>
                       {isCustomizing && (
-                         <div style={{ position: 'absolute', right: '-45px', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '4px' }}>
+                         <div style={{ position: 'absolute', right: '5px', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '4px' }}>
                            {idx < activeManual.length - 1 && (
                              <button onClick={() => handleMergeDown('m', idx)} title="Merge Down" style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}><ChevronDown size={14} /></button>
                            )}
