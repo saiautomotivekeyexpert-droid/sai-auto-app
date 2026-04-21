@@ -236,14 +236,6 @@ export default function Dashboard() {
                     <Link href={`/dashboard/job?id=${job.id}`} className="action-link">
                       Open
                     </Link>
-                    <button 
-                      className="action-link" 
-                      onClick={() => handleForceSync(job)}
-                      disabled={syncingId === job.id}
-                      style={{ background: 'var(--accent-primary)', color: 'white', border: 'none', cursor: 'pointer' }}
-                    >
-                      {syncingId === job.id ? 'Syncing...' : 'Force Sync'}
-                    </button>
                   </td>
                 </tr>
               ))}
