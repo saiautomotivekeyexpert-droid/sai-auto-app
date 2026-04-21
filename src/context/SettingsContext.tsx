@@ -142,6 +142,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     folderId: ""
   });
 
+  const [lastSyncHash, setLastSyncHash] = useState<string>("");
+  const generateHash = (data: any) => JSON.stringify(data);
+
   const [subCategories, setSubCategories] = useState<SubCategoryItem[]>(DEFAULT_SUB_CATEGORIES);
   const [estimateTerms, setEstimateTerms] = useState<string>(
     "I CONFIRM THAT ALL PROVIDED INFORMATION IS TRUE AND ACCURATE\nI AM THE LEGAL OWNER / AUTHORIZED USER OF THE VEHICLE\nI AUTHORIZE SAI AUTO KEY WORKS TO PROCEED WITH THE REQUESTED SERVICE"
@@ -341,8 +344,27 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         if (data.carModels2W && Object.keys(data.carModels2W).length > 0) setCarModels2W(data.carModels2W);
         if (data.carBrands4W && data.carBrands4W.length > 0) setCarBrands4W(data.carBrands4W);
         if (data.carModels4W && Object.keys(data.carModels4W).length > 0) setCarModels4W(data.carModels4W);
-        if (data.carBrandsCV && data.carBrandsCV.length > 0) setCarBrandsCV(data.carBrandsCV);
-        if (data.carModelsCV && Object.keys(data.carModelsCV).length > 0) setCarModelsCV(data.carModelsCV);
+        if (data.carBrandsCV) setCarBrandsCV(data.carBrandsCV);
+        if (data.carModelsCV) setCarModelsCV(data.carModelsCV);
+
+        // Capture hash of what we just loaded
+        const loadedHash = generateHash({
+          serviceTypes: data.serviceTypes || [], 
+          consentTypes: data.consentTypes || [], 
+          particulars: data.particulars || [], 
+          catalogCategories: data.catalogCategories || [], 
+          subCategories: data.subCategories || [], 
+          shopProfile: data.shopProfile || {},
+          partners: data.partners || [],
+          partnerPin: data.partnerPin || "",
+          carBrands2W: data.carBrands2W || [], 
+          carModels2W: data.carModels2W || {}, 
+          carBrands4W: data.carBrands4W || [], 
+          carModels4W: data.carModels4W || {},
+          carBrandsCV: data.carBrandsCV || [], 
+          carModelsCV: data.carModelsCV || {}
+        });
+        setLastSyncHash(loadedHash);
       }
 
       // 2. Pull Stock
@@ -559,17 +581,31 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isInitialized || !cloudLoaded) return;
     
+    // SAFETY: Calculate current state hash
+    const currentState = {
+      serviceTypes, consentTypes, particulars, inventorySeries: [], // Exclude inventory as it syncs separately
+      catalogCategories, shopProfile, partners, subCategories, partnerPin, 
+      carBrands2W, carModels2W, carBrands4W, carModels4W, carBrandsCV, carModelsCV
+    };
+    const currentHash = generateHash(currentState);
+
+    // If data hasn't actually changed since last sync/load, skip
+    if (currentHash === lastSyncHash) return;
+
     // SAFETY: If all key data is empty, don't auto-wipe the cloud
-    const hasData = serviceTypes.length > 0 || particulars.length > 0 || catalogCategories.length > 0 || inventorySeries.length > 0;
+    const hasData = serviceTypes.length > 0 || particulars.length > 0 || catalogCategories.length > 0;
     if (!hasData) return;
 
+    console.log("Change detected. Will sync in 5 seconds...");
     const timer = setTimeout(() => {
       syncToCloud();
-    }, 1000); 
+      setLastSyncHash(currentHash); 
+    }, 5000); 
     return () => clearTimeout(timer);
   }, [
-    serviceTypes, consentTypes, particulars, inventorySeries, catalogCategories, 
-    shopProfile, partners, subCategories, partnerPin, isInitialized, cloudLoaded
+    serviceTypes, consentTypes, particulars, catalogCategories, 
+    shopProfile, partners, subCategories, partnerPin, isInitialized, cloudLoaded,
+    carBrands2W, carModels2W, carBrands4W, carModels4W, carBrandsCV, carModelsCV
   ]);
 
   const addServiceType = (type: string) => setServiceTypes(prev => [...new Set([...prev, type.toUpperCase()])]);

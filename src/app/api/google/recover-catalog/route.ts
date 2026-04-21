@@ -22,13 +22,16 @@ export async function GET(req: Request) {
     const uniqueServiceTypes = new Set<string>();
     const uniqueSubCategories = new Set<string>();
 
-    // 2. Parse Rows
-    allRows.forEach((row: any[]) => {
+    // 2. Parse Rows (Skip header at Index 0)
+    allRows.slice(1).forEach((row: any[]) => {
       // E-KYC SERVICE at Index 13
       const serviceType = row[13];
       if (serviceType && typeof serviceType === 'string' && serviceType.trim()) {
         serviceType.split(',').forEach(s => {
-          if (s.trim()) uniqueServiceTypes.add(s.trim().toUpperCase());
+          const st = s.trim().toUpperCase();
+          if (st && st !== 'E-KYC SERVICE' && st !== 'SERVICE TYPE') {
+             uniqueServiceTypes.add(st);
+          }
         });
       }
 
@@ -36,14 +39,18 @@ export async function GET(req: Request) {
       const subCat = row[15];
       if (subCat && typeof subCat === 'string' && subCat.trim()) {
         subCat.split(',').forEach(s => {
-          if (s.trim()) uniqueSubCategories.add(s.trim());
+          const sc = s.trim();
+          if (sc && sc !== 'SUB-CATEGORIES' && sc !== 'SUB-CATEGORY') {
+            uniqueSubCategories.add(sc);
+          }
         });
       }
 
       // Consent Type at Index 14
       const consent = row[14];
       if (consent && typeof consent === 'string' && consent.trim()) {
-        uniqueConsents.add(consent.trim().toUpperCase());
+        const ct = consent.trim().toUpperCase();
+        if (ct && ct !== 'CONSENT TYPE') uniqueConsents.add(ct);
       }
 
       // Catalog items in index 16
@@ -55,10 +62,10 @@ export async function GET(req: Request) {
         if (Array.isArray(items)) {
           items.forEach((item: any) => {
             const name = typeof item === 'string' ? item : item.name;
-            if (!name) return;
+            if (!name || name === 'NAME' || name === 'JOB PARTICULARS') return;
 
             const nameKey = name.trim().toUpperCase();
-            if (item.category) uniqueCategories.add(item.category);
+            if (item.category && item.category !== 'CATEGORY') uniqueCategories.add(item.category);
             
             if (!uniqueProducts[nameKey]) {
               uniqueProducts[nameKey] = {
@@ -70,6 +77,7 @@ export async function GET(req: Request) {
                 isQuickService: item.isQuickService || false,
                 category: item.category || (item.isQuickService ? 'SERVICES' : 'RECOVERED')
               };
+              if (uniqueProducts[nameKey].category) uniqueCategories.add(uniqueProducts[nameKey].category);
             }
           });
         }
@@ -91,7 +99,7 @@ export async function GET(req: Request) {
       recoveredCategories,
       recoveredServiceTypes,
       recoveredSubCategories,
-      message: `Recovered ${recoveredList.length} items, ${recoveredCategories.length} categories, and ${recoveredServiceTypes.length} service types.`
+      message: `Recovered ${recoveredList.length} products.`
     });
   } catch (err: any) {
     console.error("Catalog Recovery Error:", err);
