@@ -54,7 +54,15 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
       const idUpper = id.toString().trim().toUpperCase();
       if (!idUpper.startsWith("JOB-") && !idUpper.startsWith("QS-")) return;
       
-      const timeline = typeof row[19] === 'string' ? JSON.parse(row[19]) : {};
+      let timeline: any = {};
+      try {
+        if (row[19] && typeof row[19] === 'string' && (row[19].startsWith('{') || row[19].startsWith('['))) {
+          timeline = JSON.parse(row[19]);
+        }
+      } catch (e) {
+        console.warn(`[SYNC-JOBS] Failed to parse timeline for ${idUpper}:`, e);
+      }
+      
       let estimateSnapshot: any = undefined;
       let invoiceSnapshot: any = undefined;
       if (row[20] && typeof row[20] === 'string' && row[20].startsWith('{')) {
@@ -72,7 +80,7 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
       
       let particulars: any[] = [];
       const rawParticulars = row[16];
-      if (rawParticulars && typeof rawParticulars === 'string') {
+      if (rawParticulars && typeof rawParticulars === 'string' && rawParticulars.trim() !== '') {
           if (rawParticulars.startsWith('[') || rawParticulars.startsWith('{')) {
               try { 
                   const parsed = JSON.parse(rawParticulars); 
