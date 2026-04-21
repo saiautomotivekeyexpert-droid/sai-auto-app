@@ -134,10 +134,11 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
           documents: (() => {
             const cellContent = (row[17] || '').toString();
             const docs: any[] = [];
+            // Regex to find all HYPERLINK("url", "name") occurrences
             const regex = /HYPERLINK\s*\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)/gi;
             let match;
             while ((match = regex.exec(cellContent)) !== null) {
-              let url = match[1];
+              const url = match[1];
               const name = match[2];
               const type = name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
               docs.push({ preview: url, name: name, type, synced: true });

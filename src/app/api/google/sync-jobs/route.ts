@@ -106,14 +106,27 @@ export async function POST(req: Request) {
         });
 
         if (validDocs.length > 0) {
-          docDetail = validDocs.map((doc: any) => {
-            return doc.cloudUrl || doc.preview;
-          }).join(", ");
+          // Construct a multi-link formula: =HYPERLINK("u1", "n1") & " , " & HYPERLINK("u2", "n2")
+          const hyperlinkFormulas = validDocs.map((doc: any, idx: number) => {
+            const url = doc.cloudUrl || doc.preview;
+            const name = doc.name || `Document ${idx + 1}`;
+            return `HYPERLINK("${url}", "${name.replace(/"/g, '""')}")`;
+          });
+          
+          if (hyperlinkFormulas.length === 1) {
+            docDetail = `=${hyperlinkFormulas[0]}`;
+          } else {
+            docDetail = `=${hyperlinkFormulas.join(' & " , " & ')}`;
+          }
         } else {
           docDetail = d.documents.map((doc: any) => doc.name || 'Doc').join(", ");
         }
       } else if (d.docsFolderLink) {
-        docDetail = d.docsFolderLink;
+        if (d.docsFolderLink.startsWith('http')) {
+          docDetail = `=HYPERLINK("${d.docsFolderLink}", "Folder Link")`;
+        } else {
+          docDetail = d.docsFolderLink;
+        }
       }
 
       console.log(`[CLOUD SYNC] Job ${j.id}: docDetail constructed as: ${docDetail}`);
