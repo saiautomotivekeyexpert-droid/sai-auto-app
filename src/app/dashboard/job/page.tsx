@@ -213,11 +213,16 @@ function JobDetailPageContent() {
   const job = jobs.find(j => j.id === id);
 
   const initialisedRef = useRef<string | null>(null);
+  const initialisedIsCloudRef = useRef<boolean>(false);
 
   // Initialise editData when job loads or edit mode begins
   useEffect(() => {
-    // Only initialise if we haven't for this job ID yet
-    if (job && initialisedRef.current !== job.id) {
+    // Initialise if:
+    // 1. We haven't initialised for this job ID yet
+    // 2. OR we initialised from a non-cloud (local) job and now have a cloud job
+    const needsInit = job && (initialisedRef.current !== job.id || (!initialisedIsCloudRef.current && job.isCloud));
+    
+    if (needsInit) {
       const details = { ...job.details };
       // Migration: Ensure particulars and selectedItems are aliased
       if (!details.particulars && details.selectedItems) {
@@ -240,8 +245,9 @@ function JobDetailPageContent() {
       setEditData(details);
       setManualItems(details.manualItems || []);
       initialisedRef.current = job.id;
+      initialisedIsCloudRef.current = !!job.isCloud;
     }
-  }, [job?.id]);
+  }, [job?.id, job?.isCloud]);
 
   const getFileIdFromUrl = (url: string) => {
     if (!url) return null;
@@ -294,7 +300,7 @@ function JobDetailPageContent() {
     );
   }
 
-  const d = editData || job.details || {};
+  const d = isReadOnly ? (job?.details || {}) : (editData || job?.details || {});
   const isEstimate = job.status === "Waiting Approval" || job.status === "Rejected";
 
   const customerName = d.fullName || job.customerName;

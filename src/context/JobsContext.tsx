@@ -78,7 +78,11 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
         } catch(e) { /* ignore */ }
       }
       // STABLE CREATED AT: fallback to 0 instead of Date.now() to prevent shuffle
-      const createdAt = timeline.estimatedAt || 0;
+      // STABLE CREATED AT: fallback to a value derived from ID to prevent shuffle
+      const createdAt = timeline.estimatedAt || timeline.createdAt || (() => {
+        const idNum = parseInt(idUpper.replace(/\D/g, '')) || 0;
+        return idNum > 0 ? idNum : (1000000 - index); // Fallback to reverse index if no ID number
+      })();
       
       let particulars: any[] = [];
       const rawParticulars = row[16];
