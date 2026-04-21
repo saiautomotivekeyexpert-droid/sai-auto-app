@@ -447,9 +447,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const recoverCatalogFromHistory = async () => {
+  const recoverCatalogFromHistory = async (silent = false) => {
     try {
-      setIsSyncing(true);
+      if (!silent) setIsSyncing(true);
       const res = await fetch('/api/google/recover-catalog');
       const { recovered, recoveredConsents, success } = await res.json();
       if (success) {
@@ -480,37 +480,41 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           msg += `Recovered ${recoveredConsents.length} consent types. `;
         }
 
-        if (msg) {
+        if (msg && !silent) {
           alert(`${msg}Please double check and click Save.`);
-        } else {
-          alert("No additional data found to recover.");
         }
-      } else {
+      } else if (!silent) {
         alert("Failed to recover data from history.");
       }
-      setIsSyncing(false);
+      if (!silent) setIsSyncing(false);
     } catch (err) {
       console.error("Recovery failed:", err);
-      setIsSyncing(false);
-      alert("Failed to recover catalog from history.");
+      if (!silent) {
+        setIsSyncing(false);
+        alert("Failed to recover catalog from history.");
+      }
     }
   };
+
+  // AUTOMATIC SELF-HEALING: If cloud loaded but catalog is empty, attempt recovery
+  useEffect(() => {
+    if (isInitialized && cloudLoaded && particulars.length === 0 && catalogCategories.length === 0) {
+       console.log("Empty catalog detected. Triggering silent recovery...");
+       recoverCatalogFromHistory(true);
+    }
+  }, [isInitialized, cloudLoaded, particulars.length, catalogCategories.length]);
 
   // Trigger auto-sync on any change (debounced)
   useEffect(() => {
     if (!isInitialized || !cloudLoaded) return;
     
     // SAFETY: If all key data is empty, don't auto-wipe the cloud
-    // This prevents wiping if the initial pull returned null but was marked successful
     const hasData = serviceTypes.length > 0 || particulars.length > 0 || catalogCategories.length > 0 || inventorySeries.length > 0;
-    if (!hasData) {
-       console.log("Skipping auto-sync: No data to sync (preventing accidental wipe)");
-       return;
-    }
+    if (!hasData) return;
 
     const timer = setTimeout(() => {
       syncToCloud();
-    }, 500); // Give it more time
+    }, 1000); 
     return () => clearTimeout(timer);
   }, [
     serviceTypes, consentTypes, particulars, inventorySeries, catalogCategories, 

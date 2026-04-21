@@ -239,14 +239,6 @@ export default function InventoryPage() {
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             {isSyncing && <div className="sync-spinner" style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><RefreshCcw size={12} className="spin" /> Syncing...</div>}
             {lastSyncTime && !isSyncing && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Last Sync: {lastSyncTime.toLocaleTimeString()}</div>}
-            <button 
-              className="secondary-btn small-btn" 
-              onClick={recoverCatalogFromHistory}
-              title="Reconstruct catalog from job history"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', color: 'var(--accent-primary)' }}
-            >
-               <RefreshCcw size={12} /> RECOVER CATALOG
-            </button>
           </div>
         </div>
       </div>
