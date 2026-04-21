@@ -163,6 +163,27 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
     return cloudJobMap;
   };
 
+  const safeFetch = async (url: string, options?: RequestInit) => {
+    const res = await fetch(url, options);
+    const contentType = res.headers.get("content-type");
+    
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`HTTP ${res.status}: ${text.slice(0, 50)}${text.length > 50 ? '...' : ''}`);
+    }
+
+    if (!contentType || !contentType.includes("application/json")) {
+      const text = await res.text();
+      console.error("Expected JSON but received:", text.slice(0, 100));
+      if (text.trim().startsWith("<!DOCTYPE") || text.trim().startsWith("<html")) {
+        throw new Error(`Server returned an HTML page instead of data. This usually happens when the server is down or redirected to a login page.`);
+      }
+      throw new Error(`Invalid response format: ${contentType || 'unknown'}`);
+    }
+
+    return res.json();
+  };
+
   const loadInitialData = async () => {
     setSyncError(null);
     
@@ -180,12 +201,7 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
 
     // 2. Load from Cloud (Source of Truth)
     try {
-      const res = await fetch(`/api/google/sync-jobs?action=fetch&_t=${Date.now()}`);
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`HTTP ${res.status}: ${text.slice(0, 50)}...`);
-      }
-      const data = await res.json();
+      const data = await safeFetch(`/api/google/sync-jobs?action=fetch&_t=${Date.now()}`);
       
       if (data.success && data.data && Array.isArray(data.data)) {
         const rows = data.data[0]?.[0] === "NAME" ? data.data.slice(1) : data.data;
@@ -216,12 +232,7 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
     setIsLoaded(false);
     setSyncError(null);
     try {
-      const res = await fetch(`/api/google/sync-jobs?action=fetch&_t=${Date.now()}`);
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`HTTP ${res.status}: ${text.slice(0, 50)}...`);
-      }
-      const data = await res.json();
+      const data = await safeFetch(`/api/google/sync-jobs?action=fetch&_t=${Date.now()}`);
       
       if (data.success && data.data) {
         setIsCloudConnected(true);

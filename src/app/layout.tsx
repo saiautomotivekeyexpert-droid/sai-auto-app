@@ -4,8 +4,8 @@ import "./globals.css";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { JobsProvider } from "@/context/JobsContext";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
+const fontInter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const fontOutfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 
 export const metadata: Metadata = {
   title: "SILCA Locksmith Record Book",
@@ -29,7 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${outfit.variable}`}>
+      <body className={`${fontInter.variable} ${fontOutfit.variable}`}>
         <SettingsProvider>
           <JobsProvider>
             {children}

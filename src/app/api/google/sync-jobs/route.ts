@@ -8,8 +8,11 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const action = searchParams.get('action');
     const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
+    
+    console.log(`[SYNC-JOBS] GET action=${action} SPREADSHEET_ID=${spreadsheetId ? 'Present' : 'MISSING'}`);
 
     if (!spreadsheetId || spreadsheetId === "your_spreadsheet_id_here") {
+      console.error("[SYNC-JOBS] GOOGLE_SPREADSHEET_ID is missing or not configured");
       return NextResponse.json({ 
         error: 'GOOGLE_SPREADSHEET_ID is missing or not configured correctly. Check your environment variables.',
         success: false 
@@ -17,12 +20,14 @@ export async function GET(req: Request) {
     }
 
     if (action === 'fetch') {
+      console.log(`[SYNC-JOBS] Fetching data from GoogleService.getJobs...`);
       const allRows = await GoogleService.getJobs(spreadsheetId);
       if (!allRows || !Array.isArray(allRows)) {
         console.warn("[SYNC-JOBS] No data returned from GoogleService.getJobs");
         return NextResponse.json({ success: true, data: [] });
       }
       
+      console.log(`[SYNC-JOBS] Successfully fetched ${allRows.length} rows. Filtering...`);
       // ABSOLUTE FILTER: Remove any system rows or settings rows
       // And ignore the header row if it's there
       const filteredData = allRows.filter((row: any[]) => {
@@ -41,12 +46,13 @@ export async function GET(req: Request) {
         }
       });
       
+      console.log(`[SYNC-JOBS] Returning ${filteredData.length} filtered jobs.`);
       return NextResponse.json({ success: true, data: filteredData });
     }
 
     return NextResponse.json({ error: 'Invalid action provided.' }, { status: 400 });
   } catch (error: any) {
-    console.error("Error in sync-jobs GET route:", error);
+    console.error("[SYNC-JOBS] Error in sync-jobs GET route:", error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }
