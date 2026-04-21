@@ -18,9 +18,28 @@ export async function GET(req: Request) {
 
     const uniqueProducts: Record<string, any> = {};
     const uniqueConsents = new Set<string>();
+    const uniqueCategories = new Set<string>();
+    const uniqueServiceTypes = new Set<string>();
+    const uniqueSubCategories = new Set<string>();
 
     // 2. Parse Rows
     allRows.forEach((row: any[]) => {
+      // E-KYC SERVICE at Index 13
+      const serviceType = row[13];
+      if (serviceType && typeof serviceType === 'string' && serviceType.trim()) {
+        serviceType.split(',').forEach(s => {
+          if (s.trim()) uniqueServiceTypes.add(s.trim().toUpperCase());
+        });
+      }
+
+      // SUB-CATEGORIES at Index 15
+      const subCat = row[15];
+      if (subCat && typeof subCat === 'string' && subCat.trim()) {
+        subCat.split(',').forEach(s => {
+          if (s.trim()) uniqueSubCategories.add(s.trim());
+        });
+      }
+
       // Consent Type at Index 14
       const consent = row[14];
       if (consent && typeof consent === 'string' && consent.trim()) {
@@ -39,6 +58,8 @@ export async function GET(req: Request) {
             if (!name) return;
 
             const nameKey = name.trim().toUpperCase();
+            if (item.category) uniqueCategories.add(item.category);
+            
             if (!uniqueProducts[nameKey]) {
               uniqueProducts[nameKey] = {
                 id: item.id || `rec_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
@@ -47,7 +68,7 @@ export async function GET(req: Request) {
                 partnerPrice: Number(item.partnerPrice) || 0,
                 expense: Number(item.expense) || 0,
                 isQuickService: item.isQuickService || false,
-                category: item.category || 'RECOVERED'
+                category: item.category || (item.isQuickService ? 'SERVICES' : 'RECOVERED')
               };
             }
           });
@@ -59,12 +80,18 @@ export async function GET(req: Request) {
 
     const recoveredList = Object.values(uniqueProducts);
     const recoveredConsents = Array.from(uniqueConsents);
+    const recoveredCategories = Array.from(uniqueCategories).map(cat => ({ name: cat, showInPOS: true }));
+    const recoveredServiceTypes = Array.from(uniqueServiceTypes);
+    const recoveredSubCategories = Array.from(uniqueSubCategories).map(sc => ({ id: `sc_${Math.random()}`, name: sc }));
 
     return NextResponse.json({ 
       success: true, 
       recovered: recoveredList,
       recoveredConsents,
-      message: `Identified ${recoveredList.length} products and ${recoveredConsents.length} consent types from job history.`
+      recoveredCategories,
+      recoveredServiceTypes,
+      recoveredSubCategories,
+      message: `Recovered ${recoveredList.length} items, ${recoveredCategories.length} categories, and ${recoveredServiceTypes.length} service types.`
     });
   } catch (err: any) {
     console.error("Catalog Recovery Error:", err);

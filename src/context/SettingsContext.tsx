@@ -451,9 +451,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     try {
       if (!silent) setIsSyncing(true);
       const res = await fetch('/api/google/recover-catalog');
-      const { recovered, recoveredConsents, success } = await res.json();
+      const { 
+        recovered, 
+        recoveredConsents, 
+        recoveredCategories, 
+        recoveredServiceTypes, 
+        recoveredSubCategories,
+        success 
+      } = await res.json();
+      
       if (success) {
         let msg = "";
+        
         if (recovered && recovered.length > 0) {
           setParticulars(prev => {
             const merged = [...prev];
@@ -464,9 +473,48 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             });
             return merged;
           });
-          msg += `Recovered ${recovered.length} items. `;
+          msg += `Products: ${recovered.length}. `;
         }
         
+        if (recoveredCategories && recoveredCategories.length > 0) {
+          setCatalogCategories(prev => {
+            const merged = [...prev];
+            recoveredCategories.forEach((cat: any) => {
+              if (!merged.some(existing => existing.name.trim().toUpperCase() === cat.name.trim().toUpperCase())) {
+                merged.push(cat);
+              }
+            });
+            return merged;
+          });
+          msg += `Categories: ${recoveredCategories.length}. `;
+        }
+
+        if (recoveredServiceTypes && recoveredServiceTypes.length > 0) {
+          setServiceTypes(prev => {
+            const merged = [...prev];
+            recoveredServiceTypes.forEach((st: string) => {
+              if (!merged.some(existing => existing.trim().toUpperCase() === st.trim().toUpperCase())) {
+                merged.push(st);
+              }
+            });
+            return merged;
+          });
+          msg += `Services: ${recoveredServiceTypes.length}. `;
+        }
+
+        if (recoveredSubCategories && recoveredSubCategories.length > 0) {
+          setSubCategories(prev => {
+            const merged = [...prev];
+            recoveredSubCategories.forEach((sc: any) => {
+              if (!merged.some(existing => existing.name.trim().toUpperCase() === sc.name.trim().toUpperCase())) {
+                merged.push(sc);
+              }
+            });
+            return merged;
+          });
+          msg += `Sub-cats: ${recoveredSubCategories.length}. `;
+        }
+
         if (recoveredConsents && recoveredConsents.length > 0) {
           setConsentTypes(prev => {
             const merged = [...prev];
@@ -477,32 +525,35 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             });
             return merged;
           });
-          msg += `Recovered ${recoveredConsents.length} consent types. `;
+          msg += `Consents: ${recoveredConsents.length}. `;
         }
 
         if (msg && !silent) {
-          alert(`${msg}Please double check and click Save.`);
+          alert(`${msg}Data restored from history. Please Save.`);
         }
       } else if (!silent) {
-        alert("Failed to recover data from history.");
+        alert("Failed to recover data.");
       }
       if (!silent) setIsSyncing(false);
     } catch (err) {
       console.error("Recovery failed:", err);
       if (!silent) {
         setIsSyncing(false);
-        alert("Failed to recover catalog from history.");
+        alert("Failed to recover data.");
       }
     }
   };
 
-  // AUTOMATIC SELF-HEALING: If cloud loaded but catalog is empty, attempt recovery
+  // AUTOMATIC SELF-HEALING: Trigger if key data is missing after load
   useEffect(() => {
-    if (isInitialized && cloudLoaded && particulars.length === 0 && catalogCategories.length === 0) {
-       console.log("Empty catalog detected. Triggering silent recovery...");
-       recoverCatalogFromHistory(true);
+    if (isInitialized && cloudLoaded) {
+       const needsRecovery = particulars.length === 0 || catalogCategories.length === 0 || serviceTypes.length === 0;
+       if (needsRecovery) {
+          console.log("Empty data segments detected. Triggering silent recovery...");
+          recoverCatalogFromHistory(true);
+       }
     }
-  }, [isInitialized, cloudLoaded, particulars.length, catalogCategories.length]);
+  }, [isInitialized, cloudLoaded, particulars.length, catalogCategories.length, serviceTypes.length]);
 
   // Trigger auto-sync on any change (debounced)
   useEffect(() => {
