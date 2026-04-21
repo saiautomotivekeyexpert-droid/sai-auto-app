@@ -133,35 +133,45 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
           docsFolderLink: row[17] || '',
           documents: (() => {
             const cellContent = (row[17] || '').toString();
+            if (!cellContent) return [];
+            
             const docs: any[] = [];
-            // Regex to find all HYPERLINK("url", "name") occurrences
+            const seenUrls = new Set<string>();
+
+            // 1. Try to find HYPERLINK formulas
             const regex = /HYPERLINK\s*\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)/gi;
             let match;
             while ((match = regex.exec(cellContent)) !== null) {
               const url = match[1];
               const name = match[2];
-              const type = name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
-              docs.push({ preview: url, name: name, type, synced: true });
+              if (!seenUrls.has(url)) {
+                 const type = name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+                 docs.push({ preview: url, name: name, type, synced: true });
+                 seenUrls.add(url);
+              }
             }
             
-            if (docs.length === 0 && cellContent && !cellContent.includes("HYPERLINK")) {
-               cellContent.split(',').forEach((name: string) => {
-                  const trimmed = name.trim();
-                  if (trimmed) {
-                    let url = trimmed;
-                    const isUrl = url.startsWith('http') || url.includes('drive.google.com');
-                    if (isUrl && url.includes('drive.google.com') && (url.includes('/view') || url.includes('/preview'))) {
-                      url = url.replace(/\/(view|preview)(\?.*)?$/, '/view?usp=drivesdk');
-                    }
-                    docs.push({ 
-                      preview: isUrl ? url : undefined, 
-                      name: trimmed, 
-                      type: trimmed.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
-                      synced: isUrl
-                    });
-                  }
-               });
-            }
+            // 2. Split by comma and find raw chunks that look like URLs
+            cellContent.split(',').forEach((chunk: string) => {
+               const trimmed = chunk.trim();
+               // Filter out segments that are part of a formula (already handled)
+               if (trimmed && !trimmed.includes('HYPERLINK(') && !trimmed.endsWith('")')) {
+                 let url = trimmed;
+                 const isUrl = url.startsWith('http') || url.includes('drive.google.com');
+                 if (isUrl && !seenUrls.has(url)) {
+                   if (url.includes('drive.google.com') && (url.includes('/view') || url.includes('/preview'))) {
+                     url = url.replace(/\/(view|preview)(\?.*)?$/, '/view?usp=drivesdk');
+                   }
+                   docs.push({ 
+                     preview: url, 
+                     name: 'Uploaded Document', 
+                     type: url.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
+                     synced: true
+                   });
+                   seenUrls.add(url);
+                 }
+               }
+            });
             return docs;
           })(),
           afterSales: row[18] || '',

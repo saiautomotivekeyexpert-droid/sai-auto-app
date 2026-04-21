@@ -97,7 +97,7 @@ export async function POST(req: Request) {
 
       const particularsJson = JSON.stringify(items);
 
-      // Format Documents as =HYPERLINK("url", "name") (Column R)
+      // Format Documents as raw URLs (Google Sheets renders them automatically)
       let docDetail = '';
       if (d.documents && Array.isArray(d.documents) && d.documents.length > 0) {
         const validDocs = d.documents.filter((doc: any) => {
@@ -106,27 +106,12 @@ export async function POST(req: Request) {
         });
 
         if (validDocs.length > 0) {
-          // Construct a multi-link formula: =HYPERLINK("u1", "n1") & " , " & HYPERLINK("u2", "n2")
-          const hyperlinkFormulas = validDocs.map((doc: any, idx: number) => {
-            const url = doc.cloudUrl || doc.preview;
-            const name = doc.name || `Document ${idx + 1}`;
-            return `HYPERLINK("${url}", "${name.replace(/"/g, '""')}")`;
-          });
-          
-          if (hyperlinkFormulas.length === 1) {
-            docDetail = `=${hyperlinkFormulas[0]}`;
-          } else {
-            docDetail = `=${hyperlinkFormulas.join(' & " , " & ')}`;
-          }
+          docDetail = validDocs.map((doc: any) => doc.cloudUrl || doc.preview).join(", ");
         } else {
           docDetail = d.documents.map((doc: any) => doc.name || 'Doc').join(", ");
         }
       } else if (d.docsFolderLink) {
-        if (d.docsFolderLink.startsWith('http')) {
-          docDetail = `=HYPERLINK("${d.docsFolderLink}", "Folder Link")`;
-        } else {
-          docDetail = d.docsFolderLink;
-        }
+        docDetail = d.docsFolderLink;
       }
 
       console.log(`[CLOUD SYNC] Job ${j.id}: docDetail constructed as: ${docDetail}`);
