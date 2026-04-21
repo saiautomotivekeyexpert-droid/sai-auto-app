@@ -424,10 +424,39 @@ function InvoiceContent({ id }: { id: string }) {
             {(() => {
               let rows: React.ReactElement[] = [];
               let sno = 1;
+              // 1. Service Charge (Base Amount)
+              if (currentServiceCharge > 0) {
+                rows.push(
+                  <tr key="service-charge">
+                    <td className="center">{sno++}</td>
+                    <td colSpan={2}>
+                      <div style={{ fontWeight: 800 }}>{job.serviceType.toUpperCase()} (BASE SERVICE CHARGE)</div>
+                    </td>
+                    <td className="center">1</td>
+                    <td className="right">₹ {currentServiceCharge.toLocaleString("en-IN")}</td>
+                    <td className="right"><strong>₹ {currentServiceCharge.toLocaleString("en-IN")}</strong></td>
+                  </tr>
+                );
+              }
 
+              // 2. Particulars (Physical Items)
+              const activeParticulars = isCustomizing ? tempParticulars : particulars;
+              activeParticulars.forEach((p, idx) => {
+                const amount = (p.quantity || 1) * (Number(p.cost) || 0);
+                if (amount === 0 && !isCustomizing) return; 
+                rows.push(
+                  <tr key={`p-${idx}`}>
+                    <td className="center">{sno++}</td>
+                    <td><div style={{ fontSize: '0.85rem', color: '#1e3a8a', fontWeight: 900 }}>PART / MATERIAL</div></td>
+                    <td><strong>{(p.name || "-").toUpperCase()}</strong></td>
+                    <td className="center">{p.quantity || 1}</td>
+                    <td className="right">₹ {Number(p.cost || 0).toLocaleString("en-IN")}</td>
+                    <td className="right"><strong>₹ {amount.toLocaleString("en-IN")}</strong></td>
+                  </tr>
+                );
+              });
 
-
-              // 2. Manual Items
+              // 3. Manual Items
               const activeManual = isCustomizing ? tempManualItems : manualItems;
               activeManual.forEach((m, idx) => {
                 const amount = (m.qty || 1) * (m.rate || 0);
