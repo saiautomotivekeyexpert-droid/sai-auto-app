@@ -566,16 +566,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // AUTOMATIC SELF-HEALING: Trigger if key data is missing after load
-  useEffect(() => {
-    if (isInitialized && cloudLoaded) {
-       const needsRecovery = particulars.length === 0 || catalogCategories.length === 0 || serviceTypes.length === 0;
-       if (needsRecovery) {
-          console.log("Empty data segments detected. Triggering silent recovery...");
-          recoverCatalogFromHistory(true);
-       }
-    }
-  }, [isInitialized, cloudLoaded, particulars.length, catalogCategories.length, serviceTypes.length]);
+  // Removed AUTOMATIC SELF-HEALING: It was triggering too early and causing destructive overwrites.
+  // The user should now see their restored sheet data after refreshing.
 
   // Trigger auto-sync on any change (debounced)
   useEffect(() => {
@@ -583,7 +575,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     
     // SAFETY: Calculate current state hash
     const currentState = {
-      serviceTypes, consentTypes, particulars, inventorySeries: [], // Exclude inventory as it syncs separately
+      serviceTypes, consentTypes, particulars, inventorySeries: [], 
       catalogCategories, shopProfile, partners, subCategories, partnerPin, 
       carBrands2W, carModels2W, carBrands4W, carModels4W, carBrandsCV, carModelsCV
     };
@@ -596,11 +588,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     const hasData = serviceTypes.length > 0 || particulars.length > 0 || catalogCategories.length > 0;
     if (!hasData) return;
 
-    console.log("Change detected. Will sync in 5 seconds...");
+    console.log("Manual change detected. Will sync in 10 seconds...");
     const timer = setTimeout(() => {
       syncToCloud();
       setLastSyncHash(currentHash); 
-    }, 5000); 
+    }, 10000); // 10 seconds debounce to be extra safe
     return () => clearTimeout(timer);
   }, [
     serviceTypes, consentTypes, particulars, catalogCategories, 
