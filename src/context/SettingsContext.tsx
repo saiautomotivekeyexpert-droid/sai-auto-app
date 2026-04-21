@@ -267,7 +267,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         const success = await pullFromCloud(config.spreadsheetId);
         if (success) {
           setIsInitialized(true);
-          setCloudLoaded(true);
         }
       } catch (err) {
         console.error("Initialization failed:", err);
@@ -353,6 +352,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         setInventorySeries(unflattenInventory(stockData));
       }
 
+      setCloudLoaded(true);
       return true;
     } catch (err) {
       console.error("Cloud pull failed:", err);
@@ -499,9 +499,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // Trigger auto-sync on any change (debounced)
   useEffect(() => {
     if (!isInitialized || !cloudLoaded) return;
+    
+    // SAFETY: If all key data is empty, don't auto-wipe the cloud
+    // This prevents wiping if the initial pull returned null but was marked successful
+    const hasData = serviceTypes.length > 0 || particulars.length > 0 || catalogCategories.length > 0 || inventorySeries.length > 0;
+    if (!hasData) {
+       console.log("Skipping auto-sync: No data to sync (preventing accidental wipe)");
+       return;
+    }
+
     const timer = setTimeout(() => {
       syncToCloud();
-    }, 100); 
+    }, 500); // Give it more time
     return () => clearTimeout(timer);
   }, [
     serviceTypes, consentTypes, particulars, inventorySeries, catalogCategories, 

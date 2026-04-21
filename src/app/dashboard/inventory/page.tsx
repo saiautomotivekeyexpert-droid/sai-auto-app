@@ -231,10 +231,22 @@ export default function InventoryPage() {
   return (
     <div className="inventory-page-container">
       <div className="inventory-header">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h1 className="text-gradient">Manage Stock & Item Catalog</h1>
             <p className="text-muted">Manage stock, track purchase history and assign raw IDs</p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            {isSyncing && <div className="sync-spinner" style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><RefreshCcw size={12} className="spin" /> Syncing...</div>}
+            {lastSyncTime && !isSyncing && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Last Sync: {lastSyncTime.toLocaleTimeString()}</div>}
+            <button 
+              className="secondary-btn small-btn" 
+              onClick={recoverCatalogFromHistory}
+              title="Reconstruct catalog from job history"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', color: 'var(--accent-primary)' }}
+            >
+               <RefreshCcw size={12} /> RECOVER CATALOG
+            </button>
           </div>
         </div>
       </div>
