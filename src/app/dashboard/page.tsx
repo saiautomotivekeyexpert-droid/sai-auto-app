@@ -69,8 +69,14 @@ export default function Dashboard() {
   ];
 
   const filteredJobs = useMemo(() => {
-    let filtered = jobs
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    let filtered = [...jobs] // Create a copy to avoid mutating the original
+      .sort((a, b) => {
+        // 1. Sort by createdAt (latest first)
+        const timeDiff = (b.createdAt || 0) - (a.createdAt || 0);
+        if (timeDiff !== 0) return timeDiff;
+        // 2. Tie-breaker: Use sheetIndex (higher index = further down in sheet, usually newer)
+        return (b.sheetIndex ?? 0) - (a.sheetIndex ?? 0);
+      });
     
     if (activeTab !== "All") {
       filtered = filtered.filter(j => j.status === activeTab);

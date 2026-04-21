@@ -22,6 +22,7 @@ export interface Job {
   details: any;
   timeline: JobTimeline;
   isCloud?: boolean;
+  sheetIndex?: number;
 }
 
 interface JobsContextType {
@@ -48,7 +49,7 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
 
   const parseCloudRows = (rows: any[]) => {
     const cloudJobMap: Record<string, Job> = {};
-    rows.forEach((row: any[]) => {
+    rows.forEach((row: any[], index: number) => {
       const id = row[10];
       if (!id) return;
       const idUpper = id.toString().trim().toUpperCase();
@@ -76,7 +77,8 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
           }
         } catch(e) { /* ignore */ }
       }
-      const createdAt = timeline.estimatedAt || Date.now();
+      // STABLE CREATED AT: fallback to 0 instead of Date.now() to prevent shuffle
+      const createdAt = timeline.estimatedAt || 0;
       
       let particulars: any[] = [];
       const rawParticulars = row[16];
@@ -107,8 +109,9 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
         vehicleNumber: row[5] || '',
         serviceType: row[13] || '',
         status: row[12] as any || 'Pending',
-        date: new Date(createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
+        date: row[23] || new Date(createdAt || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
         createdAt: createdAt,
+        sheetIndex: index, // Preserve Sheet Order
         timeline: timeline,
         details: {
           fullName: row[0] || '',
@@ -338,10 +341,21 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addTimelineEvent = (id: string, event: keyof JobTimeline) => {
-    setJobs(prev => prev.map(j => j.id === id
-      ? { ...j, timeline: { ...j.timeline, [event]: Date.now() } }
-      : j
-    ));
+    setJobs(prev => {
+      const updated = prev.map(j => {
+        if (j.id === id) {
+          const updatedJob = { 
+            ...j, 
+            timeline: { ...j.timeline, [event]: Date.now() } 
+          };
+          // Sync timeline event to cloud immediately
+          syncToCloud(updatedJob);
+          return updatedJob;
+        }
+        return j;
+      });
+      return updated;
+    });
   };
 
   const deleteJob = (id: string) => {
